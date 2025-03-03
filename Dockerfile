@@ -14,10 +14,10 @@ RUN mvn clean package -DskipTests
 FROM openjdk:21-jdk-slim
 
 # Copy the JAR file from the build stage
-COPY --from=build /app/target/shahbaztrades-1.0.jar /app.jar
+COPY --from=build /app/target/shahbaztrades-1.0.war /app.war
 
 # Expose the port the app will run on
 EXPOSE 8080
 
 # Run the application
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+ENTRYPOINT ["java", "-jar", "/app.war"]
