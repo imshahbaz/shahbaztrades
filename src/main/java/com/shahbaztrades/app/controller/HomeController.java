@@ -1,16 +1,14 @@
 package com.shahbaztrades.app.controller;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.bind.annotation.RestController;
 
-@Controller
+@RestController
 public class HomeController {
 
-    @GetMapping({"/", "/home"})
-    public ModelAndView showLoginPage(){
-        ModelAndView view =  new ModelAndView("home/home");
-        view.addObject("name","Shahbaz Trades");
-        return view;
+    @GetMapping({ "/" })
+    public String showLoginPage() {
+        return "Hello";
     }
+
 }
