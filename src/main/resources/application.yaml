@@ -17,3 +17,11 @@ app:
 server:
   port: ${PORT:8080}
   address: 0.0.0.0
+  servlet:
+    context-path: /
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
