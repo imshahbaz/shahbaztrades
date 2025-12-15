@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: trades
+  data:
+    mongodb:
+      uri: mongodb+srv://shahbazahmed2196:S%4040s211828@jaguartrading.ptkr6fq.mongodb.net/ShahbazTrades?retryWrites=true&w=majority&appName=JaguarTrading
+  mvc:
+    view:
+      prefix: /WEB-INF/jsp/
+      suffix: .jsp
+  margin:
+    leverage: 4
+
+app:
+  theme: dark
