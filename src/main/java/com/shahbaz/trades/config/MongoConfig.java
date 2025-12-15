@@ -25,11 +25,19 @@ public class MongoConfig extends AbstractMongoClientConfiguration {
     }
 
     @NonNull
+    @org.springframework.beans.factory.annotation.Value("${MONGO_PASSWORD}")
+    private String mongoPassword;
+
+    @NonNull
+    @org.springframework.beans.factory.annotation.Value("${MONGO_USER}")
+    private String mongoUser;
+
+    @NonNull
     @Override
     public MongoClient mongoClient() {
         String rawString = "mongodb+srv://%s:%s@jaguartrading.ptkr6fq.mongodb.net/ShahbazTrades";
         ConnectionString connectionString = new ConnectionString(
-                String.format(rawString, "shahbazahmed2196", "S%40s211828"));
+                String.format(rawString, mongoUser, mongoPassword));
         MongoClientSettings mongoClientSettings = MongoClientSettings.builder()
                 .applyConnectionString(connectionString)
                 .build();
