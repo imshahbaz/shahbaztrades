@@ -14,17 +14,30 @@
 #
 #ENTRYPOINT ["java", "-jar", "/app.jar"]
 
-# Use official Tomcat 10 image with JDK 21
+# ===== BUILD STAGE =====
+FROM maven:3.9.8-eclipse-temurin-21 AS build
+
+# Set working directory
+WORKDIR /app
+
+# Copy all source files
+COPY . .
+
+# Build the WAR inside Docker
+RUN mvn clean package -DskipTests
+
+# ===== RUNTIME STAGE =====
 FROM tomcat:10-jdk21
 
-# Remove default webapps to avoid conflicts
+# Remove default webapps
 RUN rm -rf /usr/local/tomcat/webapps/*
 
-# Copy your WAR file built by Maven to ROOT.war so it serves at /
-COPY target/*.war /usr/local/tomcat/webapps/ROOT.war
+# Copy WAR from build stage as ROOT.war
+COPY --from=build /app/target/*.war /usr/local/tomcat/webapps/ROOT.war
 
-# Expose Tomcat default port
+# Expose port
 EXPOSE 8080
 
 # Start Tomcat
 CMD ["catalina.sh", "run"]
+
