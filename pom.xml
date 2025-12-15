@@ -8,6 +8,7 @@
         <version>4.0.0</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
+    <packaging>war</packaging>
     <groupId>com.shahbaz</groupId>
     <artifactId>trades</artifactId>
     <version>0.0.1-SNAPSHOT</version>
