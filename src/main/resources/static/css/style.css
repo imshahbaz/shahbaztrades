@@ -1,0 +1,645 @@
+/* Theme variables for dark/light mode support */
+:root {
+    /* Light Theme - Base Colors (Soft & Readable) */
+    --background-color: #F6F7F9;
+    --section-bg: #EEF2F6;
+    --card-bg: #FFFFFF;
+    
+    /* Text Colors */
+    --text-color: #1E293B;
+    --text-secondary: #475569;
+    --text-muted: #64748B;
+    
+    /* Borders */
+    --border-color: #D8DEE6;
+    
+    /* Primary Accent */
+    --primary-color: #2563EB;
+    --primary-hover: #1D4ED8;
+    --primary-disabled: #93C5FD;
+    
+    /* Semantic Colors */
+    --success-color: #15803D;
+    --error-color: #B91C1C;
+    --warning-color: #B45309;
+    --info-color: #0284C7;
+    
+    /* Table Colors */
+    --table-header-bg: #E9EEF4;
+    --table-header-text: #475569;
+    --table-row-bg: #FFFFFF;
+    --table-alt-row-bg: #F6F7F9;
+    --table-hover-bg: #E8EEFF;
+    --table-border: #D8DEE6;
+    
+    /* Navigation */
+    --nav-bg: #EEF2F6;
+    --nav-text: #475569;
+    --nav-hover: #1E293B;
+    
+    /* Forms */
+    --input-bg: #FFFFFF;
+    --input-text: #1E293B;
+    --input-placeholder: #94A3B8;
+    --input-border: #CBD5E1;
+    --input-focus-border: #2563EB;
+    
+    /* Charts */
+    --chart-grid: #D8DEE6;
+    --chart-axis-text: #475569;
+    --bullish-color: #15803D;
+    --bearish-color: #B91C1C;
+    --volume-color: #0284C7;
+}
+
+.dark {
+    /* Dark Theme - Base Colors */
+    --background-color: #0F172A;
+    --section-bg: #020617;
+    --card-bg: #111827;
+    
+    /* Text Colors */
+    --text-color: #E5E7EB;
+    --text-secondary: #9CA3AF;
+    --text-muted: #64748B;
+    
+    /* Borders */
+    --border-color: #1F2937;
+    
+    /* Primary Accent */
+    --primary-color: #3B82F6;
+    --primary-hover: #2563EB;
+    --primary-disabled: #1E40AF;
+    
+    /* Semantic Colors */
+    --success-color: #22C55E;
+    --error-color: #EF4444;
+    --warning-color: #FBBF24;
+    --info-color: #38BDF8;
+    
+    /* Table Colors */
+    --table-header-bg: #020617;
+    --table-header-text: #9CA3AF;
+    --table-row-bg: #0F172A;
+    --table-alt-row-bg: #111827;
+    --table-hover-bg: #1E293B;
+    --table-border: #1F2937;
+    
+    /* Navigation */
+    --nav-bg: #020617;
+    --nav-text: #9CA3AF;
+    --nav-hover: #E5E7EB;
+    
+    /* Forms */
+    --input-bg: #020617;
+    --input-text: #E5E7EB;
+    --input-placeholder: #64748B;
+    --input-border: #1F2937;
+    --input-focus-border: #3B82F6;
+    
+    /* Charts */
+    --chart-grid: #1F2937;
+    --chart-axis-text: #9CA3AF;
+    --bullish-color: #22C55E;
+    --bearish-color: #EF4444;
+    --volume-color: #38BDF8;
+}
+
+/* Apply theme colors to body */
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
+/* Apply theme to header and footer */
+header {
+    background-color: var(--card-bg) !important;
+}
+
+footer {
+    background-color: var(--card-bg) !important;
+}
+
+/* Dark theme specific overrides */
+.dark .navbar {
+    background-color: #020617 !important;
+}
+
+.dark .navbar-brand {
+    color: var(--nav-text) !important;
+}
+
+.dark .navbar-brand:hover {
+    color: var(--nav-hover) !important;
+}
+
+.dark .card {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color);
+}
+
+/* Table styling for light theme */
+.table,
+.table * {
+    border: none !important;
+}
+
+.table {
+    background-color: #FFFFFF !important;
+    border-color: transparent !important;
+    color: #1F2937 !important;
+}
+
+.table > tbody,
+.table > thead {
+    border: none !important;
+}
+
+.table > tbody > tr {
+    background-color: #FFFFFF !important;
+    border: none !important;
+}
+
+.table > tbody > tr > td {
+    background-color: #FFFFFF !important;
+    border: none !important;
+    color: #1F2937 !important;
+}
+
+.table > thead > tr > th {
+    border: none !important;
+    color: #6B7280 !important;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: #F9FAFB !important;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: #F9FAFB !important;
+}
+
+.table-hover > tbody > tr:hover {
+    background-color: #EEF2FF !important;
+}
+
+.table-hover > tbody > tr:hover > td {
+    background-color: #EEF2FF !important;
+}
+
+.table-bordered,
+.table-bordered > thead > tr > th,
+.table-bordered > tbody > tr > td {
+    border-color: transparent !important;
+    border: none !important;
+}
+
+.table > thead,
+.table > thead > tr,
+.table > thead > tr > th {
+    background-color: #F3F4F6 !important;
+    color: #6B7280 !important;
+    border-color: transparent !important;
+    border: none !important;
+}
+
+/* Utility classes for light theme */
+.text-success {
+    color: #15803D !important;
+}
+
+.text-danger {
+    color: #B91C1C !important;
+}
+
+.text-secondary {
+    color: #475569 !important;
+}
+
+.text-muted {
+    color: #64748B !important;
+}
+
+.text-warning {
+    color: #B45309 !important;
+}
+
+.text-info {
+    color: #0284C7 !important;
+}
+
+/* Light theme button styles */
+.btn-secondary {
+    background-color: #F6F7F9 !important;
+    color: #1E293B !important;
+    border: 1px solid #D8DEE6 !important;
+    border-radius: 12px !important;
+}
+
+.btn-secondary:hover {
+    background-color: #E9EEF4 !important;
+}
+
+/* Light theme card shadows */
+.card {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08) !important;
+    border-radius: 16px !important;
+}
+
+/* Light theme alert styles */
+.alert-success {
+    background-color: rgba(21, 128, 61, 0.12) !important;
+    color: #15803D !important;
+    border: none !important;
+    border-radius: 12px !important;
+}
+
+.alert-danger {
+    background-color: rgba(185, 28, 28, 0.12) !important;
+    color: #B91C1C !important;
+    border: none !important;
+    border-radius: 12px !important;
+}
+
+.alert-warning {
+    background-color: rgba(180, 83, 9, 0.12) !important;
+    color: #B45309 !important;
+    border: none !important;
+    border-radius: 12px !important;
+}
+
+/* Light theme form inputs */
+input,
+textarea,
+select {
+    background-color: #FFFFFF !important;
+    color: #1E293B !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 12px !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #94A3B8 !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: #2563EB !important;
+    outline: none !important;
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+    background-color: #EEF2F6 !important;
+    color: #94A3B8 !important;
+}
+
+/* Light theme navigation */
+.navbar {
+    background-color: #EEF2F6 !important;
+}
+
+.navbar-brand {
+    color: var(--nav-text) !important;
+}
+
+.navbar-brand:hover {
+    color: var(--nav-hover) !important;
+}
+
+/* Active/Selected Row */
+.table > tbody > tr.active {
+    background-color: rgba(37, 99, 235, 0.1) !important;
+}
+
+.table > tbody > tr.active > td {
+    background-color: rgba(37, 99, 235, 0.1) !important;
+}
+
+/* Table styling for dark theme */
+.dark .table,
+.dark .table * {
+    border: none !important;
+}
+
+.dark .table {
+    color: #E5E7EB !important;
+    background-color: #0F172A !important;
+    border-color: transparent !important;
+}
+
+.dark .table > tbody,
+.dark .table > thead {
+    border: none !important;
+}
+
+.dark .table > tbody > tr {
+    background-color: #0F172A !important;
+    border: none !important;
+}
+
+.dark .table > tbody > tr > td {
+    background-color: #0F172A !important;
+    color: #E5E7EB !important;
+    border: none !important;
+}
+
+.dark .table > thead > tr > th {
+    border: none !important;
+    color: #9CA3AF !important;
+}
+
+.dark .table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: #111827 !important;
+}
+
+.dark .table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: #111827 !important;
+}
+
+.dark .table-hover > tbody > tr:hover {
+    background-color: #1E293B !important;
+    color: #E5E7EB !important;
+}
+
+.dark .table-hover > tbody > tr:hover > td {
+    background-color: #1E293B !important;
+}
+
+.dark .table-bordered,
+.dark .table-bordered > thead > tr > th,
+.dark .table-bordered > tbody > tr > td {
+    border-color: transparent !important;
+    border: none !important;
+}
+
+.dark .table > thead,
+.dark .table > thead > tr,
+.dark .table > thead > tr > th {
+    background-color: #020617 !important;
+    color: #9CA3AF !important;
+    border-color: transparent !important;
+    border: none !important;
+}
+
+.dark .bg-primary,
+.dark .table-primary,
+.dark thead.bg-primary,
+.dark thead.table-primary {
+    background-color: #020617 !important;
+    color: #9CA3AF !important;
+}
+
+/* Utility classes for dark theme */
+.dark .text-success {
+    color: #22C55E !important;
+}
+
+.dark .text-danger {
+    color: #EF4444 !important;
+}
+
+.dark .text-secondary {
+    color: #9CA3AF !important;
+}
+
+.dark .text-muted {
+    color: #64748B !important;
+}
+
+.dark .text-warning {
+    color: #FBBF24 !important;
+}
+
+.dark .text-info {
+    color: #38BDF8 !important;
+}
+
+/* Button Styles */
+.btn-primary {
+    background-color: var(--primary-color) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 12px !important;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover) !important;
+}
+
+.dark .btn-secondary {
+    background-color: #111827 !important;
+    color: #E5E7EB !important;
+    border: 1px solid #1F2937 !important;
+    border-radius: 12px !important;
+}
+
+.dark .btn-secondary:hover {
+    background-color: #1E293B !important;
+}
+
+.btn-danger {
+    background-color: var(--error-color) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 12px !important;
+}
+
+.btn-danger:hover {
+    background-color: #DC2626 !important;
+}
+
+/* Card Shadows */
+.dark .card {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35) !important;
+    border-radius: 16px !important;
+}
+
+/* Alert Styles */
+.dark .alert-success {
+    background-color: rgba(34, 197, 94, 0.15) !important;
+    color: #22C55E !important;
+    border: none !important;
+    border-radius: 12px !important;
+}
+
+.dark .alert-danger {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+    color: #EF4444 !important;
+    border: none !important;
+    border-radius: 12px !important;
+}
+
+.dark .alert-warning {
+    background-color: rgba(251, 191, 36, 0.15) !important;
+    color: #FBBF24 !important;
+    border: none !important;
+    border-radius: 12px !important;
+}
+
+/* Form Inputs */
+.dark input,
+.dark textarea,
+.dark select {
+    background-color: #020617 !important;
+    color: #E5E7EB !important;
+    border: 1px solid #1F2937 !important;
+    border-radius: 12px !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+    color: #64748B !important;
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+    border-color: #3B82F6 !important;
+    outline: none !important;
+}
+
+/* Active/Selected Row */
+.dark .table > tbody > tr.active {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+}
+
+.dark .table > tbody > tr.active > td {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+}
+
+.dark .bg-light {
+    background-color: var(--card-bg) !important;
+}
+
+.dark .text-muted {
+    color: #b0b0b0 !important;
+}
+
+.dark .text-dark {
+    color: var(--text-color) !important;
+}
+
+.dark a {
+    color: #64b5f6;
+}
+
+.dark a:hover {
+    color: #90caf9;
+}
+
+/*
+Legacy styles - commented out to avoid conflicts with MDB
+
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+header {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 1rem 2rem;
+}
+
+nav {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+main {
+    flex: 1;
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 2rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.hero {
+    text-align: center;
+    padding: 4rem 0;
+}
+
+h1 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+}
+
+p {
+    font-size: 1.125rem;
+    color: #64748b;
+    max-width: 600px;
+    margin: 0 auto 2rem;
+    line-height: 1.6;
+}
+
+.cta-button {
+    display: inline-block;
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.cta-button:hover {
+    background-color: var(--secondary-color);
+}
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-top: 4rem;
+}
+
+.card {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+}
+
+.card h3 {
+    margin-top: 0;
+    color: var(--primary-color);
+}
+
+footer {
+    padding: 2rem;
+    text-align: center;
+    color: #64748b;
+    margin-top: auto;
+}
+*/
+
