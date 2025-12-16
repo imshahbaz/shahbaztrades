@@ -6,6 +6,7 @@ import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.lang.NonNull;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.config.AbstractMongoClientConfiguration;
@@ -25,11 +26,11 @@ public class MongoConfig extends AbstractMongoClientConfiguration {
     }
 
     @NonNull
-    @org.springframework.beans.factory.annotation.Value("${MONGO_PASSWORD}")
+    @Value("${MONGO_PASSWORD}")
     private String mongoPassword;
 
     @NonNull
-    @org.springframework.beans.factory.annotation.Value("${MONGO_USER}")
+    @Value("${MONGO_USER}")
     private String mongoUser;
 
     @NonNull

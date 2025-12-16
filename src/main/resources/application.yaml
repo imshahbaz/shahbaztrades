@@ -1,6 +1,15 @@
 spring:
   application:
     name: trades
+  main:
+    web-application-type: servlet
+  web:
+    resources:
+      cache:
+        period: 360000000
+      chain:
+        cache: true
+
   mvc:
     view:
       prefix: /WEB-INF/jsp/
@@ -17,6 +26,10 @@ server:
   forward-headers-strategy: framework
   servlet:
     context-path: /
+    jsp:
+      init-parameters:
+        development: false
+        checkInterval: 0
 
 springdoc:
   api-docs:
