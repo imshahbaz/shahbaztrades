@@ -22,7 +22,7 @@
     }
     </script>
 </head>
-<body class="${theme} d-flex flex-column min-vh-100">
+<body class="d-flex flex-column min-vh-100">
     <header>
         <!-- Navbar -->
         <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-2">
@@ -31,7 +31,49 @@
                     <i class="fas fa-chart-line fa-lg text-primary me-2"></i>
                     <span class="fw-bold text-primary">Shahbaz Trades</span>
                 </a>
+                
+                <button class="navbar-toggler" type="button" data-mdb-toggle="collapse" 
+                        data-mdb-target="#navbarNav" aria-controls="navbarNav" 
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <i class="fas fa-bars"></i>
+                </button>
+                
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="toggleTheme(); return false;">
+                                <i class="fas fa-moon me-1"></i> Toggle Theme
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </nav>
         <!-- Navbar -->
     </header>
+    
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            if (body.classList.contains('dark')) {
+                body.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                body.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Load theme from localStorage on page load (default to dark)
+    document.addEventListener('DOMContentLoaded', function() {
+        const savedTheme = localStorage.getItem('theme');
+
+        if (savedTheme === 'light') {
+            // If user previously chose light, remove dark
+            document.body.classList.remove('dark');
+        } else {
+            // Default to dark theme
+            document.body.classList.add('dark');
+        }
+    });
+    </script>

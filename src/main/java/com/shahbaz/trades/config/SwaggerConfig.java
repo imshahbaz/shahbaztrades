@@ -12,18 +12,18 @@ import java.util.Map;
 @Configuration
 public class SwaggerConfig {
 
-        @Bean
-        public OpenAPI openApi() {
-                return new OpenAPI()
-                                .addSecurityItem(new SecurityRequirement().addList("ApiKeyAuth"))
-                                .components(
-                                                new Components().securitySchemes(Map.of(
-                                                                "ApiKeyAuth",
-                                                                new SecurityScheme()
-                                                                                .name("X-API-KEY")
-                                                                                .type(SecurityScheme.Type.APIKEY)
-                                                                                .in(SecurityScheme.In.HEADER)
-                                                                                .description("Enter API key for swagger request"))));
-        }
+    @Bean
+    public OpenAPI openApi() {
+        return new OpenAPI()
+                .addSecurityItem(new SecurityRequirement().addList("ApiKeyAuth"))
+                .components(
+                        new Components().securitySchemes(Map.of(
+                                "ApiKeyAuth",
+                                new SecurityScheme()
+                                        .name("X-API-KEY")
+                                        .type(SecurityScheme.Type.APIKEY)
+                                        .in(SecurityScheme.In.HEADER)
+                                        .description("Enter API key for swagger request"))));
+    }
 
 }

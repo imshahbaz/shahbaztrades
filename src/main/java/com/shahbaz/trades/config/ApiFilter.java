@@ -24,7 +24,7 @@ public class ApiFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, @Nonnull HttpServletResponse response,
-            @Nonnull FilterChain filterChain) throws ServletException, IOException {
+                                    @Nonnull FilterChain filterChain) throws ServletException, IOException {
 
         String path = request.getRequestURI();
         if (path.startsWith("/swagger-ui.html") || path.startsWith("/v3/api/docs")
