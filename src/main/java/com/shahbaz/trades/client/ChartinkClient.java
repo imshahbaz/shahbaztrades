@@ -1,6 +1,8 @@
 package com.shahbaz.trades.client;
 
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -15,4 +17,7 @@ public interface ChartinkClient {
             @org.springframework.web.bind.annotation.RequestHeader("cookie") String cookie,
             @org.springframework.web.bind.annotation.RequestHeader("user-agent") String userAgent,
             @RequestBody Map<String, String> payload);
+
+    @GetMapping(value = "/")
+    ResponseEntity<String> getHomepage();
 }
