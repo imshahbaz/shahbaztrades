@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/mdb.min.css">
     <!-- Custom Styles -->
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
+    <script type="text/javascript" src="${pageContext.request.contextPath}/js/mdb.min.js"></script>
     <link rel="manifest" href="manifest.json">
     <script>
     if ('serviceWorker' in navigator) {
