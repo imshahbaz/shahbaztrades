@@ -133,6 +133,10 @@ footer {
     color: var(--nav-hover) !important;
 }
 
+.dark .nav-link {
+    color: var(--primary-color) !important;
+}
+
 .dark .card {
     background-color: var(--card-bg) !important;
     color: var(--text-color);

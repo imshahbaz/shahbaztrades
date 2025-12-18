@@ -17,9 +17,6 @@ spring:
   margin:
     leverage: 4
 
-app:
-  theme: dark
-
 server:
   port: ${PORT:8080}
   address: 0.0.0.0
@@ -28,7 +25,7 @@ server:
     context-path: /
     jsp:
       init-parameters:
-        development: false
+        development: true
         checkInterval: 0
 
 springdoc:

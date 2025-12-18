@@ -3,7 +3,5 @@
             &copy; <%= new java.util.Date().getYear() + 1900 %> <a class="text-dark" href="/">Trades Application</a>. All rights reserved.
         </div>
     </footer>
-    <!-- MDB -->
-    <script type="text/javascript" src="${pageContext.request.contextPath}/js/mdb.min.js"></script>
 </body>
 </html>
