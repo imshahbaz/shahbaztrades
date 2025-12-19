@@ -7,10 +7,16 @@ import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
+import java.io.Serial;
+import java.io.Serializable;
+
 @Data
 @Builder
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE)
-public class UserDto {
+public class UserDto implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     String username;
 

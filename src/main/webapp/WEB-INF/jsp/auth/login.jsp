@@ -11,10 +11,17 @@
                         <p class="text-muted">Sign in to your account</p>
                     </div>
 
-                    <c:if test="${not empty shiroLoginFailure}">
+                    <c:if test="${not empty error}">
                         <div class="alert alert-danger" role="alert">
                             <i class="fas fa-exclamation-triangle me-2"></i>
-                            Invalid email or password
+                            ${error}
+                        </div>
+                    </c:if>
+
+                    <c:if test="${not empty message}">
+                        <div class="alert alert-success" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            ${message}
                         </div>
                     </c:if>
 

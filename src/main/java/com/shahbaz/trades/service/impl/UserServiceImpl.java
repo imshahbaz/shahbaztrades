@@ -1,5 +1,7 @@
 package com.shahbaz.trades.service.impl;
 
+import com.shahbaz.trades.exceptions.UserAlreadyExistsException;
+import com.shahbaz.trades.exceptions.UserNotFoundException;
 import com.shahbaz.trades.model.dto.UserDto;
 import com.shahbaz.trades.model.entity.User;
 import com.shahbaz.trades.repository.UserRepository;
@@ -21,7 +23,7 @@ public class UserServiceImpl implements UserService {
     public UserDto createUser(UserDto request) {
         Optional<User> optionalUser = userRepository.findById(request.getEmail());
         if (optionalUser.isPresent()) {
-            throw new RuntimeException("User already exists");
+            throw new UserAlreadyExistsException("An account with this email already exists. Please log in.");
         }
         User user = request.toEntity();
         userRepository.save(user);
@@ -31,7 +33,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserDto updateUser(UserDto request) {
         User user = userRepository.findById(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         userRepository.save(user);
         return user.toDto();
@@ -40,7 +42,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserDto getUser(String email) {
         User user = userRepository.findById(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
         return user.toDto();
     }
 
@@ -48,7 +50,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserDto updateUserTheme(String email, User.Theme theme) {
         User user = userRepository.findById(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
         user.setTheme(theme);
         userRepository.save(user);
         return user.toDto();
@@ -58,7 +60,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserDto updateUsername(String email, String username) {
         User user = userRepository.findById(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
         user.setUsername(username);
         userRepository.save(user);
         return user.toDto();
