@@ -8,12 +8,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.session.data.mongo.MongoIndexedSessionRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 @RequiredArgsConstructor
@@ -21,6 +23,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
+    private final MongoIndexedSessionRepository mongoIndexedSessionRepository;
 
     @GetMapping("/login")
     public String loginPage(@RequestParam(value = "logout", required = false) String logout,
@@ -79,14 +82,10 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public String signup(@ModelAttribute UserDto user, Model model) {
-        try {
-            userService.createUser(user);
-            return "redirect:/login";
-        } catch (Exception e) {
-            model.addAttribute("error", "Email already exists");
-            return "auth/signup";
-        }
+    public String signup(@ModelAttribute UserDto user, RedirectAttributes redirectAttributes) {
+        userService.createUser(user);
+        redirectAttributes.addFlashAttribute("message", "Signup successful! Please login.");
+        return "redirect:/login";
     }
 
     @PostMapping("/theme")

@@ -22,6 +22,10 @@ server:
   address: 0.0.0.0
   forward-headers-strategy: framework
   servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
     context-path: /
     jsp:
       init-parameters:

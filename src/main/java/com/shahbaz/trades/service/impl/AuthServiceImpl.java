@@ -1,5 +1,8 @@
 package com.shahbaz.trades.service.impl;
 
+import com.shahbaz.trades.config.SessionConfig;
+import com.shahbaz.trades.exceptions.AuthenticationFailedException;
+import com.shahbaz.trades.exceptions.UserNotFoundException;
 import com.shahbaz.trades.model.entity.User;
 import com.shahbaz.trades.repository.UserRepository;
 import com.shahbaz.trades.service.AuthService;
@@ -7,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCrypt;
+import org.springframework.session.data.mongo.MongoIndexedSessionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.ui.Model;
 
@@ -15,24 +19,30 @@ import org.springframework.ui.Model;
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
+    private final SessionConfig sessionConfig;
 
     @Override
     public String login(String email, String password, HttpServletRequest request, Model model) {
-        try {
-            User user = userRepository.findById(email)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(email)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-            if (BCrypt.checkpw(password, user.getPassword())) {
-                HttpSession session = request.getSession();
-                session.setAttribute("user", user.toDto());
-                return "redirect:/";
-            } else {
-                model.addAttribute("error", "Invalid email or password");
-                return "auth/login";
-            }
-        } catch (Exception e) {
-            model.addAttribute("error", "Invalid email or password");
-            return "auth/login";
+        if (!BCrypt.checkpw(password, user.getPassword())) {
+            throw new AuthenticationFailedException("Invalid email or password");
         }
+
+        // 1️⃣ Kill existing session (fixation protection)
+        HttpSession oldSession = request.getSession(false);
+        if (oldSession != null) {
+            oldSession.invalidate();
+        }
+
+        sessionConfig.deleteOldSessions(email);
+
+        // 2️⃣ Create new session
+        HttpSession newSession = request.getSession(true);
+        newSession.setAttribute(MongoIndexedSessionRepository.PRINCIPAL_NAME_INDEX_NAME, email);
+        newSession.setAttribute("user", user.toDto());
+
+        return "redirect:/";
     }
 }
