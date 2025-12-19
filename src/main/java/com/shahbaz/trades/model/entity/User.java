@@ -23,15 +23,23 @@ public class User {
     @Builder.Default
     Role role = Role.USER;
 
+    @Builder.Default
+    Theme theme = Theme.DARK;
+
     public enum Role {
         ADMIN, USER
     }
 
-    public UserDto toDto(){
+    public enum Theme {
+        DARK, LIGHT
+    }
+
+    public UserDto toDto() {
         return UserDto.builder()
                 .username(username)
                 .email(email)
                 .role(role)
+                .theme(theme)
                 .build();
     }
 

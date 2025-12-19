@@ -5,7 +5,6 @@ import com.shahbaz.trades.model.entity.User;
 import com.shahbaz.trades.repository.UserRepository;
 import com.shahbaz.trades.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +41,26 @@ public class UserServiceImpl implements UserService {
     public UserDto getUser(String email) {
         User user = userRepository.findById(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        return user.toDto();
+    }
+
+    @Override
+    @Transactional
+    public UserDto updateUserTheme(String email, User.Theme theme) {
+        User user = userRepository.findById(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setTheme(theme);
+        userRepository.save(user);
+        return user.toDto();
+    }
+
+    @Override
+    @Transactional
+    public UserDto updateUsername(String email, String username) {
+        User user = userRepository.findById(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setUsername(username);
+        userRepository.save(user);
         return user.toDto();
     }
 

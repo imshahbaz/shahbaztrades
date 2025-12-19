@@ -7,8 +7,8 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
-@SpringBootApplication
 @EnableFeignClients
+@SpringBootApplication
 public class TradesApplication extends SpringBootServletInitializer {
 
     @Nonnull
