@@ -1,6 +1,5 @@
 package com.shahbaz.trades.config;
 
-import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.session.data.mongo.MongoIndexedSessionRepository;
 
@@ -14,14 +13,18 @@ public class SessionConfig {
 
     public SessionConfig(MongoIndexedSessionRepository repository) {
         this.repository = repository;
-    }
-
-    @PostConstruct
-    public void customizeSessionRepository() {
-        repository.setDefaultMaxInactiveInterval(
+        this.repository.setDefaultMaxInactiveInterval(
                 Duration.of(7, ChronoUnit.DAYS)
         );
-        repository.setCollectionName("sessions");
+        this.repository.setCollectionName("sessions");
+    }
+
+    public void deleteOldSessions(String email) {
+        var existing = repository.findByIndexNameAndIndexValue(
+                MongoIndexedSessionRepository.PRINCIPAL_NAME_INDEX_NAME,
+                email);
+
+        existing.keySet().forEach(repository::deleteById);
     }
 
 }

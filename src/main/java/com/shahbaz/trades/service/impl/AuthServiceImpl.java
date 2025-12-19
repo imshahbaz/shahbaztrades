@@ -1,5 +1,6 @@
 package com.shahbaz.trades.service.impl;
 
+import com.shahbaz.trades.config.SessionConfig;
 import com.shahbaz.trades.exceptions.AuthenticationFailedException;
 import com.shahbaz.trades.exceptions.UserNotFoundException;
 import com.shahbaz.trades.model.entity.User;
@@ -9,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCrypt;
+import org.springframework.session.data.mongo.MongoIndexedSessionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.ui.Model;
 
@@ -17,6 +19,7 @@ import org.springframework.ui.Model;
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
+    private final SessionConfig sessionConfig;
 
     @Override
     public String login(String email, String password, HttpServletRequest request, Model model) {
@@ -33,8 +36,11 @@ public class AuthServiceImpl implements AuthService {
             oldSession.invalidate();
         }
 
+        sessionConfig.deleteOldSessions(email);
+
         // 2️⃣ Create new session
         HttpSession newSession = request.getSession(true);
+        newSession.setAttribute(MongoIndexedSessionRepository.PRINCIPAL_NAME_INDEX_NAME, email);
         newSession.setAttribute("user", user.toDto());
 
         return "redirect:/";
