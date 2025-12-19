@@ -20,11 +20,6 @@
 
                     <form action="signup" method="post">
                         <div class="form-outline mb-4">
-                            <input type="text" id="username" name="username" class="form-control form-control-lg" required />
-                            <label class="form-label" for="username">Full Name</label>
-                        </div>
-
-                        <div class="form-outline mb-4">
                             <input type="email" id="email" name="email" class="form-control form-control-lg" required />
                             <label class="form-label" for="email">Email Address</label>
                         </div>
@@ -32,6 +27,11 @@
                         <div class="form-outline mb-4">
                             <input type="password" id="password" name="password" class="form-control form-control-lg" required />
                             <label class="form-label" for="password">Password</label>
+                        </div>
+
+                        <div class="form-outline mb-4">
+                            <input type="password" id="confirmPassword" name="confirmPassword" class="form-control form-control-lg" required />
+                            <label class="form-label" for="confirmPassword">Confirm Password</label>
                         </div>
 
                         <div class="d-grid">

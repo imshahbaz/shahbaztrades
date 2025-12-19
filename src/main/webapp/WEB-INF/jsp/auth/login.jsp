@@ -20,7 +20,7 @@
 
                     <form action="" method="post">
                         <div class="form-outline mb-4">
-                            <input type="email" id="username" name="username" class="form-control form-control-lg" required />
+                            <input type="email" id="email" name="email" class="form-control form-control-lg" required />
                             <label class="form-label" for="username">Email Address</label>
                         </div>
 

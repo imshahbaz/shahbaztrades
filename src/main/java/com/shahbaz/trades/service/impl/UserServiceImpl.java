@@ -45,6 +45,26 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
+    public UserDto updateUserTheme(String email, User.Theme theme) {
+        User user = userRepository.findById(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setTheme(theme);
+        userRepository.save(user);
+        return user.toDto();
+    }
+
+    @Override
+    @Transactional
+    public UserDto updateUsername(String email, String username) {
+        User user = userRepository.findById(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setUsername(username);
+        userRepository.save(user);
+        return user.toDto();
+    }
+
+    @Override
     public void deleteUser(String email) {
         userRepository.deleteById(email);
     }
