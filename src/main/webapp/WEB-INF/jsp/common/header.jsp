@@ -1,4 +1,6 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,6 +16,7 @@
     <!-- Custom Styles -->
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
     <script type="text/javascript" src="${pageContext.request.contextPath}/js/mdb.min.js"></script>
+    <script type="text/javascript" src="${pageContext.request.contextPath}/js/bootstrap.bundle.min.js"></script>
     <link rel="manifest" href="${pageContext.request.contextPath}/manifest.json">
     <link rel="icon" href="${pageContext.request.contextPath}/images/favicon/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="${pageContext.request.contextPath}/images/favicon/apple-touch-icon.png">
@@ -37,8 +40,8 @@
                     <span class="fw-bold text-primary">Shahbaz Trades</span>
                 </a>
                 
-                <button class="navbar-toggler" type="button" data-mdb-toggle="collapse" 
-                        data-mdb-target="#navbarNav" aria-controls="navbarNav" 
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
+                        data-bs-target="#navbarNav" aria-controls="navbarNav" 
                         aria-expanded="false" aria-label="Toggle navigation">
                     <i class="fas fa-bars"></i>
                 </button>
@@ -50,6 +53,27 @@
                                 <i class="fas fa-moon me-1"></i> Toggle Theme
                             </a>
                         </li>
+
+  <!--                      <c:if test="${isAuthenticated}">
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-user me-1"></i> ${username}
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                    <li><a class="dropdown-item" href="${pageContext.request.contextPath}/logout">
+                                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                                    </a></li>
+                                </ul>
+                            </li>
+                        </c:if>
+
+                        <c:if test="${!isAuthenticated && !fn:contains(pageContext.request.requestURI, 'login') && !fn:contains(pageContext.request.requestURI, 'signup')}">
+                            <li class="nav-item">
+                                <a class="nav-link" href="${pageContext.request.contextPath}/login">
+                                    <i class="fas fa-sign-in-alt me-1"></i> Login
+                                </a>
+                            </li>
+                        </c:if> -->
                     </ul>
                 </div>
             </div>

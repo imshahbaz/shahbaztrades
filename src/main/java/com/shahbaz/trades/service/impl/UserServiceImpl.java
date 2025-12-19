@@ -5,7 +5,6 @@ import com.shahbaz.trades.model.entity.User;
 import com.shahbaz.trades.repository.UserRepository;
 import com.shahbaz.trades.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
