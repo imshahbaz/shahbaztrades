@@ -16,7 +16,6 @@ import java.util.Optional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -25,7 +24,7 @@ public class UserServiceImpl implements UserService {
         if (optionalUser.isPresent()) {
             throw new RuntimeException("User already exists");
         }
-        User user = request.toEntity(passwordEncoder);
+        User user = request.toEntity();
         userRepository.save(user);
         return user.toDto();
     }
