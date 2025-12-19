@@ -14,7 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class UserDto {
 
     @NotBlank
-    String userName;
+    String username;
 
     @Email
     @NotBlank
@@ -27,7 +27,7 @@ public class UserDto {
 
     public User toEntity(PasswordEncoder passwordEncoder){
         return User.builder()
-                .userName(userName)
+                .username(username)
                 .email(email)
                 .password(passwordEncoder.encode(password))
                 .build();
