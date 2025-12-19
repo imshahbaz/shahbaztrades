@@ -22,9 +22,8 @@ public class WebConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/css/**", "/js/**", "/images/**", "/icons/**",
                         "/webjars/**", "/manifest.json", "/service-worker.js",
-                        "/favicon.ico", "/apple-touch-icon.png",
-                        "/swagger-ui/**", "/v3/api-docs/**", "/api/**",
-                        "/login", "/signup", "/", "/strategies"
+                        "/favicon.ico", "/apple-touch-icon.png","/webfonts/**",
+                        "/swagger-ui/**", "/v3/api-docs/**","/api/**"
                 );
     }
 
@@ -43,4 +42,5 @@ public class WebConfig implements WebMvcConfigurer {
         registrationBean.setOrder(1);
         return registrationBean;
     }
+
 }
