@@ -1,4 +1,4 @@
-package com.shahbaz.trades.controller;
+package com.shahbaz.trades.controller.client;
 
 import com.shahbaz.trades.service.StrategyService;
 import lombok.RequiredArgsConstructor;
