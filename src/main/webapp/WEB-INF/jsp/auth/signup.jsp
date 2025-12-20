@@ -27,22 +27,27 @@
 
                         <c:if test="${not otpSent}">
                             <form action="signup" method="post">
-                                <div class="form-outline mb-4">
-                                    <input type="email" id="email" name="email" class="form-control form-control-lg"
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">
+                                        <i class="fas fa-envelope me-1"></i>Email Address
+                                    </label>
+                                    <input type="email" id="email" name="email" class="form-control" required />
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">
+                                        <i class="fas fa-lock me-1"></i>Password
+                                    </label>
+                                    <input type="password" id="password" name="password" class="form-control"
                                         required />
-                                    <label class="form-label" for="email">Email Address</label>
                                 </div>
 
-                                <div class="form-outline mb-4">
-                                    <input type="password" id="password" name="password"
-                                        class="form-control form-control-lg" required />
-                                    <label class="form-label" for="password">Password</label>
-                                </div>
-
-                                <div class="form-outline mb-4">
+                                <div class="mb-3">
+                                    <label for="confirmPassword" class="form-label">
+                                        <i class="fas fa-lock me-1"></i>Confirm Password
+                                    </label>
                                     <input type="password" id="confirmPassword" name="confirmPassword"
-                                        class="form-control form-control-lg" required />
-                                    <label class="form-label" for="confirmPassword">Confirm Password</label>
+                                        class="form-control" required />
                                 </div>
 
                                 <div class="d-grid">
@@ -55,10 +60,12 @@
 
                         <c:if test="${otpSent}">
                             <form action="verify-otp" method="post">
-                                <div class="form-outline mb-4">
-                                    <input type="text" id="otp" name="otp" class="form-control form-control-lg" required
-                                        maxlength="6" pattern="[0-9]{6}" />
-                                    <label class="form-label" for="otp">Enter 6-digit OTP</label>
+                                <div class="mb-3">
+                                    <label for="otp" class="form-label">
+                                        <i class="fas fa-key me-1"></i>Enter 6-digit OTP
+                                    </label>
+                                    <input type="text" id="otp" name="otp" class="form-control" required maxlength="6"
+                                        pattern="[0-9]{6}" />
                                 </div>
 
                                 <div class="d-grid">

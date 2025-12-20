@@ -26,16 +26,18 @@
                         </c:if>
 
                         <form action="" method="post">
-                            <div class="form-outline mb-4">
-                                <input type="email" id="email" name="email" class="form-control form-control-lg"
-                                    required />
-                                <label class="form-label" for="username">Email Address</label>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">
+                                    <i class="fas fa-envelope me-1"></i>Email Address
+                                </label>
+                                <input type="email" id="email" name="email" class="form-control" required />
                             </div>
 
-                            <div class="form-outline mb-4">
-                                <input type="password" id="password" name="password"
-                                    class="form-control form-control-lg" required />
-                                <label class="form-label" for="password">Password</label>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">
+                                    <i class="fas fa-lock me-1"></i>Password
+                                </label>
+                                <input type="password" id="password" name="password" class="form-control" required />
                             </div>
 
                             <div class="d-grid">
