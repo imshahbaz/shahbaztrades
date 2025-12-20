@@ -1,6 +1,8 @@
 package com.shahbaz.trades.service.impl;
 
 import com.shahbaz.trades.config.SystemConfigs;
+import com.shahbaz.trades.exceptions.DuplicateOtpRequest;
+import com.shahbaz.trades.exceptions.InvalidOtpException;
 import com.shahbaz.trades.model.dto.UserDto;
 import com.shahbaz.trades.model.dto.request.BrevoEmailRequest;
 import com.shahbaz.trades.service.EmailService;
@@ -22,7 +24,7 @@ public class OtpServiceImpl implements OtpService {
     public void sendSignUpOtp(UserDto request) {
         String otp = otpCache.getIfPresent(request.getEmail());
         if (otp != null) {
-           throw new RuntimeException("Already requested an otp for this email,please try after 5 minutes");
+            throw new DuplicateOtpRequest("OTP already sent. Please enter the OTP or wait until it expires (5 minutes) before requesting a new one.");
         }
 
         otp = OtpGenerator.generateOtp();
@@ -41,12 +43,22 @@ public class OtpServiceImpl implements OtpService {
                                 .build()
                 ))
                 .build();
-        emailRequest.signup(otp,5);
+        emailRequest.signup(otp, 5);
 
         emailService.sendEmail(emailRequest);
 
-        otpCache.put(request.getEmail(),otp);
+        otpCache.put(request.getEmail(), otp);
 
+    }
+
+    @Override
+    public boolean verifyOtp(String email, String otp) {
+        String cachedOtp = otpCache.getIfPresent(email);
+        if (cachedOtp != null && cachedOtp.equals(otp)) {
+            otpCache.invalidate(email);
+            return true;
+        }
+        throw new InvalidOtpException("Invalid OTP. Please try again.");
     }
 
 }

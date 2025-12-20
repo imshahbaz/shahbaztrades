@@ -3,10 +3,12 @@ package com.shahbaz.trades.controller.client;
 import com.shahbaz.trades.model.dto.UserDto;
 import com.shahbaz.trades.model.entity.User;
 import com.shahbaz.trades.service.AuthService;
+import com.shahbaz.trades.service.OtpService;
 import com.shahbaz.trades.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -22,6 +24,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
+    private final OtpService otpService;
 
     @GetMapping("/login")
     public String loginPage(@RequestParam(value = "logout", required = false) String logout,
@@ -70,20 +73,39 @@ public class AuthController {
 
     @GetMapping("/signup")
     public String signupPage(HttpServletRequest request) {
-        // Check if user is already logged in
         HttpSession session = request.getSession(false);
         if (session != null && session.getAttribute("user") != null) {
-            // User is already logged in, redirect to main page
             return "redirect:/";
         }
         return "auth/signup";
     }
 
     @PostMapping("/signup")
-    public String signup(@ModelAttribute UserDto user, RedirectAttributes redirectAttributes) {
-        userService.createUser(user);
+    public String signup(@Valid @ModelAttribute UserDto user, HttpServletRequest request, Model model) {
+        HttpSession session = request.getSession();
+        session.setAttribute("pendingUser", user);
+        otpService.sendSignUpOtp(user);
+        model.addAttribute("otpSent", true);
+        model.addAttribute("message", "Otp sent successfully to " + user.getEmail());
+        return "auth/signup";
+    }
+
+    @PostMapping("/verify-otp")
+    public String verifyOtp(@RequestParam String otp, HttpServletRequest request, RedirectAttributes redirectAttributes) {
+        HttpSession session = request.getSession();
+        UserDto pendingUser = (UserDto) session.getAttribute("pendingUser");
+
+        if (pendingUser == null) {
+            redirectAttributes.addFlashAttribute("error", "No pending signup found. Please start over.");
+            return "redirect:/signup";
+        }
+
+        otpService.verifyOtp(pendingUser.getEmail(), otp);
+        userService.createUser(pendingUser);
+        session.removeAttribute("pendingUser");
         redirectAttributes.addFlashAttribute("message", "Signup successful! Please login.");
         return "redirect:/login";
+
     }
 
     @PostMapping("/theme")

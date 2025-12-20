@@ -5,7 +5,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
-import org.springframework.session.data.mongo.MongoIndexedSessionRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -23,16 +22,8 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (requestURI.equals("/login") ||
                 requestURI.equals("/signup") ||
                 requestURI.equals("/") ||
-                requestURI.equals("/strategies")) {
-
-            HttpSession session = request.getSession(false);
-            if (session != null &&
-                    session.getAttribute(MongoIndexedSessionRepository.PRINCIPAL_NAME_INDEX_NAME) == null
-                    && session.getAttribute(NULL_SESSION) == null) {
-                session.setMaxInactiveInterval(180);
-                session.setAttribute(NULL_SESSION, Boolean.TRUE);
-            }
-
+                requestURI.equals("/strategies") ||
+                requestURI.equals("/verify-otp")) {
             return true;
         }
 
