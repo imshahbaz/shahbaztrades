@@ -1,7 +1,7 @@
 package com.shahbaz.trades.controller;
 
-import com.shahbaz.trades.model.dto.ChartInkResponseDto;
 import com.shahbaz.trades.model.dto.StockMarginDto;
+import com.shahbaz.trades.model.dto.response.ChartInkResponseDto;
 import com.shahbaz.trades.service.ChartInkService;
 import com.shahbaz.trades.service.StrategyService;
 import lombok.RequiredArgsConstructor;

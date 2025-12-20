@@ -8,7 +8,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
-import org.springframework.session.data.mongo.MongoIndexedSessionRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,7 +22,6 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
-    private final MongoIndexedSessionRepository mongoIndexedSessionRepository;
 
     @GetMapping("/login")
     public String loginPage(@RequestParam(value = "logout", required = false) String logout,

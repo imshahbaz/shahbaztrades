@@ -1,8 +1,8 @@
 package com.shahbaz.trades.service;
 
-import com.shahbaz.trades.model.dto.ChartInkResponseDto;
 import com.shahbaz.trades.model.dto.StockMarginDto;
 import com.shahbaz.trades.model.dto.StrategyDto;
+import com.shahbaz.trades.model.dto.response.ChartInkResponseDto;
 
 import java.util.List;
 import java.util.Map;
