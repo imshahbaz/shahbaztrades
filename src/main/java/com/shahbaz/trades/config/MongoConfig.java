@@ -6,7 +6,7 @@ import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.lang.NonNull;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.config.AbstractMongoClientConfiguration;
@@ -16,8 +16,11 @@ import java.util.Collection;
 import java.util.Collections;
 
 @Configuration
+@RequiredArgsConstructor
 @EnableMongoRepositories(basePackages = "com.shahbaz.trades.repository")
 public class MongoConfig extends AbstractMongoClientConfiguration {
+
+    private final SystemConfigs systemConfigs;
 
     @NonNull
     @Override
@@ -26,19 +29,12 @@ public class MongoConfig extends AbstractMongoClientConfiguration {
     }
 
     @NonNull
-    @Value("${MONGO_PASSWORD}")
-    private String mongoPassword;
-
-    @NonNull
-    @Value("${MONGO_USER}")
-    private String mongoUser;
-
-    @NonNull
     @Override
     public MongoClient mongoClient() {
         String rawString = "mongodb+srv://%s:%s@jaguartrading.ptkr6fq.mongodb.net/ShahbazTrades";
         ConnectionString connectionString = new ConnectionString(
-                String.format(rawString, mongoUser, mongoPassword));
+                String.format(rawString, systemConfigs.getConfig().getMongoUser(),
+                        systemConfigs.getConfig().getMongoPassword()));
         MongoClientSettings mongoClientSettings = MongoClientSettings.builder()
                 .applyConnectionString(connectionString)
                 .build();

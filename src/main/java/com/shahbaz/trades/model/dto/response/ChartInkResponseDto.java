@@ -1,4 +1,4 @@
-package com.shahbaz.trades.model.dto;
+package com.shahbaz.trades.model.dto.response;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;

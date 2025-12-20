@@ -14,7 +14,7 @@ public class SessionConfig {
     public SessionConfig(MongoIndexedSessionRepository repository) {
         this.repository = repository;
         this.repository.setDefaultMaxInactiveInterval(
-                Duration.of(7, ChronoUnit.DAYS)
+                Duration.of(5, ChronoUnit.MINUTES)
         );
         this.repository.setCollectionName("sessions");
     }

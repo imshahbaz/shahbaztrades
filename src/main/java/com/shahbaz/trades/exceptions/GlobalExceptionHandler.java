@@ -32,4 +32,18 @@ public class GlobalExceptionHandler {
         return "redirect:/login";
     }
 
+    @ExceptionHandler(InvalidOtpException.class)
+    public String handleInvalidOtp(InvalidOtpException ex, Model model) {
+        model.addAttribute("otpSent", true);
+        model.addAttribute("error", ex.getMessage());
+        return "auth/signup";
+    }
+
+    @ExceptionHandler(DuplicateOtpRequest.class)
+    public String handleDuplicateOtp(DuplicateOtpRequest ex, Model model) {
+        model.addAttribute("message", ex.getMessage());
+        model.addAttribute("otpSent", true);
+        return "auth/signup";
+    }
+
 }

@@ -2,9 +2,9 @@ package com.shahbaz.trades.service.impl;
 
 import com.google.gson.Gson;
 import com.shahbaz.trades.client.ChartinkClient;
-import com.shahbaz.trades.model.dto.ChartInkResponseDto;
 import com.shahbaz.trades.model.dto.StockMarginDto;
 import com.shahbaz.trades.model.dto.StrategyDto;
+import com.shahbaz.trades.model.dto.response.ChartInkResponseDto;
 import com.shahbaz.trades.model.entity.Margin;
 import com.shahbaz.trades.service.ChartInkService;
 import com.shahbaz.trades.service.MarginService;

@@ -14,6 +14,8 @@ import org.springframework.session.data.mongo.MongoIndexedSessionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.ui.Model;
 
+import java.time.Duration;
+
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -42,6 +44,7 @@ public class AuthServiceImpl implements AuthService {
         HttpSession newSession = request.getSession(true);
         newSession.setAttribute(MongoIndexedSessionRepository.PRINCIPAL_NAME_INDEX_NAME, email);
         newSession.setAttribute("user", user.toDto());
+        newSession.setMaxInactiveInterval((int) Duration.ofDays(7).toSeconds());
 
         return "redirect:/";
     }
