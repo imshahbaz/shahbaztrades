@@ -15,16 +15,17 @@ public class WebConfig implements WebMvcConfigurer {
     private final AuthInterceptor authInterceptor;
     private final CacheControlFilter cacheControlFilter;
 
+    private static final String[] excludes = {
+            "/css/**", "/js/**", "/images/**", "/icons/**",
+            "/webjars/**", "/manifest.json", "/service-worker.js",
+            "/favicon.ico", "/apple-touch-icon.png", "/webfonts/**",
+            "/swagger-ui/**", "/v3/api-docs/**", "/api/**"};
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/**")
-                .excludePathPatterns(
-                        "/css/**", "/js/**", "/images/**", "/icons/**",
-                        "/webjars/**", "/manifest.json", "/service-worker.js",
-                        "/favicon.ico", "/apple-touch-icon.png", "/webfonts/**",
-                        "/swagger-ui/**", "/v3/api-docs/**", "/api/**"
-                );
+                .excludePathPatterns(excludes);
     }
 
     @Override

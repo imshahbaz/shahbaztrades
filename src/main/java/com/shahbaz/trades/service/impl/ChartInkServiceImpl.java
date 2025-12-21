@@ -38,7 +38,9 @@ public class ChartInkServiceImpl implements ChartInkService {
             payload.put("scan_clause", request.getScanClause());
 
             String res = chartinkClient.fetchData(xsrfToken, cookie, userAgent, payload);
-            return gson.fromJson(res, ChartInkResponseDto.class);
+            ChartInkResponseDto dto = gson.fromJson(res, ChartInkResponseDto.class);
+            ChartInkService.RESPONSE_DTO_CACHE.put(request.getName(), dto);
+            return dto;
 
         } catch (Exception e) {
             log.error("Error fetching data, retrying with fresh tokens", e);
@@ -94,25 +96,11 @@ public class ChartInkServiceImpl implements ChartInkService {
 
     @Override
     public List<StockMarginDto> fetchWithMargin(StrategyDto request) {
-        ChartInkResponseDto response = null;
-//        String key = request.getName() + LocalDate.now();
-//
-//        // Check if it is after 4 PM IST
-//        boolean isAfter4Pm = LocalTime.now(ZoneId.of("Asia/Kolkata"))
-//                .isAfter(LocalTime.of(16, 0));
-//
-//        if (isAfter4Pm && RESPONSE_DTO_MAP.containsKey(key)) {
-//            response = RESPONSE_DTO_MAP.get(key);
-//        }
-//
-//        if (response == null) {
-//            response = fetchData(request);
-//            if (response != null && isAfter4Pm) {
-//                RESPONSE_DTO_MAP.put(key, response);
-//            }
-//        }
+        ChartInkResponseDto response = ChartInkService.RESPONSE_DTO_CACHE.getIfPresent(request.getName());
 
-        response = fetchData(request);
+        if (response == null) {
+            response = fetchData(request);
+        }
 
         List<StockMarginDto> list = new ArrayList<>();
 
