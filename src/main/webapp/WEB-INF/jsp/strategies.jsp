@@ -134,7 +134,7 @@
                             <td>\${stock.close}</td>
                             <td>\${stock.margin}</td>
                             <td>
-                                <button class="buy-trigger button">Buy</button>
+                                <button class="buy-trigger btn btn-primary">Buy</button>
                             </td>
                         `;
                             tableBody.appendChild(row);
