@@ -33,39 +33,43 @@
 #CMD ["catalina.sh", "run"]
 
 
-# ===== BUILD STAGE =====
+
+# ===== STAGE 1: BUILD =====
 FROM maven:3.9.8-eclipse-temurin-21-alpine AS build
 WORKDIR /app
-# Only copy pom.xml first to cache dependencies (Faster builds)
+
+# 1. Cache dependencies: Copy only the pom.xml first.
+# This ensures that 'go-offline' only runs if you change your pom.xml.
 COPY pom.xml .
-RUN mvn dependency:go-offline
-COPY . .
-RUN mvn clean package -DskipTests
+RUN mvn dependency:go-offline -B
 
-# ===== RUNTIME STAGE =====
-# We use the 'alpine' JRE to keep the OS footprint under 50MB
-FROM tomcat:10.1-jre21-alpine
+# 2. Copy the actual source code and build.
+COPY src ./src
+RUN mvn clean package -DskipTests -B
 
-# 1. Strip Tomcat down to the bare essentials
-RUN rm -rf /usr/local/tomcat/webapps/* \
-    && rm -rf /usr/local/tomcat/temp/* \
-    && rm -rf /usr/local/tomcat/work/*
+# ===== STAGE 2: RUNTIME =====
+FROM tomcat:10.1-jdk21-alpine
 
-# 2. Copy and Explode WAR
-COPY --from=build /app/target/*.war /usr/local/tomcat/webapps/ROOT.war
-RUN mkdir /usr/local/tomcat/webapps/ROOT \
-    && unzip /usr/local/tomcat/webapps/ROOT.war -d /usr/local/tomcat/webapps/ROOT \
-    && rm /usr/local/tomcat/webapps/ROOT.war
+WORKDIR /usr/local/tomcat
 
-# 3. Tomcat Internal Tuning (Lowering thread pools and disabling heavy features)
-# We limit maxThreads to 25. For a trade app on 512MB, 25 simultaneous users is plenty.
-RUN sed -i 's/connector port="8080" protocol="HTTP\/1.1"/connector port="8080" protocol="HTTP\/1.1" maxThreads="25" minSpareThreads="2" acceptCount="5" connectionTimeout="10000" disableUploadTimeout="true"/' /usr/local/tomcat/conf/server.xml
+# 3. Strip Tomcat and install unzip in one layer to keep the image slim.
+RUN rm -rf webapps/* \
+    && rm -rf temp/* \
+    && rm -rf work/* \
+    && apk add --no-cache unzip
 
-# 4. EXTREME JVM TUNING
-# -Xmx180m: Even tighter heap to ensure native memory doesn't overflow 512MB
-# -XX:ReservedCodeCacheSize=64m: Limits memory for compiled code
-# -XX:MaxDirectMemorySize=32m: Limits memory for NIO buffers
-# -Djava.lang.Integer.IntegerCache.high=128: Shrinks the integer cache
+# 4. Copy and Explode WAR (Removes zip-buffer RAM overhead)
+COPY --from=build /app/target/*.war webapps/ROOT.war
+RUN mkdir webapps/ROOT \
+    && unzip webapps/ROOT.war -d webapps/ROOT \
+    && rm webapps/ROOT.war
+
+# 5. Native Memory Safety: Limit threads to 25.
+# This prevents the OS from killing the app when multiple users visit.
+RUN sed -i 's/connector port="8080" protocol="HTTP\/1.1"/connector port="8080" protocol="HTTP\/1.1" maxThreads="25" minSpareThreads="2" acceptCount="5" connectionTimeout="10000"/' conf/server.xml
+
+# 6. JVM GUARDRAILS FOR 512MB RAM
+# We cap the CodeCache and DirectMemory to leave "breathing room" for the OS.
 ENV CATALINA_OPTS="-Xmx180m \
                    -Xms128m \
                    -XX:MaxMetaspaceSize=96m \
