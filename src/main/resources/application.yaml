@@ -1,8 +1,13 @@
 spring:
   application:
     name: trades
+
   main:
     web-application-type: servlet
+
+  jmx:
+    enabled: false
+
   web:
     resources:
       cache:
@@ -14,8 +19,15 @@ spring:
     view:
       prefix: /WEB-INF/jsp/
       suffix: .jsp
+
   margin:
     leverage: 4
+
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        generate_statistics: false
 
 server:
   port: ${PORT:8080}
@@ -31,6 +43,9 @@ server:
       init-parameters:
         development: false
         checkInterval: 0
+  tomcat:
+    basedir: /tmp/tomcat-temp
+    max-threads: 25
 
 springdoc:
   api-docs:
@@ -42,3 +57,7 @@ springdoc:
     url: /v3/api-docs
   webmvc:
     enabled: true
+
+logging:
+  level:
+    root: INFO
