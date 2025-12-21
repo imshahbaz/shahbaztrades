@@ -5,9 +5,6 @@ spring:
   main:
     web-application-type: servlet
 
-  jmx:
-    enabled: false
-
   web:
     resources:
       cache:
@@ -23,12 +20,6 @@ spring:
   margin:
     leverage: 4
 
-  jpa:
-    open-in-view: false
-    properties:
-      hibernate:
-        generate_statistics: false
-
 server:
   port: ${PORT:8080}
   address: 0.0.0.0
@@ -43,21 +34,18 @@ server:
       init-parameters:
         development: false
         checkInterval: 0
-  tomcat:
-    basedir: /tmp/tomcat-temp
-    max-threads: 25
+
+features:
+  swagger:
+    enabled: false
 
 springdoc:
   api-docs:
-    enabled: true
+    enabled: ${features.swagger.enabled}
     path: /v3/api-docs
   swagger-ui:
-    enabled: true
+    enabled: ${features.swagger.enabled}
     path: /swagger-ui.html
     url: /v3/api-docs
   webmvc:
-    enabled: true
-
-logging:
-  level:
-    root: INFO
+    enabled: ${features.swagger.enabled}
