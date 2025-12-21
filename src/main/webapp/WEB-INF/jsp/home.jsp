@@ -16,6 +16,14 @@
                 </div>
             </div>
         </div>
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 ripple hover-shadow" onclick="location.href='/calculator';" style="cursor: pointer;">
+                <div class="card-body text-center">
+                    <h3 class="card-title text-primary">Calculator</h3>
+                    <p class="card-text">Calculate returns and analyze trades with our advanced calculator.</p>
+                </div>
+            </div>
+        </div>
     </div>
 </main>
 

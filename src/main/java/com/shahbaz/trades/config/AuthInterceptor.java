@@ -21,7 +21,8 @@ public class AuthInterceptor implements HandlerInterceptor {
                 requestURI.equals("/signup") ||
                 requestURI.equals("/") ||
                 requestURI.equals("/strategies") ||
-                requestURI.equals("/verify-otp")) {
+                requestURI.equals("/verify-otp") ||
+                requestURI.equals("/calculator")) {
             return true;
         }
 
