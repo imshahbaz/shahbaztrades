@@ -1,0 +1,9 @@
+target/
+.git/
+.mvn/
+*.iml
+.idea/
+.vscode/
+bin/
+out/
+.DS_Store
