@@ -46,6 +46,7 @@
                             <th scope="col">Name</th>
                             <th scope="col">Close Price</th>
                             <th scope="col">Margin</th>
+                            <th scope="col">Action</th>
                         </tr>
                     </thead>
                     <tbody id="strategy-data-body">
@@ -67,6 +68,7 @@
         </div>
         </div>
 
+        <script src="https://kite.trade/publisher.js?v=3"></script>
         <script>
             const strategyCache = {};
 
@@ -121,6 +123,8 @@
 
                 function renderTable(data) {
                     if (data && data.length > 0) {
+                        const kite = new KiteConnect("kitedemo");
+
                         table.style.display = 'table';
                         data.forEach(stock => {
                             const row = document.createElement('tr');
@@ -129,9 +133,31 @@
                             <td>\${stock.name}</td>
                             <td>\${stock.close}</td>
                             <td>\${stock.margin}</td>
+                            <td>
+                                <button class="buy-trigger button">Buy</button>
+                            </td>
                         `;
                             tableBody.appendChild(row);
-                        });
+
+                            const btn = row.querySelector('.buy-trigger');
+                            btn.addEventListener('click', function (e) {
+                                e.preventDefault();
+                                const kite = new KiteConnect("kitedemo");
+                                
+                                kite.add({
+                                    "exchange": "NSE",
+                                    "tradingsymbol": stock.symbol,
+                                    "quantity": 1,
+                                    "transaction_type": "BUY",
+                                    "order_type": "MARKET",
+                                    "product": "CNC"
+                                });
+
+                                kite.connect();
+
+                            });
+                        })
+
                     } else {
                         errorMsg.textContent = 'No data found for this strategy.';
                         errorMsg.style.display = 'block';
@@ -139,6 +165,7 @@
                 }
             }
         </script>
+
     </main>
 
     <jsp:include page="common/footer.jsp" />
