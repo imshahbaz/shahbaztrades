@@ -34,42 +34,45 @@
 
 
 
-# ===== STAGE 1: BUILD =====
-FROM maven:3.9.8-eclipse-temurin-21-alpine AS build
+# ===== BUILD STAGE =====
+FROM maven:3.9.8-eclipse-temurin-21 AS build
 WORKDIR /app
 
-# 1. Cache dependencies: Copy only the pom.xml first.
-# This ensures that 'go-offline' only runs if you change your pom.xml.
+# 1. OPTIMIZATION: Dependency Layer Caching
+# We copy only the pom.xml first. This is why your 6.8GB downloads
+# will stop happening every time you change a line of code.
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
-# 2. Copy the actual source code and build.
+# 2. Build the app (using Batch mode to keep logs clean)
 COPY src ./src
 RUN mvn clean package -DskipTests -B
 
-# ===== STAGE 2: RUNTIME =====
-FROM tomcat:10.1-jdk21-alpine
+# ===== RUNTIME STAGE =====
+FROM tomcat:10.1-jdk21-temurin
 
 WORKDIR /usr/local/tomcat
 
-# 3. Strip Tomcat and install unzip in one layer to keep the image slim.
-RUN rm -rf webapps/* \
-    && rm -rf temp/* \
-    && rm -rf work/* \
-    && apk add --no-cache unzip
+# 3. OPTIMIZATION: Stripping Tomcat & Speeding up Extraction
+# We clean everything and ensure 'unzip' is present (unzip is faster than 'jar -xf')
+RUN rm -rf webapps/* temp/* work/* \
+    && apt-get update && apt-get install -y unzip && rm -rf /var/lib/apt/lists/*
 
-# 4. Copy and Explode WAR (Removes zip-buffer RAM overhead)
+# 4. Copy and Explode WAR
 COPY --from=build /app/target/*.war webapps/ROOT.war
 RUN mkdir webapps/ROOT \
     && unzip webapps/ROOT.war -d webapps/ROOT \
     && rm webapps/ROOT.war
 
-# 5. Native Memory Safety: Limit threads to 25.
-# This prevents the OS from killing the app when multiple users visit.
+# 5. OPTIMIZATION: Hard-coding Tomcat Thread Limits
+# Default Tomcat uses 200 threads. On 512MB, this causes OOM. We cap it at 25.
 RUN sed -i 's/connector port="8080" protocol="HTTP\/1.1"/connector port="8080" protocol="HTTP\/1.1" maxThreads="25" minSpareThreads="2" acceptCount="5" connectionTimeout="10000"/' conf/server.xml
 
-# 6. JVM GUARDRAILS FOR 512MB RAM
-# We cap the CodeCache and DirectMemory to leave "breathing room" for the OS.
+# 6. OPTIMIZATION: Advanced JVM Memory Tuning
+# -Xmx180m: Max Heap (Small to leave room for the heavy JDK/Tomcat stack)
+# -Xss256k: Thread stack size (Reduces memory per thread by 75%)
+# -XX:ReservedCodeCacheSize: Caps memory for compiled code (Saves ~100MB)
+# -XX:+UseSerialGC: The most RAM-efficient Garbage Collector for small containers
 ENV CATALINA_OPTS="-Xmx180m \
                    -Xms128m \
                    -XX:MaxMetaspaceSize=96m \
@@ -77,9 +80,10 @@ ENV CATALINA_OPTS="-Xmx180m \
                    -XX:MaxDirectMemorySize=32m \
                    -XX:+UseSerialGC \
                    -Xss256k \
-                   -Dorg.apache.jasper.compiler.disablejsr199=true \
+                   -Dorg.apache.jasper.compiler.disablejsr199=false \
                    -Djava.security.egd=file:/dev/./urandom \
                    -Dspring.main.lazy-initialization=true"
 
 EXPOSE 8080
+
 CMD ["catalina.sh", "run"]
