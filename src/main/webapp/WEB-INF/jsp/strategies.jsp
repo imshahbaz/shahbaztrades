@@ -3,7 +3,7 @@
 
     <main class="container my-5 flex-grow-1">
         <div class="hero text-center mb-5">
-            <h1 class="display-4 fw-bold">Available Strategies</h1>
+            <h1 class="display-3 fw-bold text-primary">Available Strategies</h1>
             <p class="lead text-muted">Explore and select a strategy to analyze the market.</p>
         </div>
 
