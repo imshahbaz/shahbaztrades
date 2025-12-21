@@ -44,7 +44,7 @@ RUN mvn clean package -DskipTests
 
 # ===== RUNTIME STAGE =====
 # We use the 'alpine' JRE to keep the OS footprint under 50MB
-FROM tomcat:10.1-jre21-temurin-alpine
+FROM tomcat:10.1-jre21-alpine
 
 # 1. Strip Tomcat down to the bare essentials
 RUN rm -rf /usr/local/tomcat/webapps/* \
