@@ -535,6 +535,58 @@ select:disabled {
     color: #90caf9;
 }
 
+/* Mobile responsive table for strategy data */
+@media (max-width: 600px) {
+    #strategy-data-table {
+        display: block;
+    }
+
+    #strategy-data-table thead {
+        display: none;
+    }
+
+    #strategy-data-table tbody {
+        display: block;
+    }
+
+    #strategy-data-table tbody tr {
+        display: block;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        margin-bottom: 10px;
+        padding: 10px;
+        background-color: var(--card-bg);
+    }
+
+    #strategy-data-table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 0;
+        border: none;
+    }
+
+    #strategy-data-table tbody td:before {
+        content: attr(data-label);
+        font-weight: bold;
+        color: var(--text-secondary);
+    }
+
+    #strategy-data-table tbody td[data-label="Action"]:before {
+        content: none;
+    }
+
+    #strategy-data-table tbody td[data-label="Action"] {
+        display: block;
+        text-align: center;
+    }
+
+    #strategy-data-table .buy-trigger {
+        width: 100%;
+        margin-top: 10px;
+    }
+}
+
 /*
 Legacy styles - commented out to avoid conflicts with MDB
 

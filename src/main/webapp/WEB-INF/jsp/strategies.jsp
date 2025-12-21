@@ -3,7 +3,7 @@
 
     <main class="container my-5 flex-grow-1">
         <div class="hero text-center mb-5">
-            <h1 class="display-4 fw-bold">Available Strategies</h1>
+            <h1 class="display-3 fw-bold text-primary">Available Strategies</h1>
             <p class="lead text-muted">Explore and select a strategy to analyze the market.</p>
         </div>
 
@@ -38,21 +38,20 @@
 
         <div id="strategy-data-container" class="mt-5" style="display: none;">
             <h3>Results for: <span id="selected-strategy-name" class="text-primary"></span></h3>
-            <div class="table-responsive">
-                <table id="strategy-data-table" class="table table-bordered table-hover mt-3" style="display: none;">
-                    <thead class="table-primary">
-                        <tr>
-                            <th scope="col">NSE Code</th>
-                            <th scope="col">Name</th>
-                            <th scope="col">Close Price</th>
-                            <th scope="col">Margin</th>
-                        </tr>
-                    </thead>
-                    <tbody id="strategy-data-body">
-                        <!-- Data will be populated here -->
-                    </tbody>
-                </table>
-            </div>
+            <table id="strategy-data-table" class="table table-bordered table-hover mt-3" style="display: none;">
+                <thead class="table-primary">
+                    <tr>
+                        <th scope="col">NSE Code</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Close Price</th>
+                        <th scope="col">Margin</th>
+                        <th scope="col">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="strategy-data-body">
+                    <!-- Data will be populated here -->
+                </tbody>
+            </table>
             <div id="loading-message" class="text-center my-3" style="display:none;">
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">Loading...</span>
@@ -67,6 +66,7 @@
         </div>
         </div>
 
+        <script src="https://kite.trade/publisher.js?v=3"></script>
         <script>
             const strategyCache = {};
 
@@ -121,17 +121,41 @@
 
                 function renderTable(data) {
                     if (data && data.length > 0) {
+                        const kite = new KiteConnect("kitedemo");
+
                         table.style.display = 'table';
                         data.forEach(stock => {
                             const row = document.createElement('tr');
                             row.innerHTML = `
-                            <td>\${stock.symbol}</td>
-                            <td>\${stock.name}</td>
-                            <td>\${stock.close}</td>
-                            <td>\${stock.margin}</td>
+                            <td data-label="NSE Code">\${stock.symbol}</td>
+                            <td data-label="Name">\${stock.name}</td>
+                            <td data-label="Close Price">\${stock.close}</td>
+                            <td data-label="Margin">\${stock.margin}</td>
+                            <td data-label="Action">
+                                <button class="buy-trigger btn btn-primary">Buy</button>
+                            </td>
                         `;
                             tableBody.appendChild(row);
-                        });
+
+                            const btn = row.querySelector('.buy-trigger');
+                            btn.addEventListener('click', function (e) {
+                                e.preventDefault();
+                                const kite = new KiteConnect("kitedemo");
+                                
+                                kite.add({
+                                    "exchange": "NSE",
+                                    "tradingsymbol": stock.symbol,
+                                    "quantity": 1,
+                                    "transaction_type": "BUY",
+                                    "order_type": "MARKET",
+                                    "product": "CNC"
+                                });
+
+                                kite.connect();
+
+                            });
+                        })
+
                     } else {
                         errorMsg.textContent = 'No data found for this strategy.';
                         errorMsg.style.display = 'block';
@@ -139,6 +163,7 @@
                 }
             }
         </script>
+
     </main>
 
     <jsp:include page="common/footer.jsp" />
