@@ -26,9 +26,10 @@ public class ApiFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
         if (path.startsWith("/swagger-ui.html") || path.startsWith("/v3/api/docs")
-                || path.startsWith("swagger-resources")
+                || path.startsWith("/swagger-resources")
                 || path.startsWith("/swagger-ui/index.html")
-                || !path.startsWith("/api/")) {
+                || !path.startsWith("/api/")
+                || path.startsWith("/health")) {
             filterChain.doFilter(request, response);
             return;
         }

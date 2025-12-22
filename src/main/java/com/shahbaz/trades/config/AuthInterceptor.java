@@ -22,7 +22,13 @@ public class AuthInterceptor implements HandlerInterceptor {
                 requestURI.equals("/") ||
                 requestURI.equals("/strategies") ||
                 requestURI.equals("/verify-otp") ||
-                requestURI.equals("/calculator")) {
+                requestURI.equals("/calculator") ||
+                requestURI.equals("/health") ||
+                requestURI.equals("/swagger-ui/index.html") ||
+                requestURI.equals("/v3/api/docs") ||
+                requestURI.equals("/swagger-ui.html") ||
+                requestURI.equals("/swagger-resources")
+        ) {
             return true;
         }
 
