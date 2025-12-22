@@ -32,7 +32,7 @@ server:
     context-path: /
     jsp:
       init-parameters:
-        development: true
+        development: false
         checkInterval: 0
 
 features:
