@@ -89,10 +89,11 @@
                                 <div class="card-body">
                                     <h5 class="card-title text-muted mb-4 text-uppercase small fw-bold">Capital
                                         Breakdown</h5>
-                                    <div class="d-flex justify-content-between mb-2"><span>Total Investment :</span> <span class="fw-bold">&#x20B9; <span
-                                                id="total-investment"></span></span></div>
-                                    <div class="d-flex justify-content-between mb-2"><span>Your Investment :</span> <span class="fw-bold text-primary">&#x20B9; <span
-                                                id="margin"></span></span></div>
+                                    <div class="d-flex justify-content-between mb-2"><span>Total Investment :</span>
+                                        <span class="fw-bold">&#x20B9; <span id="total-investment"></span></span></div>
+                                    <div class="d-flex justify-content-between mb-2"><span>Your Investment :</span>
+                                        <span class="fw-bold text-primary">&#x20B9; <span id="margin"></span></span>
+                                    </div>
                                     <div class="d-flex justify-content-between mb-2"><span>Borrowed Funding :</span>
                                         <span class="fw-bold">&#x20B9; <span id="funding-amount"></span></span>
                                     </div>
@@ -245,6 +246,21 @@
             document.getElementById('total-charges').innerText = formatInr(totalCharges);
             document.getElementById('net-profit').innerText = formatInr(netProfit);
             document.getElementById('profit-percent').innerText = roMargin.toFixed(2);
+
+            // Conditionally color Net Profit/Loss
+            const netProfitSpan = document.querySelector('#net-profit').parentElement;
+            const roMarginSpan = document.querySelector('#profit-percent').parentElement;
+            if (netProfit < 0) {
+                netProfitSpan.classList.remove('text-success');
+                netProfitSpan.classList.add('text-danger');
+                roMarginSpan.classList.remove('text-success');
+                roMarginSpan.classList.add('text-danger');
+            } else {
+                netProfitSpan.classList.remove('text-danger');
+                netProfitSpan.classList.add('text-success');
+                roMarginSpan.classList.remove('text-danger');
+                roMarginSpan.classList.add('text-success');
+            }
 
             document.getElementById('results').style.display = 'block';
             hideAlert();
