@@ -11,21 +11,12 @@ spring:
 
   web:
     resources:
-      add-mappings: true
       cache:
         period: P365D
       chain:
-        enabled: true
         cache: true
-        gzipped: true
-        strategy:
-          content:
-            enabled: true
-            paths: /**
 
   mvc:
-    pathmatch:
-      matching-strategy: ant_path_matcher
     view:
       prefix: /WEB-INF/jsp/
       suffix: .jsp
@@ -51,10 +42,6 @@ server:
         checkInterval: 0
         mappedfile: false
         trimSpaces: true
-  compression:
-    enabled: true
-    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/json,application/javascript
-    min-response-size: 1024
 
 features:
   swagger:

@@ -48,9 +48,7 @@ public class SecurityGatekeeperFilter extends OncePerRequestFilter {
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-resources/**",
-            "/swagger-ui.html",
-            "/.well-known/**",
-            "static/**"
+            "/swagger-ui.html"
     );
 
     @Override
@@ -61,11 +59,9 @@ public class SecurityGatekeeperFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // 1. GLOBAL CACHE CONTROL (Always apply)
-        if (path.endsWith("service-worker.js")) {
-            applyNoCacheHeaders(response);
-        } else if (!isStaticResource(path)) {
-            applyNoCacheHeaders(response);
-        }
+        response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        response.setHeader("Pragma", "no-cache");
+        response.setHeader("Expires", "0");
 
         // 2. EXCLUSION CHECK (Public & Static Resources)
         // If it's a public page or a CSS/JS file, let it pass immediately.
@@ -107,29 +103,6 @@ public class SecurityGatekeeperFilter extends OncePerRequestFilter {
             // Only redirect if it's a page request, not an API request
             response.sendRedirect(request.getContextPath() + "/login");
         }
-    }
-
-    private boolean isStaticResource(String path) {
-        // Check by common extensions
-        if (path.endsWith(".css") || path.endsWith(".js") || path.endsWith(".json") ||
-                path.endsWith(".png") || path.endsWith(".jpg") || path.endsWith(".jpeg") ||
-                path.endsWith(".gif") || path.endsWith(".svg") || path.endsWith(".ico") ||
-                path.endsWith(".woff") || path.endsWith(".woff2") || path.endsWith(".ttf") ||
-                path.endsWith(".eot")) {
-            return true;
-        }
-
-        // Check by directory (useful for libraries)
-        return path.contains("/webjars/") || path.contains("/webfonts/") ||
-                path.contains("/images/") || path.contains("/icons/") ||
-                path.contains("/appicons/") || path.contains("/css/") ||
-                path.contains("/favicon/");
-    }
-
-    private void applyNoCacheHeaders(HttpServletResponse response) {
-        response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-        response.setHeader("Pragma", "no-cache");
-        response.setHeader("Expires", "0");
     }
 
 }
