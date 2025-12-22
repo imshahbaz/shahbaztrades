@@ -8,9 +8,10 @@ spring:
   web:
     resources:
       cache:
-        period: 360000000
+        period: P365D
       chain:
         cache: true
+        gzipped: true
 
   mvc:
     view:
@@ -26,6 +27,9 @@ server:
   forward-headers-strategy: framework
   tomcat:
     shutdown-port: -1
+    threads:
+      max: 50
+      min-spare: 5
   servlet:
     session:
       cookie:
@@ -36,6 +40,12 @@ server:
       init-parameters:
         development: false
         checkInterval: 0
+        mappedfile: false
+        trimSpaces: true
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/json,application/javascript
+    min-response-size: 1024
 
 features:
   swagger:
