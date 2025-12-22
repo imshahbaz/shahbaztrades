@@ -1,7 +1,6 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
     <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
         <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
-        <%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
             <!DOCTYPE html>
             <html lang="en">
 
@@ -20,20 +19,21 @@
 
 
                 <!-- Custom Styles -->
-                <link rel="stylesheet" href="< spring:url value='/css/style.css' />">
+                <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
 
                 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
                     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
                     crossorigin="anonymous"></script>
 
-                <link rel="manifest" href="< spring:url value='/manifest.json' />">
-                <link rel="icon" href="< spring:url value='/images/favicon/favicon.ico' />">
-                <link rel="apple-touch-icon" sizes="180x180"
-                    href="<spring:url value='/images/favicon/apple-touch-icon.png' />">
-                <link rel="icon" type="image/png" sizes="32x32"
-                    href="<spring:url value='/images/favicon/favicon-32x32.png' />">
-                <link rel="icon" type="image/png" sizes="16x16"
-                    href="<spring:url value='/images/favicon/favicon-16x16.png' />">
+                <link rel="manifest" href="${pageContext.request.contextPath}/manifest.json">
+                <link rel="icon" href="${pageContext.request.contextPath}/images/favicon/favicon.ico">
+                                <link rel="apple-touch-icon" sizes="180x180"
+                                    href="${pageContext.request.contextPath}/images/favicon/apple-touch-icon.png">
+                                <link rel="icon" type="image/png" sizes="32x32"
+                                    href="${pageContext.request.contextPath}/images/favicon/favicon-32x32.png">
+                                <link rel="icon" type="image/png" sizes="16x16"
+                                    href="${pageContext.request.contextPath}/images/favicon/favicon-16x16.png">
+                                <script>
                 <script>
                     if ('serviceWorker' in navigator) {
                         navigator.serviceWorker.register('${pageContext.request.contextPath}/service-worker.js')
