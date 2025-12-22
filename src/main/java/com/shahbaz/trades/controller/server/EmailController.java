@@ -1,4 +1,4 @@
-package com.shahbaz.trades.controller;
+package com.shahbaz.trades.controller.server;
 
 import com.shahbaz.trades.model.dto.request.BrevoEmailRequest;
 import com.shahbaz.trades.service.EmailService;

@@ -1,7 +1,7 @@
 package com.shahbaz.trades.service.impl;
 
 import com.shahbaz.trades.client.BrevoFeignClient;
-import com.shahbaz.trades.config.SystemConfigs;
+import com.shahbaz.trades.config.env.SystemConfigs;
 import com.shahbaz.trades.model.dto.request.BrevoEmailRequest;
 import com.shahbaz.trades.service.EmailService;
 import lombok.RequiredArgsConstructor;

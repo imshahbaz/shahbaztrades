@@ -1,4 +1,4 @@
-package com.shahbaz.trades.config;
+package com.shahbaz.trades.config.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

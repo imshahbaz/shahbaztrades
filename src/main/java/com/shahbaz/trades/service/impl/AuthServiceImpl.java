@@ -1,6 +1,6 @@
 package com.shahbaz.trades.service.impl;
 
-import com.shahbaz.trades.config.SessionConfig;
+import com.shahbaz.trades.config.session.SessionConfig;
 import com.shahbaz.trades.exceptions.AuthenticationFailedException;
 import com.shahbaz.trades.exceptions.UserNotFoundException;
 import com.shahbaz.trades.model.entity.User;

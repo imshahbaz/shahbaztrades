@@ -1,4 +1,4 @@
-package com.shahbaz.trades.config;
+package com.shahbaz.trades.config.env;
 
 import com.google.gson.Gson;
 import com.shahbaz.trades.model.config.EnvConfig;

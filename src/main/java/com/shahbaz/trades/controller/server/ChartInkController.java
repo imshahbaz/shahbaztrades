@@ -1,4 +1,4 @@
-package com.shahbaz.trades.controller;
+package com.shahbaz.trades.controller.server;
 
 import com.shahbaz.trades.model.dto.StockMarginDto;
 import com.shahbaz.trades.model.dto.response.ChartInkResponseDto;

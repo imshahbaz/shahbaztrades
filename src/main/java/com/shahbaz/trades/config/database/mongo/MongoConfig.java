@@ -1,4 +1,4 @@
-package com.shahbaz.trades.config;
+package com.shahbaz.trades.config.database.mongo;
 
 import com.google.gson.Gson;
 import com.mongodb.ConnectionString;
@@ -6,6 +6,7 @@ import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.lang.NonNull;
+import com.shahbaz.trades.config.env.SystemConfigs;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
