@@ -89,11 +89,9 @@
                                 <div class="card-body">
                                     <h5 class="card-title text-muted mb-4 text-uppercase small fw-bold">Capital
                                         Breakdown</h5>
-                                    <div class="d-flex justify-content-between mb-2"><span>Total Investment
-                                            Value :</span> <span class="fw-bold">&#x20B9; <span
+                                    <div class="d-flex justify-content-between mb-2"><span>Total Investment :</span> <span class="fw-bold">&#x20B9; <span
                                                 id="total-investment"></span></span></div>
-                                    <div class="d-flex justify-content-between mb-2"><span>Your Margin (Capital
-                                            Used) :</span> <span class="fw-bold text-primary">&#x20B9; <span
+                                    <div class="d-flex justify-content-between mb-2"><span>Your Investment :</span> <span class="fw-bold text-primary">&#x20B9; <span
                                                 id="margin"></span></span></div>
                                     <div class="d-flex justify-content-between mb-2"><span>Borrowed Funding :</span>
                                         <span class="fw-bold">&#x20B9; <span id="funding-amount"></span></span>
@@ -115,7 +113,7 @@
                                         <span class="fw-bold text-danger">&#x20B9; <span
                                                 id="total-charges"></span></span>
                                     </div>
-                                    <div class="d-flex justify-content-between mb-2"><span>Net Take-Home Profit :</span>
+                                    <div class="d-flex justify-content-between mb-2"><span>Net Profit/Loss :</span>
                                         <span class="fw-bold text-success fs-5">&#x20B9; <span
                                                 id="net-profit"></span></span>
                                     </div>
