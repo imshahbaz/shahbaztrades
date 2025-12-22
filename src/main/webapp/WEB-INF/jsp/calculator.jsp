@@ -201,8 +201,11 @@
         // standard brokerage assumptions
         const brokerage = 40;
         const STT = (days > 0) ? turnover * 0.001 : shares * sp * 0.00025;
+        const stampCharges = shares * buyPrice * (days > 0 ? 0.00015 : 0.00003);
         const transCharges = turnover * 0.0000345;
-        const totalCharges = brokerage + STT + transCharges;
+        const sebiCharges = turnover * 0.000001;
+        const gst = 0.18 * (sebiCharges + brokerage + transCharges);
+        const totalCharges = brokerage + STT + transCharges + stampCharges + gst +sebiCharges;
         
         const mtfInterest = (fundedAmt * 0.15 * (days || 0)) / 365;
         const netProfit = grossProfit - mtfInterest - totalCharges;
