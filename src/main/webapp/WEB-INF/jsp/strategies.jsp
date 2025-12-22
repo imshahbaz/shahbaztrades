@@ -141,7 +141,7 @@
                             btn.addEventListener('click', function (e) {
                                 e.preventDefault();
                                 const kite = new KiteConnect("kitedemo");
-                                
+
                                 kite.add({
                                     "exchange": "NSE",
                                     "tradingsymbol": stock.symbol,

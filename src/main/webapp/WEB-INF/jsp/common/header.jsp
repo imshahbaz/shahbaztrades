@@ -8,18 +8,23 @@
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Shahbaz Trades - Welcome</title>
-                <!-- Use local FontAwesome -->
-                <link rel="stylesheet" href="${pageContext.request.contextPath}/css/fontawesome.css">
-                <!-- Google Fonts -->
+
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+                    rel="stylesheet" />
+
                 <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
                     rel="stylesheet" />
-                <!-- MDB -->
-                <link rel="stylesheet" href="${pageContext.request.contextPath}/css/mdb.min.css">
+
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.1.0/mdb.min.css" rel="stylesheet" />
+
+
                 <!-- Custom Styles -->
                 <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
-                <script type="text/javascript" src="${pageContext.request.contextPath}/js/mdb.min.js"></script>
-                <script type="text/javascript"
-                    src="${pageContext.request.contextPath}/js/bootstrap.bundle.min.js"></script>
+
+                <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+                    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+                    crossorigin="anonymous"></script>
+
                 <link rel="manifest" href="${pageContext.request.contextPath}/manifest.json">
                 <link rel="icon" href="${pageContext.request.contextPath}/images/favicon/favicon.ico">
                 <link rel="apple-touch-icon" sizes="180x180"
