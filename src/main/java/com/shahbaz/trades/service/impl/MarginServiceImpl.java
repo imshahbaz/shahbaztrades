@@ -59,7 +59,7 @@ public class MarginServiceImpl implements MarginService {
         marginRepository.saveAll(margins);
 
         List<String> ids = margins.stream().map(Margin::getSymbol).toList();
-        long deletedCount=marginRepository.deleteByIdNotIn(ids);
+        long deletedCount = marginRepository.deleteByIdNotIn(ids);
         log.info("Deleted {} margin(s)", deletedCount);
 
         marginMap.clear();
