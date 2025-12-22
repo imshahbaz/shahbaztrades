@@ -1,4 +1,4 @@
-package com.shahbaz.trades.config;
+package com.shahbaz.trades.config.session;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.session.data.mongo.MongoIndexedSessionRepository;

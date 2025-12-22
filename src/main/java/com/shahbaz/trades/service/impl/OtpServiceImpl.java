@@ -1,6 +1,6 @@
 package com.shahbaz.trades.service.impl;
 
-import com.shahbaz.trades.config.SystemConfigs;
+import com.shahbaz.trades.config.env.SystemConfigs;
 import com.shahbaz.trades.exceptions.DuplicateOtpRequest;
 import com.shahbaz.trades.exceptions.InvalidOtpException;
 import com.shahbaz.trades.model.dto.UserDto;
