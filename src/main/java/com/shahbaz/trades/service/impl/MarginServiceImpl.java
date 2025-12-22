@@ -6,6 +6,7 @@ import com.shahbaz.trades.service.MarginService;
 import com.shahbaz.trades.util.CsvReader;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,6 +16,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MarginServiceImpl implements MarginService {
@@ -55,6 +57,10 @@ public class MarginServiceImpl implements MarginService {
         List<Margin> margins = CsvReader.read(file, leverage);
 
         marginRepository.saveAll(margins);
+
+        List<String> ids = margins.stream().map(Margin::getSymbol).toList();
+        long deletedCount = marginRepository.deleteByIdNotIn(ids);
+        log.info("Deleted {} margin(s)", deletedCount);
 
         marginMap.clear();
 

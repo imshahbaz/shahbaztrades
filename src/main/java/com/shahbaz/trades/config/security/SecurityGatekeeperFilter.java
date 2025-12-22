@@ -48,7 +48,8 @@ public class SecurityGatekeeperFilter extends OncePerRequestFilter {
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-resources/**",
-            "/swagger-ui.html"
+            "/swagger-ui.html",
+            "/.well-known/**"
     );
 
     @Override
@@ -67,6 +68,7 @@ public class SecurityGatekeeperFilter extends OncePerRequestFilter {
         // If it's a public page or a CSS/JS file, let it pass immediately.
         boolean isPublic = PUBLIC_PATTERNS.stream()
                 .anyMatch(pattern -> matcher.match(pattern, path));
+
         if (isPublic) {
             filterChain.doFilter(request, response);
             return;
@@ -77,7 +79,9 @@ public class SecurityGatekeeperFilter extends OncePerRequestFilter {
         if (path.startsWith("/api/")) {
             String referer = request.getHeader("Referer");
             // Check if the request is coming from your own JSP pages
-            boolean isInternal = referer != null && (referer.contains("/strategies") || referer.endsWith("/"));
+            boolean isInternal = referer != null && (referer.contains("/strategies") ||
+                    referer.endsWith("/") ||
+                    referer.contains("/admin/dashboard"));
 
             if (!isInternal) {
                 String apiKey = request.getHeader(API_KEY_HEADER);

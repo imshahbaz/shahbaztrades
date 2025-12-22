@@ -73,6 +73,15 @@
                                                 <i class="fas fa-user me-1"></i> ${sessionScope.user.username}
                                             </a>
                                             <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                                <c:if test="${sessionScope.user.role == 'ADMIN'}">
+                                                    <li><a class="dropdown-item"
+                                                            href="${pageContext.request.contextPath}/admin/dashboard">
+                                                            <i class="fas fa-tachometer-alt me-2"></i> Admin Dashboard
+                                                        </a></li>
+                                                    <li>
+                                                        <hr class="dropdown-divider">
+                                                    </li>
+                                                </c:if>
                                                 <li><a class="dropdown-item"
                                                         href="${pageContext.request.contextPath}/settings">
                                                         <i class="fas fa-cog me-2"></i> Settings
