@@ -5,6 +5,10 @@ spring:
   main:
     web-application-type: servlet
 
+  threads:
+    virtual:
+      enabled: true
+
   web:
     resources:
       add-mappings: true
@@ -35,9 +39,6 @@ server:
   forward-headers-strategy: framework
   tomcat:
     shutdown-port: -1
-    threads:
-      max: 50
-      min-spare: 5
   servlet:
     session:
       cookie:
