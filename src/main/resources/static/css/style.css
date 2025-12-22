@@ -4,26 +4,26 @@
     --background-color: #F6F7F9;
     --section-bg: #EEF2F6;
     --card-bg: #FFFFFF;
-    
+
     /* Text Colors */
     --text-color: #1E293B;
     --text-secondary: #475569;
     --text-muted: #64748B;
-    
+
     /* Borders */
     --border-color: #D8DEE6;
-    
+
     /* Primary Accent */
     --primary-color: #2563EB;
     --primary-hover: #1D4ED8;
     --primary-disabled: #93C5FD;
-    
+
     /* Semantic Colors */
     --success-color: #15803D;
     --error-color: #B91C1C;
     --warning-color: #B45309;
     --info-color: #0284C7;
-    
+
     /* Table Colors */
     --table-header-bg: #E9EEF4;
     --table-header-text: #475569;
@@ -31,19 +31,19 @@
     --table-alt-row-bg: #F6F7F9;
     --table-hover-bg: #E8EEFF;
     --table-border: #D8DEE6;
-    
+
     /* Navigation */
     --nav-bg: #EEF2F6;
     --nav-text: #475569;
     --nav-hover: #1E293B;
-    
+
     /* Forms */
     --input-bg: #FFFFFF;
     --input-text: #1E293B;
     --input-placeholder: #94A3B8;
     --input-border: #CBD5E1;
     --input-focus-border: #2563EB;
-    
+
     /* Charts */
     --chart-grid: #D8DEE6;
     --chart-axis-text: #475569;
@@ -57,26 +57,26 @@
     --background-color: #0F172A;
     --section-bg: #020617;
     --card-bg: #111827;
-    
+
     /* Text Colors */
     --text-color: #E5E7EB;
     --text-secondary: #9CA3AF;
     --text-muted: #64748B;
-    
+
     /* Borders */
     --border-color: #1F2937;
-    
+
     /* Primary Accent */
     --primary-color: #3B82F6;
     --primary-hover: #2563EB;
     --primary-disabled: #1E40AF;
-    
+
     /* Semantic Colors */
     --success-color: #22C55E;
     --error-color: #EF4444;
     --warning-color: #FBBF24;
     --info-color: #38BDF8;
-    
+
     /* Table Colors */
     --table-header-bg: #020617;
     --table-header-text: #9CA3AF;
@@ -84,19 +84,19 @@
     --table-alt-row-bg: #111827;
     --table-hover-bg: #1E293B;
     --table-border: #1F2937;
-    
+
     /* Navigation */
     --nav-bg: #020617;
     --nav-text: #9CA3AF;
     --nav-hover: #E5E7EB;
-    
+
     /* Forms */
     --input-bg: #020617;
     --input-text: #E5E7EB;
     --input-placeholder: #64748B;
     --input-border: #1F2937;
     --input-focus-border: #3B82F6;
-    
+
     /* Charts */
     --chart-grid: #1F2937;
     --chart-axis-text: #9CA3AF;
@@ -154,53 +154,53 @@ footer {
     color: #1F2937 !important;
 }
 
-.table > tbody,
-.table > thead {
+.table>tbody,
+.table>thead {
     border: none !important;
 }
 
-.table > tbody > tr {
+.table>tbody>tr {
     background-color: #FFFFFF !important;
     border: none !important;
 }
 
-.table > tbody > tr > td {
+.table>tbody>tr>td {
     background-color: #FFFFFF !important;
     border: none !important;
     color: #1F2937 !important;
 }
 
-.table > thead > tr > th {
+.table>thead>tr>th {
     border: none !important;
     color: #6B7280 !important;
 }
 
-.table-striped > tbody > tr:nth-of-type(odd) {
+.table-striped>tbody>tr:nth-of-type(odd) {
     background-color: #F9FAFB !important;
 }
 
-.table-striped > tbody > tr:nth-of-type(odd) > td {
+.table-striped>tbody>tr:nth-of-type(odd)>td {
     background-color: #F9FAFB !important;
 }
 
-.table-hover > tbody > tr:hover {
+.table-hover>tbody>tr:hover {
     background-color: #EEF2FF !important;
 }
 
-.table-hover > tbody > tr:hover > td {
+.table-hover>tbody>tr:hover>td {
     background-color: #EEF2FF !important;
 }
 
 .table-bordered,
-.table-bordered > thead > tr > th,
-.table-bordered > tbody > tr > td {
+.table-bordered>thead>tr>th,
+.table-bordered>tbody>tr>td {
     border-color: transparent !important;
     border: none !important;
 }
 
-.table > thead,
-.table > thead > tr,
-.table > thead > tr > th {
+.table>thead,
+.table>thead>tr,
+.table>thead>tr>th {
     background-color: #F3F4F6 !important;
     color: #6B7280 !important;
     border-color: transparent !important;
@@ -315,11 +315,11 @@ select:disabled {
 }
 
 /* Active/Selected Row */
-.table > tbody > tr.active {
+.table>tbody>tr.active {
     background-color: rgba(37, 99, 235, 0.1) !important;
 }
 
-.table > tbody > tr.active > td {
+.table>tbody>tr.active>td {
     background-color: rgba(37, 99, 235, 0.1) !important;
 }
 
@@ -335,54 +335,54 @@ select:disabled {
     border-color: transparent !important;
 }
 
-.dark .table > tbody,
-.dark .table > thead {
+.dark .table>tbody,
+.dark .table>thead {
     border: none !important;
 }
 
-.dark .table > tbody > tr {
+.dark .table>tbody>tr {
     background-color: #0F172A !important;
     border: none !important;
 }
 
-.dark .table > tbody > tr > td {
+.dark .table>tbody>tr>td {
     background-color: #0F172A !important;
     color: #E5E7EB !important;
     border: none !important;
 }
 
-.dark .table > thead > tr > th {
+.dark .table>thead>tr>th {
     border: none !important;
     color: #9CA3AF !important;
 }
 
-.dark .table-striped > tbody > tr:nth-of-type(odd) {
+.dark .table-striped>tbody>tr:nth-of-type(odd) {
     background-color: #111827 !important;
 }
 
-.dark .table-striped > tbody > tr:nth-of-type(odd) > td {
+.dark .table-striped>tbody>tr:nth-of-type(odd)>td {
     background-color: #111827 !important;
 }
 
-.dark .table-hover > tbody > tr:hover {
+.dark .table-hover>tbody>tr:hover {
     background-color: #1E293B !important;
     color: #E5E7EB !important;
 }
 
-.dark .table-hover > tbody > tr:hover > td {
+.dark .table-hover>tbody>tr:hover>td {
     background-color: #1E293B !important;
 }
 
 .dark .table-bordered,
-.dark .table-bordered > thead > tr > th,
-.dark .table-bordered > tbody > tr > td {
+.dark .table-bordered>thead>tr>th,
+.dark .table-bordered>tbody>tr>td {
     border-color: transparent !important;
     border: none !important;
 }
 
-.dark .table > thead,
-.dark .table > thead > tr,
-.dark .table > thead > tr > th {
+.dark .table>thead,
+.dark .table>thead>tr,
+.dark .table>thead>tr>th {
     background-color: #020617 !important;
     color: #9CA3AF !important;
     border-color: transparent !important;
@@ -507,11 +507,11 @@ select:disabled {
 }
 
 /* Active/Selected Row */
-.dark .table > tbody > tr.active {
+.dark .table>tbody>tr.active {
     background-color: rgba(59, 130, 246, 0.15) !important;
 }
 
-.dark .table > tbody > tr.active > td {
+.dark .table>tbody>tr.active>td {
     background-color: rgba(59, 130, 246, 0.15) !important;
 }
 
@@ -599,6 +599,68 @@ select:disabled {
     #strategy-data-table .buy-trigger {
         width: 100%;
         margin-top: 10px;
+    }
+}
+
+/* Mobile responsive calculator form */
+@media (max-width: 768px) {
+
+    /* Calculator form container */
+    #calculator-form .row.mb-4 {
+        margin-bottom: 2rem !important;
+    }
+
+    /* Form labels */
+    #calculator-form .form-label {
+        margin-bottom: 0.75rem !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+    }
+
+    /* Form inputs */
+    #calculator-form .form-control {
+        margin-bottom: 1rem !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 1rem !important;
+    }
+
+    /* Button groups */
+    #calculator-form .btn-group {
+        margin-bottom: 1rem !important;
+    }
+
+    #calculator-form .btn-group .btn {
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.9rem !important;
+    }
+
+    /* Stock input container */
+    #calculator-form .col-md-8 {
+        margin-bottom: 1.5rem !important;
+    }
+
+    /* Suggestions list */
+    #suggestions {
+        max-height: 250px !important;
+    }
+
+    .suggestion-item {
+        padding: 10px 15px !important;
+        font-size: 0.9rem !important;
+    }
+
+    /* Calculate button */
+    #calculator-form .btn-primary {
+        width: 100% !important;
+        padding: 0.875rem 1.5rem !important;
+        font-size: 1.1rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    /* Alert message */
+    #alert-message {
+        margin-bottom: 1.5rem !important;
+        font-size: 0.95rem !important;
     }
 }
 
@@ -713,4 +775,3 @@ footer {
     margin-top: auto;
 }
 */
-
