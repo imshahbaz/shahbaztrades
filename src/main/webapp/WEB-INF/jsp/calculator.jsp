@@ -16,8 +16,8 @@
                             <input type="text" class="form-control form-control-lg" id="stock-input"
                                 placeholder="Click to select or type to search..." autocomplete="off" required>
 
-                            <div id="suggestions" class="suggestions-list" style="display: none; position: absolute; z-index: 1000; background: white; width: 100%; 
-                                    max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 0 0 8px 8px; 
+                            <div id="suggestions" class="suggestions-list" style="display: none; position: absolute; z-index: 1000; width: 100%;
+                                    max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 0 0 8px 8px;
                                     box-shadow: 0 8px 16px rgba(0,0,0,0.15);">
                             </div>
 
@@ -171,8 +171,7 @@
                             suggestionsDiv.style.display = 'none';
                         });
 
-                        div.onmouseover = () => div.style.backgroundColor = '#f1f5fe';
-                        div.onmouseout = () => div.style.backgroundColor = 'white';
+
 
                         suggestionsDiv.appendChild(div);
                     });

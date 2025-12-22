@@ -535,6 +535,21 @@ select:disabled {
     color: #90caf9;
 }
 
+/* Calculator suggestions list styling */
+.suggestions-list {
+    background-color: var(--input-bg) !important;
+    color: var(--input-text) !important;
+}
+
+.suggestion-item {
+    background-color: var(--input-bg) !important;
+    color: var(--input-text) !important;
+}
+
+.suggestion-item:hover {
+    background-color: var(--table-hover-bg) !important;
+}
+
 /* Mobile responsive table for strategy data */
 @media (max-width: 600px) {
     #strategy-data-table {
