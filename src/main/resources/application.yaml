@@ -7,13 +7,21 @@ spring:
 
   web:
     resources:
+      add-mappings: true
       cache:
         period: P365D
       chain:
+        enabled: true
         cache: true
         gzipped: true
+        strategy:
+          content:
+            enabled: true
+            paths: /**
 
   mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
     view:
       prefix: /WEB-INF/jsp/
       suffix: .jsp
