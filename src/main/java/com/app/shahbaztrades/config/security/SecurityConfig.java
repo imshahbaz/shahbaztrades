@@ -36,7 +36,8 @@ public class SecurityConfig {
             "/health",
             "/api/auth/google/callback",
             "/api/auth/google/token",
-            "/api/config/client/active"
+            "/api/config/client/active",
+            "/api/admin/mem"
     };
 
     private final AuthFilter authFilter;
