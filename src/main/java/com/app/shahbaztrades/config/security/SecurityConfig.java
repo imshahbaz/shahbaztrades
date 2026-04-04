@@ -33,6 +33,7 @@ public class SecurityConfig {
             "/webjars/**",
             "/favicon.ico",
             "/error",
+            "/health",
             "/api/auth/google/callback",
             "/api/auth/google/token",
             "/api/config/client/active"
