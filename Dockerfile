@@ -36,7 +36,7 @@ EXPOSE 8080
 # IdleTuning flags: Forces JVM to return RAM back to OS (Render) during idle times!
 # -Xss256K: Slashes memory per thread from 1MB to 256KB
 # -Xquickstart: Prevents deep JIT compilation at boot, massively speeding up start time!
-ENV JAVA_OPTS="-Xshareclasses:name=appcache,cacheDir=/app/scc -Xscmx64M -Xgcpolicy:gencon -Xtune:virtualized -Xquickstart -Xmns8M -Xmnx16M -Xms32M -Xmx64M -Xss256K -XX:+IdleTuningGcOnIdle -XX:+IdleTuningCompactOnIdle"
+ENV JAVA_OPTS="-Xshareclasses:name=appcache,cacheDir=/app/scc -Xscmx64M -Xgcpolicy:gencon -Xtune:virtualized -Xquickstart -Xmns8M -Xmnx16M -Xms48M -Xmx128M -Xss256K -XX:+IdleTuningGcOnIdle -XX:+IdleTuningCompactOnIdle"
 
 # Pre-populate the Shared Classes Cache (CDS equivalent)
 # Run once and exit to populate cache
