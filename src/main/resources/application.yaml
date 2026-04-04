@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: ShahbazTrades
+
+  main:
+    lazy-initialization: true # Defers bean creation to reduce starting RAM
+
+  threads:
+    virtual:
+      enabled: true # Uses Java 21 Virtual Threads (~200 bytes per thread instead of 256KB+ OS threads)
+
+  jmx:
+    enabled: false # Saves ~10MB+ RAM by turning off JMX beans
+
+  data:
+    mongodb:
+      uri: ${MONGO_URI}
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      username: ${REDIS_USER}
+      password: ${REDIS_PASS}
+      ssl:
+        enabled: true
+
+
+server:
+  undertow:
+    threads:
+      worker: 4 # Reduce threads, low traffic apps don't need many
+      io: 1 # Extremely low IO threads for background ops
