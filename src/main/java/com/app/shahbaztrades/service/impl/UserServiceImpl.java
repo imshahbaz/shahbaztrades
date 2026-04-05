@@ -1,6 +1,8 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
+import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.auth.GoogleUser;
 import com.app.shahbaztrades.model.entity.User;
@@ -15,11 +17,13 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -47,6 +51,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public User findByUserIdOrEmailOrMobile(Long userId, String email, Long mobile) {
         Query query = new Query();
         List<Criteria> criteriaList = new ArrayList<>();
@@ -70,6 +75,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public User findOrCreateGoogleUser(GoogleUser gUser) {
         User user = this.findByUserIdOrEmailOrMobile(0L, gUser.getEmail(), 0L);
 
@@ -95,6 +101,20 @@ public class UserServiceImpl implements UserService {
         }
 
         return user;
+    }
+
+    @Override
+    @Transactional
+    public ResponseEntity<ApiResponse<String>> patchFcmToken(UserDto userDto, Map<String, String> request) {
+        if (StringUtils.isEmpty(request.get("token"))) {
+            throw new BadRequestException("Token is empty!");
+        }
+        var token = request.get("token");
+        Query query = new Query(Criteria.where(User.Fields.userId).is(userDto.getUserId()));
+        Update update = new Update();
+        update.set(User.Fields.fcmToken, token);
+        mongoTemplate.updateFirst(query, update, User.class);
+        return ResponseEntity.ok(ApiResponse.ok(token, "FCM token synchronized"));
     }
 
 }
