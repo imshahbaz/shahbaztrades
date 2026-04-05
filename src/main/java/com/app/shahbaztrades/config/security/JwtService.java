@@ -4,12 +4,12 @@ import com.app.shahbaztrades.exceptions.UnauthorizedException;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.auth.JwtClaims;
 import com.app.shahbaztrades.service.MongoConfigService;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.json.JsonMapper;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -20,7 +20,7 @@ import java.util.Date;
 public class JwtService {
 
     private final MongoConfigService mongoConfigService;
-    private final JsonMapper jaonMapper;
+    private final JsonMapper jsonMapper;
 
     public JwtClaims validateToken(String tokenString) {
         SecretKey key = Keys.hmacShaKeyFor(mongoConfigService.getConfig().getJwtSecret()
@@ -36,7 +36,7 @@ public class JwtService {
             throw new UnauthorizedException("Invalid session");
         }
 
-        UserDto user = jaonMapper.convertValue(claims.get("user"), UserDto.class);
+        UserDto user = jsonMapper.convertValue(claims.get("user"), UserDto.class);
         if (user == null) {
             throw new UnauthorizedException("Invalid session");
         }

@@ -8,6 +8,8 @@ import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.MappingIterator;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.mongodb.client.result.DeleteResult;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
@@ -19,8 +21,6 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.MappingIterator;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.io.InputStream;
 import java.util.*;
@@ -49,6 +49,11 @@ public class MarginServiceImpl implements MarginService {
     @PostConstruct
     public void init() {
         refreshMargins();
+    }
+
+    @Override
+    public Map<String, Margin> getMarginCache() {
+        return cachedMargins;
     }
 
     @Override
