@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.controller;
 
+import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.entity.MongoEnvConfig;
 import com.app.shahbaztrades.service.MongoConfigService;
@@ -16,6 +17,7 @@ public class ConfigController {
 
     private final MongoConfigService mongoConfigService;
 
+    @PublicEndpoint
     @GetMapping("/client/active")
     public ResponseEntity<ApiResponse<MongoEnvConfig>> getClientConfig() {
         return ResponseEntity.ok(ApiResponse.ok(mongoConfigService.getClientConfig(), "Client config fetch success"));

@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.controller;
 
+import com.app.shahbaztrades.config.security.PublicEndpoint;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -10,6 +11,7 @@ import java.util.Map;
 @RequestMapping("/api/admin")
 public class MemoryMonitorController {
 
+    @PublicEndpoint
     @GetMapping("/mem")
     public Map<String, Object> getMemoryStats() {
         Runtime runtime = Runtime.getRuntime();
