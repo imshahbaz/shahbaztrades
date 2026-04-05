@@ -3,14 +3,14 @@ spring:
     name: ShahbazTrades
 
   main:
-    lazy-initialization: true # Defers bean creation to reduce starting RAM
+    lazy-initialization: true
 
   threads:
     virtual:
-      enabled: true # Uses Java 21 Virtual Threads (~200 bytes per thread instead of 256KB+ OS threads)
+      enabled: true
 
   jmx:
-    enabled: false # Saves ~10MB+ RAM by turning off JMX beans
+    enabled: false
 
   data:
     mongodb:
@@ -27,5 +27,5 @@ spring:
 server:
   undertow:
     threads:
-      worker: 4 # Reduce threads, low traffic apps don't need many
-      io: 1 # Extremely low IO threads for background ops
+      worker: 4
+      io: 1

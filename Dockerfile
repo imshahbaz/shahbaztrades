@@ -36,11 +36,12 @@ EXPOSE 8080
 # IdleTuning flags: Forces JVM to return RAM back to OS (Render) during idle times!
 # -Xss256K: Slashes memory per thread from 1MB to 256KB
 # -Xquickstart: Prevents deep JIT compilation at boot, massively speeding up start time!
-ENV JAVA_OPTS="-Xshareclasses:name=appcache,cacheDir=/app/scc -Xscmx64M -Xgcpolicy:gencon -Xtune:virtualized -Xquickstart -Xmns8M -Xmnx16M -Xms48M -Xmx128M -Xss256K -XX:+IdleTuningGcOnIdle -XX:+IdleTuningCompactOnIdle"
+ENV JAVA_OPTS="-Xshareclasses:name=appcache,cacheDir=/app/scc -Xscmx64M -Xgcpolicy:gencon -Xtune:virtualized -Xquickstart -Xmns8M -Xmnx32M -Xms48M -Xmx128M -Xss256K -XX:+IdleTuningGcOnIdle -XX:+IdleTuningCompactOnIdle -Xcpuweighted"
 
 # Pre-populate the Shared Classes Cache (CDS equivalent)
 # Run once and exit to populate cache
-RUN /bin/bash -c 'java $JAVA_OPTS -jar app.jar & PID=$!; sleep 15; kill $PID 2>/dev/null || true'
+#RUN /bin/bash -c 'java $JAVA_OPTS -jar app.jar & PID=$!; sleep 15; kill $PID 2>/dev/null || true'
+RUN /bin/bash -c 'java $JAVA_OPTS -Dspring.profiles.active=prewarm -jar app.jar & PID=$!; sleep 40; kill $PID 2>/dev/null || true'
 
 # Run with OpenJ9 optimizations 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
