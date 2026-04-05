@@ -40,8 +40,7 @@ ENV JAVA_OPTS="-Xshareclasses:name=appcache,cacheDir=/app/scc -Xscmx64M -Xgcpoli
 
 # Pre-populate the Shared Classes Cache (CDS equivalent)
 # Run once and exit to populate cache
-#RUN /bin/bash -c 'java $JAVA_OPTS -jar app.jar & PID=$!; sleep 15; kill $PID 2>/dev/null || true'
-RUN /bin/bash -c 'java $JAVA_OPTS -Dspring.profiles.active=prewarm -jar app.jar & PID=$!; sleep 40; kill $PID 2>/dev/null || true'
+RUN /bin/bash -c 'java $JAVA_OPTS -jar app.jar & PID=$!; sleep 15; kill $PID 2>/dev/null || true'
 
 # Run with OpenJ9 optimizations 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
