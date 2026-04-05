@@ -14,13 +14,13 @@ spring:
 
   mongodb:
     uri: ${MONGO_URI}
-  redis:
-    host: ${REDIS_HOST}
-    port: ${REDIS_PORT}
-    username: ${REDIS_USER}
-    password: ${REDIS_PASS}
-    ssl:
-      enabled: true
+  #redis:
+    #host: ${REDIS_HOST}
+    #port: ${REDIS_PORT}
+    #username: ${REDIS_USER}
+    #password: ${REDIS_PASS}
+#    ssl:
+#      enabled: true
 
 
 server:

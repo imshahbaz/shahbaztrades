@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.controller;
 
+import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.auth.AuthRequest;
@@ -18,6 +19,7 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @PublicEndpoint
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<SignUpResponse>> signUp(@RequestBody @Valid AuthRequest request) {
         return authService.signUp(request);
@@ -33,11 +35,13 @@ public class AuthController {
         return authService.getMe(userDto);
     }
 
+    @PublicEndpoint
     @PostMapping("/google/token")
     public ResponseEntity<ApiResponse<String>> validateGoogleToken(@RequestParam @NotBlank String code) {
         return authService.validateGoogleToken(code);
     }
 
+    @PublicEndpoint
     @GetMapping("/google/callback")
     public ResponseEntity<?> getGoogleCallback(@RequestParam @NotBlank String code, @RequestParam @NotBlank String state) {
         return authService.googleAuthCallback(code, state);
