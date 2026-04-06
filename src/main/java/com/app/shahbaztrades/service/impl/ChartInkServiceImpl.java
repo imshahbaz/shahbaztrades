@@ -3,6 +3,8 @@ package com.app.shahbaztrades.service.impl;
 import com.app.shahbaztrades.components.chartink.ChartinkClient;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
+import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestDto;
+import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestResponse;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkResponseDto;
 import com.app.shahbaztrades.model.dto.chartink.StockMarginDto;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
@@ -21,6 +23,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Slf4j
@@ -93,6 +98,54 @@ public class ChartInkServiceImpl implements ChartInkService {
         return result;
     }
 
+    @Override
+    public List<ChartInkBacktestDto> fetchBacktestData(String strategyName) {
+        var strategy = strategyService.getCachedStrategies().get(strategyName);
+        if (strategy == null) {
+            throw new BadRequestException("Strategy " + strategyName + " not found");
+        }
+
+        try {
+            String jsonResponse = executeBacktestWithRetry(strategy.getScanClause());
+            var resp = jsonMapper.readValue(jsonResponse, ChartInkBacktestResponse.class);
+            List<ChartInkBacktestDto> signals = new ArrayList<>();
+            ZoneId istZone = ZoneId.of("Asia/Kolkata");
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+            if (resp.getMetaData() != null && !resp.getMetaData().isEmpty()) {
+                ChartInkBacktestResponse.MetaData meta = resp.getMetaData().getFirst();
+                List<Long> tradeTimes = meta.getTradeTimes();
+                List<List<String>> aggregatedStockList = resp.getAggregatedStockList();
+
+                for (int i = 0; i < tradeTimes.size(); i++) {
+                    long ts = tradeTimes.get(i);
+
+                    if (ts > 10_000_000_000L) {
+                        ts = ts / 1000;
+                    }
+
+                    String marketTime = Instant.ofEpochSecond(ts)
+                            .atZone(istZone)
+                            .format(formatter);
+
+                    List<String> stocks = new ArrayList<>();
+                    if (aggregatedStockList != null && i < aggregatedStockList.size()) {
+                        List<String> stockData = aggregatedStockList.get(i);
+                        for (int j = 0; j < stockData.size(); j += 3) {
+                            stocks.add(stockData.get(j));
+                        }
+                    }
+
+                    signals.add(new ChartInkBacktestDto(marketTime, stocks));
+                }
+            }
+            return signals;
+        } catch (Exception e) {
+            log.error("Error fetching data from Chartink: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private String executeWithRetry(String scanClause) {
         Map<String, String> payload = Map.of("scan_clause", scanClause);
         try {
@@ -116,6 +169,30 @@ public class ChartInkServiceImpl implements ChartInkService {
 
     private void sortResultByMargin(List<StockMarginDto> result) {
         result.sort(Comparator.comparingDouble(StockMarginDto::getMargin).reversed());
+    }
+
+    private String executeBacktestWithRetry(String scanClause) throws Exception {
+        Map<String, String> payload = new HashMap<>();
+        payload.put("scan_clause", scanClause);
+        payload.put("max_rows", "65");
+
+        try {
+            if (StringUtils.isEmpty(xsrfToken)) {
+                refreshTokens();
+            }
+            return chartinkClient.fetchBackTestData(xsrfToken, payload);
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 419 || e.getStatusCode().value() == 401) {
+                log.warn("Chartink session expired ({}). Retrying...", e.getStatusCode().value());
+                refreshTokens();
+                return chartinkClient.fetchBackTestData(xsrfToken, payload);
+            }
+            throw e;
+        } catch (Exception e) {
+            log.error("Request failed: {}. Retrying...", e.getMessage());
+            refreshTokens();
+            return chartinkClient.fetchBackTestData(xsrfToken, payload);
+        }
     }
 
 }

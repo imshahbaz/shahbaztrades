@@ -2,6 +2,7 @@ package com.app.shahbaztrades.controller;
 
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
+import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestDto;
 import com.app.shahbaztrades.model.dto.chartink.StockMarginDto;
 import com.app.shahbaztrades.service.ChartInkService;
 import jakarta.validation.constraints.NotBlank;
@@ -25,6 +26,13 @@ public class ChartInkController {
     @GetMapping("/fetchWithMargin")
     public ResponseEntity<ApiResponse<List<StockMarginDto>>> fetchWithMargin(@RequestParam @NotBlank String strategy) {
         var result = chartInkService.fetchWithMargin(strategy);
+        return ResponseEntity.ok(ApiResponse.ok(result, "Success"));
+    }
+
+    @PublicEndpoint
+    @GetMapping("/backtest")
+    public ResponseEntity<ApiResponse<List<ChartInkBacktestDto>>> fetchBackTestData(@RequestParam @NotBlank String strategy) {
+        var result = chartInkService.fetchBacktestData(strategy);
         return ResponseEntity.ok(ApiResponse.ok(result, "Success"));
     }
 
