@@ -52,4 +52,11 @@ public class MarginController {
         }
     }
 
+    @PublicEndpoint
+    @PostMapping("/sync-token")
+    public ResponseEntity<ApiResponse<Void>> syncAngelOneToken() {
+        marginService.syncAngelOneToken();
+        return ResponseEntity.ok(ApiResponse.ok(null, "Angel one token synced successfully"));
+    }
+
 }

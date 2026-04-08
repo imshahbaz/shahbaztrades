@@ -7,8 +7,11 @@ import org.springframework.http.ResponseEntity;
 
 import java.io.InputStream;
 import java.util.Collection;
+import java.util.Map;
 
 public interface MarginService {
+
+    Map<String, Margin> getMarginCache();
 
     void refreshMargins();
 
@@ -18,4 +21,6 @@ public interface MarginService {
 
     @SneakyThrows
     void syncMTF(InputStream file);
+
+    void syncAngelOneToken();
 }

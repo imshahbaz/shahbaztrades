@@ -11,14 +11,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class StrategyServiceImpl implements StrategyService {
 
-    private List<StrategyDto> cachedStrategies = new ArrayList<>();
+    private Map<String, StrategyDto> cachedStrategies = new HashMap<>();
     private final StrategyRepository strategyRepository;
 
     @PostConstruct
@@ -26,10 +28,20 @@ public class StrategyServiceImpl implements StrategyService {
         refreshStrategyCache();
     }
 
+    @Override
+    public Map<String, StrategyDto> getCachedStrategies() {
+        return cachedStrategies;
+    }
+
+    @Override
     public void refreshStrategyCache() {
         var strategies = strategyRepository.findAll();
         if (!CollectionUtils.isEmpty(strategies)) {
-            cachedStrategies = strategies.stream().map(Strategy::toDto).toList();
+            cachedStrategies = strategies.stream()
+                    .collect(Collectors.toMap(
+                            Strategy::getName,
+                            Strategy::toDto
+                    ));
         }
     }
 
@@ -40,9 +52,9 @@ public class StrategyServiceImpl implements StrategyService {
 
     private List<StrategyDto> getActiveStrategies(boolean active) {
         if (active) {
-            return cachedStrategies.stream().filter(StrategyDto::isActive).toList();
+            return cachedStrategies.values().stream().filter(StrategyDto::isActive).toList();
         } else {
-            return cachedStrategies;
+            return cachedStrategies.values().stream().toList();
         }
     }
 

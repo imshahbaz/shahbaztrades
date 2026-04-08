@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.components.angelone.AngelOneClient;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.entity.Margin;
@@ -8,6 +9,8 @@ import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.MappingIterator;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.mongodb.client.result.DeleteResult;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
@@ -19,8 +22,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.MappingIterator;
-import tools.jackson.databind.json.JsonMapper;
+import org.springframework.util.CollectionUtils;
 
 import java.io.InputStream;
 import java.util.*;
@@ -36,6 +38,7 @@ public class MarginServiceImpl implements MarginService {
     private final MongoConfigService mongoConfigService;
     private final JsonMapper jsonMapper;
     private final MongoTemplate mongoTemplate;
+    private final AngelOneClient angelOneClient;
 
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -52,12 +55,18 @@ public class MarginServiceImpl implements MarginService {
     }
 
     @Override
+    public Map<String, Margin> getMarginCache() {
+        return cachedMargins;
+    }
+
+    @Override
     public void refreshMargins() {
         cachedMargins = marginRepo.findAll().stream()
                 .collect(Collectors.toMap(
                         Margin::getSymbol,
                         margin -> margin
                 ));
+        log.info("Refreshed margins for {} margins.", cachedMargins.size());
     }
 
     @Override
@@ -103,6 +112,17 @@ public class MarginServiceImpl implements MarginService {
                     toSave.size(),
                     result.getDeletedCount());
         }
+    }
+
+    @Override
+    public void syncAngelOneToken() {
+        var margins = angelOneClient.getTokens(cachedMargins);
+        if (CollectionUtils.isEmpty(margins)) {
+            return;
+        }
+
+        marginRepo.saveAll(margins);
+        refreshMargins();
     }
 
 }
