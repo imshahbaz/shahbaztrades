@@ -157,6 +157,7 @@ public class ChartInkServiceImpl implements ChartInkService {
                         .map(stock -> marginService.getMarginCache().get(stock))
                         .filter(Objects::nonNull)
                         .toList();
+                sortMargins(margins);
                 result.add(ChartInkBacktestMarginDto.builder()
                         .marketTime(dto.getMarketTime())
                         .margins(margins)
@@ -181,6 +182,7 @@ public class ChartInkServiceImpl implements ChartInkService {
                         .map(stock -> marginService.getMarginCache().get(stock))
                         .filter(Objects::nonNull)
                         .toList();
+                sortMargins(margins);
                 result.add(ChartInkBacktestMarginDto.builder()
                         .marketTime(dto.getMarketTime())
                         .margins(margins)
@@ -213,6 +215,10 @@ public class ChartInkServiceImpl implements ChartInkService {
 
     private void sortResultByMargin(List<StockMarginDto> result) {
         result.sort(Comparator.comparingDouble(StockMarginDto::getMargin).reversed());
+    }
+
+    private void sortMargins(List<Margin> result) {
+        result.sort(Comparator.comparingDouble(Margin::getMargin).reversed());
     }
 
     private String executeBacktestWithRetry(String scanClause) throws Exception {
