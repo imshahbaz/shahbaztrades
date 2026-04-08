@@ -3,11 +3,7 @@ package com.app.shahbaztrades.service.impl;
 import com.app.shahbaztrades.components.chartink.ChartinkClient;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
-import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestDto;
-import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestResponse;
-import com.app.shahbaztrades.model.dto.chartink.ChartInkResponseDto;
-import com.app.shahbaztrades.model.dto.chartink.StockMarginDto;
-import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
+import com.app.shahbaztrades.model.dto.chartink.*;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.service.ChartInkService;
 import com.app.shahbaztrades.service.MarginService;
@@ -24,7 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -50,7 +48,11 @@ public class ChartInkServiceImpl implements ChartInkService {
     }
 
     @Override
-    public ChartInkResponseDto fetchData(StrategyDto strategy) {
+    public ChartInkResponseDto fetchData(String strategyName) {
+        var strategy = strategyService.getCachedStrategies().get(strategyName);
+        if (strategy == null) {
+            throw new BadRequestException("Strategy " + strategyName + " not found");
+        }
         try {
             String jsonResponse = executeWithRetry(strategy.getScanClause());
             return jsonMapper.readValue(jsonResponse, ChartInkResponseDto.class);
@@ -62,19 +64,14 @@ public class ChartInkServiceImpl implements ChartInkService {
 
     @Override
     public List<StockMarginDto> fetchWithMargin(String strategyName) {
-        var strategy = strategyService.getCachedStrategies().get(strategyName);
-        if (strategy == null) {
-            throw new BadRequestException("Strategy " + strategyName + " not found");
-        }
-
-        var key = CHART_INK_REDIS_KEY + strategy.getName();
+        var key = CHART_INK_REDIS_KEY + strategyName;
         var cache = stringRedisTemplate.opsForValue().get(key);
         if (StringUtils.isNotEmpty(cache)) {
             return HelperUtil.GSON.fromJson(cache, new TypeToken<List<StockMarginDto>>() {
             }.getType());
         }
 
-        ChartInkResponseDto response = fetchData(strategy);
+        ChartInkResponseDto response = fetchData(strategyName);
         if (response == null) {
             return Collections.emptyList();
         }
@@ -136,7 +133,7 @@ public class ChartInkServiceImpl implements ChartInkService {
                         }
                     }
 
-                    signals.add(new ChartInkBacktestDto(marketTime, stocks));
+                    signals.add(new ChartInkBacktestDto(LocalDateTime.parse(marketTime, DateUtil.chartInkFormatter), stocks));
                 }
             }
             return signals;
@@ -144,6 +141,53 @@ public class ChartInkServiceImpl implements ChartInkService {
             log.error("Error fetching data from Chartink: {}", e.getMessage());
             return null;
         }
+    }
+
+    @Override
+    public List<ChartInkBacktestMarginDto> fetchBacktestDataWithMargin(String strategyName) {
+        var data = fetchBacktestData(strategyName);
+        if (data == null || data.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        var result = new ArrayList<ChartInkBacktestMarginDto>(data.size());
+        for (var dto : data) {
+            if (!dto.getStocks().isEmpty()) {
+                var margins = dto.getStocks().stream()
+                        .map(stock -> marginService.getMarginCache().get(stock))
+                        .filter(Objects::nonNull)
+                        .toList();
+                result.add(ChartInkBacktestMarginDto.builder()
+                        .marketTime(dto.getMarketTime())
+                        .margins(margins)
+                        .build());
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public List<ChartInkBacktestMarginDto> fetchTodayBacktestDataWithMargin(String strategyName) {
+        var data = fetchBacktestData(strategyName);
+        if (data == null || data.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        var today = ZonedDateTime.now(DateUtil.IST_ZONE).toLocalDate();
+        var result = new ArrayList<ChartInkBacktestMarginDto>(data.size());
+        for (var dto : data) {
+            if (!dto.getStocks().isEmpty() && dto.getMarketTime().toLocalDate().isEqual(today)) {
+                var margins = dto.getStocks().stream()
+                        .map(stock -> marginService.getMarginCache().get(stock))
+                        .filter(Objects::nonNull)
+                        .toList();
+                result.add(ChartInkBacktestMarginDto.builder()
+                        .marketTime(dto.getMarketTime())
+                        .margins(margins)
+                        .build());
+            }
+        }
+        return result;
     }
 
     private String executeWithRetry(String scanClause) {

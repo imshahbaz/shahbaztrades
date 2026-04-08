@@ -3,10 +3,12 @@ package com.app.shahbaztrades.util;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class DateUtil {
 
-    private static final ZoneId IST_ZONE = ZoneId.of("Asia/Kolkata");
+    public static final ZoneId IST_ZONE = ZoneId.of("Asia/Kolkata");
+    public static final DateTimeFormatter chartInkFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public static long zerodhaTokenExpiry() {
         ZonedDateTime now = ZonedDateTime.now(IST_ZONE);

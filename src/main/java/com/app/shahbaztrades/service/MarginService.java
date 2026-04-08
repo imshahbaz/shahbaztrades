@@ -21,4 +21,6 @@ public interface MarginService {
 
     @SneakyThrows
     void syncMTF(InputStream file);
+
+    void syncAngelOneToken();
 }

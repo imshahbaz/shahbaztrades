@@ -1,21 +1,20 @@
 package com.app.shahbaztrades.model.dto.chartink;
 
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.app.shahbaztrades.model.entity.Margin;
+import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ChartInkBacktestDto {
+public class ChartInkBacktestMarginDto {
 
     LocalDateTime marketTime;
 
-    List<String> stocks;
+    List<Margin> margins;
 }

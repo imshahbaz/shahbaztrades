@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.components.angelone.AngelOneClient;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.entity.Margin;
@@ -21,6 +22,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.io.InputStream;
 import java.util.*;
@@ -36,6 +38,7 @@ public class MarginServiceImpl implements MarginService {
     private final MongoConfigService mongoConfigService;
     private final JsonMapper jsonMapper;
     private final MongoTemplate mongoTemplate;
+    private final AngelOneClient angelOneClient;
 
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -63,6 +66,7 @@ public class MarginServiceImpl implements MarginService {
                         Margin::getSymbol,
                         margin -> margin
                 ));
+        log.info("Refreshed margins for {} margins.", cachedMargins.size());
     }
 
     @Override
@@ -108,6 +112,17 @@ public class MarginServiceImpl implements MarginService {
                     toSave.size(),
                     result.getDeletedCount());
         }
+    }
+
+    @Override
+    public void syncAngelOneToken() {
+        var margins = angelOneClient.getTokens(cachedMargins);
+        if (CollectionUtils.isEmpty(margins)) {
+            return;
+        }
+
+        marginRepo.saveAll(margins);
+        refreshMargins();
     }
 
 }
