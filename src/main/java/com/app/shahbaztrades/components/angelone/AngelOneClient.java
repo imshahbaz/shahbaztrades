@@ -1,7 +1,10 @@
 package com.app.shahbaztrades.components.angelone;
 
 import com.app.shahbaztrades.model.dto.angelone.MinimalInstrument;
+import com.app.shahbaztrades.model.dto.angelone.websocket.AngelOneLoginResponse;
 import com.app.shahbaztrades.model.entity.Margin;
+import com.app.shahbaztrades.model.entity.MongoEnvConfig;
+import com.app.shahbaztrades.util.TotpUtil;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +28,7 @@ public class AngelOneClient {
     private static final String url = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json";
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final RestClient websocketRestClient;
 
     public AngelOneClient(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -35,6 +39,7 @@ public class AngelOneClient {
                                 .build()
                 ))
                 .build();
+        this.websocketRestClient = RestClient.builder().baseUrl("https://apiconnect.angelone.in").build();
     }
 
     public List<Margin> getTokens(Map<String, Margin> cachedMargin) {
@@ -70,4 +75,38 @@ public class AngelOneClient {
 
         return margins;
     }
+
+    public AngelOneLoginResponse.LoginData getWebsocketLogin(MongoEnvConfig.AngelOneConfig config) {
+        String otp = TotpUtil.generateTOTP(config.getSeed());
+        if (otp.isEmpty()) {
+            throw new RuntimeException("Failed to generate TOTP");
+        }
+
+        AngelOneLoginResponse response = websocketRestClient.post()
+                .uri("/rest/auth/angelbroking/user/v1/loginByPassword")
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .header("X-UserType", "USER")
+                .header("X-SourceID", "WEB")
+                .header("X-ClientLocalIP", "127.0.0.1")
+                .header("X-ClientPublicIP", "127.0.0.1")
+                .header("X-MACAddress", "MAC")
+                .header("X-PrivateKey", config.getApiKey())
+                .body(Map.of(
+                        "clientcode", config.getClientId(),
+                        "password", config.getPassword(),
+                        "totp", otp
+                ))
+                .retrieve()
+                .body(AngelOneLoginResponse.class);
+
+        if (response == null || !response.isStatus()) {
+            String msg = (response != null) ? response.getMessage() : "No response";
+            log.error("AngelOne login rejected: {}", msg);
+            throw new RuntimeException("Broker auth failed: " + msg);
+        }
+
+        return response.getData();
+    }
+
 }
