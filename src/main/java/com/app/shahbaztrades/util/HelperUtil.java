@@ -13,6 +13,7 @@ import java.util.HexFormat;
 import java.util.Random;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class HelperUtil {
     public static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
@@ -100,6 +101,16 @@ public class HelperUtil {
             return uuid;
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    public static boolean pollWait(long waitMillis) {
+        try {
+            TimeUnit.MILLISECONDS.sleep(waitMillis);
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
         }
     }
 
