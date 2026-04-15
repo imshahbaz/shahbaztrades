@@ -33,21 +33,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MarginServiceImpl implements MarginService {
 
-    private Map<String, Margin> cachedMargins = new HashMap<>();
     private final MarginRepo marginRepo;
     private final MongoConfigService mongoConfigService;
     private final JsonMapper jsonMapper;
     private final MongoTemplate mongoTemplate;
     private final AngelOneClient angelOneClient;
-
-    @Data
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    static class RawMTF {
-        @JsonProperty("tradingsymbol")
-        String tradingSymbol;
-        @JsonProperty("leverage")
-        float leverage;
-    }
+    private Map<String, Margin> cachedMargins = new HashMap<>();
 
     @PostConstruct
     public void init() {
@@ -123,6 +114,15 @@ public class MarginServiceImpl implements MarginService {
 
         marginRepo.saveAll(margins);
         refreshMargins();
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class RawMTF {
+        @JsonProperty("tradingsymbol")
+        String tradingSymbol;
+        @JsonProperty("leverage")
+        float leverage;
     }
 
 }

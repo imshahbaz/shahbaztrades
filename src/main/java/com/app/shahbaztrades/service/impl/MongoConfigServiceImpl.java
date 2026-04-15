@@ -18,9 +18,9 @@ import java.util.Objects;
 public class MongoConfigServiceImpl implements MongoConfigService {
 
     private final MongoConfigsRepo mongoConfigsRepo;
+    private final Environment environment;
     private MongoEnvConfig cachedConfig;
     private MongoEnvConfig clientConfig;
-    private final Environment environment;
 
     @PostConstruct
     public void init() {
@@ -30,7 +30,7 @@ public class MongoConfigServiceImpl implements MongoConfigService {
 
     @Override
     public void refreshConfig() {
-        var id = Objects.equals(environment.getProperty("ENV"), "production") ? "mongoConfig":"mongoConfigDev";
+        var id = Objects.equals(environment.getProperty("ENV"), "production") ? "mongoConfig" : "mongoConfigDev";
         this.cachedConfig = mongoConfigsRepo.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Configuration not found in MongoDB"));
         log.info("Mongo configuration loaded successfully");
@@ -38,7 +38,7 @@ public class MongoConfigServiceImpl implements MongoConfigService {
 
     @Override
     public void refreshClientConfig() {
-        var id = Objects.equals(environment.getProperty("ENV"), "production") ? "clientConfigId":"clientConfigIdDev";
+        var id = Objects.equals(environment.getProperty("ENV"), "production") ? "clientConfigId" : "clientConfigIdDev";
         this.clientConfig = mongoConfigsRepo.findById("clientConfigIdDev")
                 .orElseThrow(() -> new NoSuchElementException("Configuration not found in MongoDB"));
         log.info("Client configuration loaded successfully");

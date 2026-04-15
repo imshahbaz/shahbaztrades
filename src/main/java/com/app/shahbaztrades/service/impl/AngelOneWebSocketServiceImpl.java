@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RequiredArgsConstructor
 public class AngelOneWebSocketServiceImpl implements WebSocketHandler, AngelOneWebSocketService {
 
+    private static final String WS_URL = "wss://smartapisocket.angelone.in/smart-stream";
     private final ConcurrentHashMap<String, Double> ltpCache = new ConcurrentHashMap<>();
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -47,11 +48,8 @@ public class AngelOneWebSocketServiceImpl implements WebSocketHandler, AngelOneW
     private final StringRedisTemplate stringRedisTemplate;
     private final AngelOneClient angelOneClient;
     private final MongoConfigService mongoConfigService;
-
     private WebSocketSession session;
     private String jwt, apiKey, clientCode, feedToken;
-
-    private static final String WS_URL = "wss://smartapisocket.angelone.in/smart-stream";
 
     @Override
     public void setConfig(String jwt, String feedToken, String apiKey, String clientCode) {

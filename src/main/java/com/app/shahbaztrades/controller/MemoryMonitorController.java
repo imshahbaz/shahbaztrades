@@ -18,11 +18,11 @@ public class MemoryMonitorController {
         long mb = 1024 * 1024;
 
         return Map.of(
-            "used_memory_mb", (runtime.totalMemory() - runtime.freeMemory()) / mb,
-            "free_memory_mb", runtime.freeMemory() / mb,
-            "total_memory_allocated_mb", runtime.totalMemory() / mb,
-            "max_memory_limit_mb", runtime.maxMemory() / mb,
-            "available_processors", runtime.availableProcessors()
+                "used_memory_mb", (runtime.totalMemory() - runtime.freeMemory()) / mb,
+                "free_memory_mb", runtime.freeMemory() / mb,
+                "total_memory_allocated_mb", runtime.totalMemory() / mb,
+                "max_memory_limit_mb", runtime.maxMemory() / mb,
+                "available_processors", runtime.availableProcessors()
         );
     }
 }

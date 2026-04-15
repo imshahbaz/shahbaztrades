@@ -2,6 +2,10 @@ spring:
   application:
     name: ShahbazTrades
 
+  jackson:
+    deserialization:
+      fail-on-null-for-primitives: false
+
   main:
     lazy-initialization: true
 
@@ -14,14 +18,6 @@ spring:
 
   mongodb:
     uri: ${MONGO_URI}
-  #redis:
-    #host: ${REDIS_HOST}
-    #port: ${REDIS_PORT}
-    #username: ${REDIS_USER}
-    #password: ${REDIS_PASS}
-#    ssl:
-#      enabled: true
-
 
 server:
   port: ${PORT:8080}

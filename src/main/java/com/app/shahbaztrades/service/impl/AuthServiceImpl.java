@@ -37,7 +37,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-    private static final String AUTH_KEY = "auth_";
     private final StringRedisTemplate stringRedisTemplate;
     private final OtpProviderFactory otpProviderFactory;
     private final Environment environment;

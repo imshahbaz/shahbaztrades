@@ -9,9 +9,17 @@ import java.util.Map;
 
 public interface StrategyService {
 
-    Map<String,StrategyDto> getCachedStrategies();
+    Map<String, StrategyDto> getCachedStrategies();
 
     void refreshStrategyCache();
 
     ResponseEntity<ApiResponse<List<StrategyDto>>> getAllStrategies();
+
+    ResponseEntity<ApiResponse<StrategyDto>> createStrategy(StrategyDto strategyDto);
+
+    ResponseEntity<ApiResponse<StrategyDto>> updateStrategy(StrategyDto strategyDto);
+
+    ResponseEntity<ApiResponse<Void>> deleteStrategy(String id);
+
+    ResponseEntity<ApiResponse<List<StrategyDto>>> getAllStrategiesAdmin();
 }

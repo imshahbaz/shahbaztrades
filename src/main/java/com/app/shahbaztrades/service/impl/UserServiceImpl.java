@@ -1,6 +1,7 @@
 package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.exceptions.BadRequestException;
+import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
@@ -9,6 +10,7 @@ import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.model.enums.UserRole;
 import com.app.shahbaztrades.model.enums.UserTheme;
 import com.app.shahbaztrades.repo.UserRepo;
+import com.app.shahbaztrades.service.AuthService;
 import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +35,7 @@ public class UserServiceImpl implements UserService {
     private final MongoTemplate mongoTemplate;
     private final UserRepo userRepo;
     private final SequenceGeneratorService sequenceGeneratorService;
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     @Transactional
@@ -115,6 +119,38 @@ public class UserServiceImpl implements UserService {
         update.set(User.Fields.fcmToken, token);
         mongoTemplate.updateFirst(query, update, User.class);
         return ResponseEntity.ok(ApiResponse.ok(token, "FCM token synchronized"));
+    }
+
+    @Override
+    public ResponseEntity<ApiResponse<Void>> updateUserName(UserDto userDto) {
+        if (userDto.getUserId() <= 0 || StringUtils.isEmpty(userDto.getUsername())) {
+            throw new BadRequestException("Invalid request!");
+        }
+        Query query = new Query(Criteria.where(User.Fields.userId).is(userDto.getUserId()));
+        Update update = new Update();
+        update.set(User.Fields.username, userDto.getUsername());
+        var result = mongoTemplate.updateFirst(query, update, User.class);
+        if (result.getModifiedCount() < 1) {
+            throw new NotFoundException("User not found!");
+        }
+        stringRedisTemplate.delete(AuthService.AUTH_KEY + userDto.getUserId());
+        return ResponseEntity.ok(ApiResponse.ok(null, "Username updated successfully"));
+    }
+
+    @Override
+    public ResponseEntity<ApiResponse<UserTheme>> updateUserTheme(UserDto userDto) {
+        if (userDto.getUserId() <= 0 || userDto.getTheme() == null) {
+            throw new BadRequestException("Invalid request!");
+        }
+        Query query = new Query(Criteria.where(User.Fields.userId).is(userDto.getUserId()));
+        Update update = new Update();
+        update.set(User.Fields.theme, userDto.getTheme());
+        var result = mongoTemplate.updateFirst(query, update, User.class);
+        if (result.getModifiedCount() < 1) {
+            throw new NotFoundException("User not found!");
+        }
+        stringRedisTemplate.delete(AuthService.AUTH_KEY + userDto.getUserId());
+        return ResponseEntity.ok(ApiResponse.ok(userDto.getTheme(), "Theme synchronized"));
     }
 
 }

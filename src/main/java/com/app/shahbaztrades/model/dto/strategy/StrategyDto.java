@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.model.dto.strategy;
 
+import com.app.shahbaztrades.model.entity.Strategy;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -18,4 +19,10 @@ public class StrategyDto {
     String scanClause;
 
     boolean active;
+
+    public Strategy toEntity() {
+        this.setName(this.getName().toUpperCase());
+        return Strategy.builder().name(name).scanClause(scanClause).active(active).build();
+    }
+
 }
