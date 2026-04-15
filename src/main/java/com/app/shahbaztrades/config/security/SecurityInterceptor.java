@@ -1,6 +1,9 @@
 package com.app.shahbaztrades.config.security;
 
+import com.app.shahbaztrades.exceptions.ForbiddenException;
 import com.app.shahbaztrades.exceptions.UnauthorizedException;
+import com.app.shahbaztrades.model.dto.UserDto;
+import com.app.shahbaztrades.model.enums.UserRole;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -32,16 +35,28 @@ public class SecurityInterceptor implements HandlerInterceptor {
             throw new UnauthorizedException("Unauthorized");
         }
 
+        UserDto userDto = null;
         for (Cookie c : cookies) {
             if ("auth_token".equals(c.getName())) {
                 if (StringUtils.isNotEmpty(c.getValue())) {
                     var claims = jwtService.validateToken(c.getValue());
+                    userDto = claims.getUser();
                     request.setAttribute("user", claims.getUser());
-                    return true;
+                    break;
                 }
             }
         }
 
-        throw new UnauthorizedException("Unauthorized");
+        if (userDto == null) {
+            throw new UnauthorizedException("Unauthorized");
+        }
+
+        if (handlerMethod.hasMethodAnnotation(AdminOnly.class)) {
+            if (!userDto.getRole().equals(UserRole.ADMIN)) {
+                throw new ForbiddenException("Forbidden: Admin access required");
+            }
+        }
+
+        return true;
     }
 }

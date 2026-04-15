@@ -31,12 +31,12 @@ import java.util.*;
 @RequiredArgsConstructor
 public class ChartInkServiceImpl implements ChartInkService {
 
+    private static final String CHART_INK_REDIS_KEY = "chartink_result_";
     private final ChartinkClient chartinkClient;
     private final JsonMapper jsonMapper;
     private final MarginService marginService;
     private final StringRedisTemplate stringRedisTemplate;
     private final StrategyService strategyService;
-    private static final String CHART_INK_REDIS_KEY = "chartink_result_";
     private volatile String xsrfToken;
 
     @Override

@@ -13,9 +13,6 @@ import java.util.concurrent.TimeUnit;
 
 public class CacheUtils {
 
-    public record CachedKiteClient(KiteConnect client, long ttlSeconds) {
-    }
-
     public static Cache<Long, CachedKiteClient> kiteClientCache = Caffeine.newBuilder()
             .maximumSize(100)
             .expireAfter(new Expiry<Long, CachedKiteClient>() {
@@ -53,6 +50,9 @@ public class CacheUtils {
             case REGISTER -> email;
             case UPDATE -> email + "_update";
         };
+    }
+
+    public record CachedKiteClient(KiteConnect client, long ttlSeconds) {
     }
 
     public record CacheConfig(String key, Duration expiry) {

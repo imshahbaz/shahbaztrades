@@ -7,6 +7,9 @@ import com.app.shahbaztrades.model.dto.auth.SignUpResponse;
 import org.springframework.http.ResponseEntity;
 
 public interface AuthService {
+
+    String AUTH_KEY = "auth_";
+
     ResponseEntity<ApiResponse<SignUpResponse>> signUp(AuthRequest request);
 
     ResponseEntity<ApiResponse<Void>> Logout();
