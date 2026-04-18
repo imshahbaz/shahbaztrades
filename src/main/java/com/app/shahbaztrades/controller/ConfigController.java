@@ -35,7 +35,7 @@ public class ConfigController {
     @AdminOnly
     @GetMapping("/active")
     public ResponseEntity<ApiResponse<MongoEnvConfig>> getActiveConfig() {
-        return ResponseEntity.ok(ApiResponse.ok(mongoConfigService.getConfig(),"Success"));
+        return ResponseEntity.ok(ApiResponse.ok(mongoConfigService.getConfig(), "Success"));
     }
 
 }
