@@ -31,12 +31,11 @@ import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -148,18 +147,18 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public void initiateMtfOrders() {
         processTodayOrders("Initiate MTF", (kc, order) -> {
-            if (order.getBuyOrder() != null && StringUtils.isNotEmpty(order.getBuyOrder().getOrderId())) {
-                log.info("Mtf order already exists for orderId {} symbol {} userId {}", order.getBuyOrder().getOrderId(), order.getSymbol(), order.getUserId());
-                throw new ResourceAlreadyExistsException("Order already exists");
+            if (order.getBuyOrder() != null && StringUtils.isNotBlank(order.getBuyOrder().getOrderId())) {
+                log.warn("MTF order exists for user {} symbol {}", order.getUserId(), order.getSymbol());
+                return null;
             }
 
             try {
-                var orderRes = zerodhaService.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), 0, Constants.TRANSACTION_TYPE_BUY, Constants.ORDER_TYPE_MARKET);
-                order.setBuyOrder(Order.OrderInfo.builder().orderId(orderRes.orderId).build());
-            } catch (Exception | KiteException e) {
-                throw new BadRequestException("Invalid MTF order or kite exception " + e.getMessage());
+                var res = zerodhaService.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), 0,
+                        Constants.TRANSACTION_TYPE_BUY, Constants.ORDER_TYPE_MARKET);
+                order.setBuyOrder(Order.OrderInfo.builder().orderId(res.orderId).build());
+            } catch (KiteException | Exception e) {
+                log.error("Failed to place MTF order: {}", e.getMessage());
             }
-
             return null;
         });
     }
@@ -193,18 +192,25 @@ public class OrderServiceImpl implements OrderService {
         }
 
         orders.forEach(order -> {
+            if (order.getBuyOrder() == null || order.getBuyOrder().getAveragePrice() <= 0) return;
             try {
                 angelOneWebSocketService.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
             } catch (Exception e) {
+                log.error("WS Subscription failed for {}", order.getSymbol());
                 return;
             }
 
             HelperUtil.EXECUTOR.execute(() -> {
                 double prevLtp = 0;
                 var peakPrice = order.getBuyOrder().getAveragePrice();
-                while (true) {
-                    var ltp = angelOneWebSocketService.getLTP(order.getMargin().getToken());
+                String token = order.getMargin().getToken();
+
+                log.info("Started LTP monitoring for {} (Entry: {})", order.getSymbol(), peakPrice);
+
+                while (!Thread.currentThread().isInterrupted()) {
+                    var ltp = angelOneWebSocketService.getLTP(token);
                     if (ltp == -2) {
+                        log.error("LTP feed lost for {}", order.getSymbol());
                         break;
                     }
 
@@ -228,51 +234,35 @@ public class OrderServiceImpl implements OrderService {
         });
     }
 
-    private void processTodayOrders(String type, BiFunction<KiteConnect, Order, Void> biFunction) {
+    private void processTodayOrders(String type, BiFunction<KiteConnect, Order, Void> processor) {
         var orders = getTodayOrders();
         if (CollectionUtils.isEmpty(orders)) {
             log.info("No Orders found for today for {}", type);
             return;
         }
 
-        Map<Long, List<Order>> orderMap = new ConcurrentHashMap<>();
-        for (var order : orders) {
-            List<Order> list = orderMap.get(order.getUserId());
-            if (list == null) {
-                list = new ArrayList<>();
-                list.add(order);
-                orderMap.put(order.getUserId(), list);
-                continue;
-            }
-            list.add(order);
-        }
+        Map<Long, List<Order>> userOrderMap = orders.stream()
+                .collect(Collectors.groupingBy(Order::getUserId));
 
-        for (var entry : orderMap.entrySet()) {
-            HelperUtil.EXECUTOR.execute(() -> {
-                KiteConnect kc;
-                try {
-                    kc = zerodhaService.getKiteClient(entry.getKey());
-                } catch (Exception e) {
-                    log.error("Failed to get kite connection for {} error {}", entry.getKey(), e.getMessage());
-                    return;
+        userOrderMap.forEach((userId, userOrders) -> HelperUtil.EXECUTOR.execute(() -> {
+            try {
+                KiteConnect kc = zerodhaService.getKiteClient(userId);
+                for (Order order : userOrders) {
+                    processor.apply(kc, order);
+                    saveOrderProgress(order);
                 }
+            } catch (Exception e) {
+                log.error("Error processing orders for user {}: {}", userId, e.getMessage());
+            }
+        }));
+    }
 
-                orders.forEach(order -> {
-                    try {
-                        biFunction.apply(kc, order);
-                        Query query = Query.query(Criteria.where(Order.Fields.id).is(order.getId()));
-                        Update update = new Update();
-                        update.set(Order.Fields.buyOrder, order.getBuyOrder());
-                        update.set(Order.Fields.stopLossOrder, order.getStopLossOrder());
-                        mongoTemplate.updateFirst(query, update, Order.class);
-                    } catch (Exception e) {
-                        log.error("Error processing order {} for {} for type {} error {}", order.getId(), entry.getKey(), type, e.getMessage());
-                    }
-                });
-
-            });
-        }
-
+    private void saveOrderProgress(Order order) {
+        Query query = Query.query(Criteria.where(Order.Fields.id).is(order.getId()));
+        Update update = new Update()
+                .set(Order.Fields.buyOrder, order.getBuyOrder())
+                .set(Order.Fields.stopLossOrder, order.getStopLossOrder());
+        mongoTemplate.updateFirst(query, update, Order.class);
     }
 
     private short processOrder(Order order, double ltp, float peakPrice) {
