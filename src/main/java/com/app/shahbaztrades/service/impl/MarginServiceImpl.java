@@ -119,8 +119,10 @@ public class MarginServiceImpl implements MarginService {
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     static class RawMTF {
+
         @JsonProperty("tradingsymbol")
         String tradingSymbol;
+
         @JsonProperty("leverage")
         float leverage;
     }

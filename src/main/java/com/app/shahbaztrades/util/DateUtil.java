@@ -1,14 +1,14 @@
 package com.app.shahbaztrades.util;
 
-import java.time.Duration;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 
 public class DateUtil {
 
     public static final ZoneId IST_ZONE = ZoneId.of("Asia/Kolkata");
     public static final DateTimeFormatter chartInkFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final int MARKET_CLOSING_GRACE_HOUR = 15;
+    private static final int MARKET_CLOSING_GRACE_MINUTE = 25;
 
     public static long zerodhaTokenExpiry() {
         ZonedDateTime now = ZonedDateTime.now(IST_ZONE);
@@ -37,6 +37,17 @@ public class DateUtil {
         }
 
         return Duration.between(now, start.plusDays(1));
+    }
+
+    public static LocalDate getTodayDate() {
+        return LocalDate.now(IST_ZONE);
+    }
+
+    public static boolean isPastClosingGrace() {
+        ZonedDateTime nowIst = ZonedDateTime.now(IST_ZONE);
+        LocalTime currentTime = nowIst.toLocalTime();
+        LocalTime graceTime = LocalTime.of(MARKET_CLOSING_GRACE_HOUR, MARKET_CLOSING_GRACE_MINUTE);
+        return !currentTime.isBefore(graceTime);
     }
 
 }
