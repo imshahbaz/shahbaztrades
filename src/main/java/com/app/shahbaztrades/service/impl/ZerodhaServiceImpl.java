@@ -97,9 +97,9 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     @Override
     public KiteConnect getKiteClient(Long userId) {
 
-        var cachedClient = CacheUtils.kiteClientCache.getIfPresent(userId);
+        var cachedClient = CacheUtils.kiteClientCache.get(userId);
         if (cachedClient != null) {
-            return cachedClient.client();
+            return cachedClient;
         }
 
         String accessToken = stringRedisTemplate.opsForValue().get("zerodha_token_" + userId);
@@ -109,7 +109,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
 
         KiteConnect kc = initiateKiteConnect(accessToken, userId);
 
-        CacheUtils.kiteClientCache.put(userId, new CacheUtils.CachedKiteClient(kc, DateUtil.zerodhaTokenExpiry()));
+        CacheUtils.kiteClientCache.set(userId, kc, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
 
         return kc;
     }
@@ -212,7 +212,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     public ResponseEntity<ApiResponse<Void>> login(ZerodhaLoginDto request) {
         var token = generateAccessToken(request.requestToken(), request.userId());
         stringRedisTemplate.opsForValue().set(ZERODHA_TOKEN_KEY + request.userId(), token, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
-        CacheUtils.kiteClientCache.invalidate(request.userId());
+        CacheUtils.kiteClientCache.remove(request.userId());
         return ResponseEntity.ok(ApiResponse.ok(null, "Flow invocation success"));
     }
 

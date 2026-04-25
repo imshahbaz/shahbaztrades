@@ -114,4 +114,22 @@ public class HelperUtil {
         }
     }
 
+    public static double fixToTick(double price) {
+        double tick;
+
+        if (price < 250) {
+            tick = 0.01;
+        } else if (price < 1000) {
+            tick = 0.05;
+        } else if (price < 5000) {
+            tick = 0.10;
+        } else if (price < 10000) {
+            tick = 0.50;
+        } else {
+            tick = 1.00;
+        }
+
+        return Math.round(price / tick) * tick;
+    }
+
 }

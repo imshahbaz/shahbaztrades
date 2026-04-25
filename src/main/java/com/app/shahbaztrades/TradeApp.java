@@ -2,10 +2,10 @@ package com.app.shahbaztrades;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
 
-@SpringBootApplication(exclude = {
-        //  SecurityFilterAutoConfiguration.class
-})
+@EnableAsync
+@SpringBootApplication
 public class TradeApp {
 
     public static void main(String[] args) {
