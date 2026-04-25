@@ -1,14 +1,17 @@
 package com.app.shahbaztrades.util;
 
+import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestMarginDto;
 import com.app.shahbaztrades.model.enums.CacheType;
 import com.app.shahbaztrades.model.enums.OtpFor;
 import com.zerodhatech.kiteconnect.KiteConnect;
 
 import java.time.Duration;
+import java.util.List;
 
 public class CacheUtils {
 
     public static Cache<Long, KiteConnect> kiteClientCache = new Cache<>();
+    public static Cache<String, List<ChartInkBacktestMarginDto>> pollerCache = new Cache<>();
 
     public static CacheConfig getKeyAndExpiry(String reqId, CacheType cacheType) {
         String prefix = cacheType.name() + "_";

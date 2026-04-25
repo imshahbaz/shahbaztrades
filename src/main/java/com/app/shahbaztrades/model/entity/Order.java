@@ -36,6 +36,16 @@ public class Order {
 
     Margin margin;
 
+    public OrderDto toDto() {
+        return OrderDto.builder()
+                .id(id)
+                .userId(userId)
+                .symbol(symbol)
+                .quantity(quantity)
+                .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                .build();
+    }
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -45,15 +55,5 @@ public class Order {
         String orderId;
         String orderStatus;
         float averagePrice;
-    }
-
-    public OrderDto toDto(){
-        return OrderDto.builder()
-                .id(id)
-                .userId(userId)
-                .symbol(symbol)
-                .quantity(quantity)
-                .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
-                .build();
     }
 }
