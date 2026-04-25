@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -155,7 +156,8 @@ public class ChartInkServiceImpl implements ChartInkService {
                 var margins = dto.getStocks().stream()
                         .map(stock -> marginService.getMarginCache().get(stock))
                         .filter(Objects::nonNull)
-                        .toList();
+                        .collect(Collectors.toList());
+
                 sortMargins(margins);
                 result.add(ChartInkBacktestMarginDto.builder()
                         .marketTime(dto.getMarketTime())
@@ -180,7 +182,8 @@ public class ChartInkServiceImpl implements ChartInkService {
                 var margins = dto.getStocks().stream()
                         .map(stock -> marginService.getMarginCache().get(stock))
                         .filter(Objects::nonNull)
-                        .toList();
+                        .collect(Collectors.toList());
+
                 sortMargins(margins);
                 result.add(ChartInkBacktestMarginDto.builder()
                         .marketTime(dto.getMarketTime())
