@@ -20,10 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -31,220 +32,177 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChartInkServiceImpl implements ChartInkService {
 
-    private static final String CHART_INK_REDIS_KEY = "chartink_result_";
+    private static final String CHART_INK_REDIS_KEY_PREFIX = "chartink_result:";
+    private static final String IST_ZONE_ID = "Asia/Kolkata";
+    private static final ZoneId IST_ZONE = ZoneId.of(IST_ZONE_ID);
+
     private final ChartinkClient chartinkClient;
     private final JsonMapper jsonMapper;
     private final MarginService marginService;
     private final StringRedisTemplate stringRedisTemplate;
     private final StrategyService strategyService;
-    private volatile String xsrfToken;
+
+    private final AtomicReference<String> xsrfToken = new AtomicReference<>();
 
     @Override
-    public synchronized void refreshTokens() {
-        xsrfToken = chartinkClient.fetchCsrfToken();
-        if (StringUtils.isEmpty(xsrfToken)) {
+    public void refreshTokens() {
+        String token = chartinkClient.fetchCsrfToken();
+        if (StringUtils.isBlank(token)) {
             throw new NotFoundException("XSRF-TOKEN not found in Chartink cookies");
         }
+        xsrfToken.set(token);
+        log.debug("Chartink tokens refreshed successfully.");
     }
 
     @Override
     public ChartInkResponseDto fetchData(String strategyName) {
-        var strategy = strategyService.getCachedStrategies().get(strategyName);
-        if (strategy == null) {
-            throw new BadRequestException("Strategy " + strategyName + " not found");
-        }
-        try {
-            String jsonResponse = executeWithRetry(strategy.getScanClause());
-            return jsonMapper.readValue(jsonResponse, ChartInkResponseDto.class);
-        } catch (Exception e) {
-            log.error("Error fetching data from Chartink: {}", e.getMessage());
-            return null;
-        }
+        String scanClause = getScanClauseOrThrow(strategyName);
+        return executeWithRetry(() -> {
+            String json = chartinkClient.fetchData(xsrfToken.get(), Map.of("scan_clause", scanClause));
+            return jsonMapper.readValue(json, ChartInkResponseDto.class);
+        });
     }
 
     @Override
     public List<StockMarginDto> fetchWithMargin(String strategyName) {
-        var key = CHART_INK_REDIS_KEY + strategyName;
-        var cache = stringRedisTemplate.opsForValue().get(key);
-        if (StringUtils.isNotEmpty(cache)) {
-            return HelperUtil.GSON.fromJson(cache, new TypeToken<List<StockMarginDto>>() {
+        String redisKey = CHART_INK_REDIS_KEY_PREFIX + strategyName;
+
+        String cachedData = stringRedisTemplate.opsForValue().get(redisKey);
+        if (StringUtils.isNotBlank(cachedData)) {
+            return HelperUtil.GSON.fromJson(cachedData, new TypeToken<List<StockMarginDto>>() {
             }.getType());
         }
 
         ChartInkResponseDto response = fetchData(strategyName);
-        if (response == null) {
-            return Collections.emptyList();
-        }
+        if (response == null || response.getData() == null) return Collections.emptyList();
 
-        List<StockMarginDto> result = new ArrayList<>();
-        for (ChartInkResponseDto.StockData stock : response.getData()) {
-            Margin m = marginService.getMarginCache().get(stock.getNsecode());
-            if (m != null) {
-                result.add(StockMarginDto.builder()
-                        .name(stock.getName())
-                        .symbol(stock.getNsecode())
-                        .margin(m.getMargin())
-                        .close(stock.getClose())
-                        .build());
-            }
-        }
+        List<StockMarginDto> result = response.getData().stream()
+                .map(stock -> {
+                    Margin m = marginService.getMarginCache().get(stock.getNsecode());
+                    return m == null ? null : StockMarginDto.builder()
+                                              .name(stock.getName())
+                                              .symbol(stock.getNsecode())
+                                              .margin(m.getMargin())
+                                              .close(stock.getClose())
+                                              .build();
+                })
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparingDouble(StockMarginDto::getMargin).reversed())
+                .collect(Collectors.toList());
 
-        sortResultByMargin(result);
-        stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(result), DateUtil.getNseCacheExpiryTime());
-
+        stringRedisTemplate.opsForValue().set(redisKey, HelperUtil.GSON.toJson(result), DateUtil.getNseCacheExpiryTime());
         return result;
     }
 
     @Override
     public List<ChartInkBacktestDto> fetchBacktestData(String strategyName) {
-        var strategy = strategyService.getCachedStrategies().get(strategyName);
-        if (strategy == null) {
-            throw new BadRequestException("Strategy " + strategyName + " not found");
-        }
+        String scanClause = getScanClauseOrThrow(strategyName);
 
-        try {
-            String jsonResponse = executeBacktestWithRetry(strategy.getScanClause());
-            var resp = jsonMapper.readValue(jsonResponse, ChartInkBacktestResponse.class);
-            List<ChartInkBacktestDto> signals = new ArrayList<>();
-            ZoneId istZone = ZoneId.of("Asia/Kolkata");
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        return executeWithRetry(() -> {
+            Map<String, String> payload = Map.of("scan_clause", scanClause, "max_rows", "65");
+            String json = chartinkClient.fetchBackTestData(xsrfToken.get(), payload);
+            ChartInkBacktestResponse resp = jsonMapper.readValue(json, ChartInkBacktestResponse.class);
 
-            if (resp.getMetaData() != null && !resp.getMetaData().isEmpty()) {
-                ChartInkBacktestResponse.MetaData meta = resp.getMetaData().getFirst();
-                List<Long> tradeTimes = meta.getTradeTimes();
-                List<List<String>> aggregatedStockList = resp.getAggregatedStockList();
-
-                for (int i = 0; i < tradeTimes.size(); i++) {
-                    long ts = tradeTimes.get(i);
-
-                    if (ts > 10_000_000_000L) {
-                        ts = ts / 1000;
-                    }
-
-                    String marketTime = Instant.ofEpochSecond(ts)
-                            .atZone(istZone)
-                            .format(formatter);
-
-                    List<String> stocks = new ArrayList<>();
-                    if (aggregatedStockList != null && i < aggregatedStockList.size()) {
-                        List<String> stockData = aggregatedStockList.get(i);
-                        for (int j = 0; j < stockData.size(); j += 3) {
-                            stocks.add(stockData.get(j));
-                        }
-                    }
-
-                    signals.add(new ChartInkBacktestDto(LocalDateTime.parse(marketTime, DateUtil.chartInkFormatter), stocks));
-                }
-            }
-            return signals;
-        } catch (Exception e) {
-            log.error("Error fetching data from Chartink: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    @Override
-    public List<ChartInkBacktestMarginDto> fetchBacktestDataWithMargin(String strategyName) {
-        var data = fetchBacktestData(strategyName);
-        if (data == null || data.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        var result = new ArrayList<ChartInkBacktestMarginDto>(data.size());
-        for (var dto : data) {
-            if (!dto.getStocks().isEmpty()) {
-                var margins = dto.getStocks().stream()
-                        .map(stock -> marginService.getMarginCache().get(stock))
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-
-                sortMargins(margins);
-                result.add(ChartInkBacktestMarginDto.builder()
-                        .marketTime(dto.getMarketTime())
-                        .margins(margins)
-                        .build());
-            }
-        }
-        return result;
+            return mapBacktestResponse(resp);
+        });
     }
 
     @Override
     public List<ChartInkBacktestMarginDto> fetchTodayBacktestDataWithMargin(String strategyName) {
-        var data = fetchBacktestData(strategyName);
-        if (data == null || data.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        var today = DateUtil.getTodayDate();
-        var result = new ArrayList<ChartInkBacktestMarginDto>(data.size());
-        for (var dto : data) {
-            if (!dto.getStocks().isEmpty() && dto.getMarketTime().toLocalDate().isEqual(today)) {
-                var margins = dto.getStocks().stream()
-                        .map(stock -> marginService.getMarginCache().get(stock))
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-
-                sortMargins(margins);
-                result.add(ChartInkBacktestMarginDto.builder()
-                        .marketTime(dto.getMarketTime())
-                        .margins(margins)
-                        .build());
-            }
-        }
-        return result;
+        LocalDate today = DateUtil.getTodayDate();
+        return fetchBacktestData(strategyName).stream()
+                .filter(dto -> dto.getMarketTime().toLocalDate().isEqual(today))
+                .map(this::enrichWithMargin)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
-    private String executeWithRetry(String scanClause) {
-        Map<String, String> payload = Map.of("scan_clause", scanClause);
+    @Override
+    public List<ChartInkBacktestMarginDto> fetchBacktestDataWithMargin(String strategyName) {
+        return fetchBacktestData(strategyName).stream()
+                .map(this::enrichWithMargin)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    private ChartInkBacktestMarginDto enrichWithMargin(ChartInkBacktestDto dto) {
+        if (dto.getStocks().isEmpty()) return null;
+
+        List<Margin> margins = dto.getStocks().stream()
+                .map(symbol -> marginService.getMarginCache().get(symbol))
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparingDouble(Margin::getMargin).reversed())
+                .collect(Collectors.toList());
+
+        if (margins.isEmpty()) return null;
+
+        return ChartInkBacktestMarginDto.builder()
+                .marketTime(dto.getMarketTime())
+                .margins(margins)
+                .build();
+    }
+
+    private <T> T executeWithRetry(ChartinkAction<T> action) {
         try {
-            if (StringUtils.isEmpty(xsrfToken)) {
-                refreshTokens();
-            }
-            return chartinkClient.fetchData(xsrfToken, payload);
+            if (xsrfToken.get() == null) refreshTokens();
+            return action.apply();
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 419 || e.getStatusCode().value() == 401) {
-                log.warn("Chartink session expired ({}). Retrying...", e.getStatusCode().value());
                 refreshTokens();
-                return chartinkClient.fetchData(xsrfToken, payload);
+                try {
+                    return action.apply();
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
             }
             throw e;
         } catch (Exception e) {
-            log.error("Request failed: {}. Retrying...", e.getMessage());
+            log.warn("Request failed, attempting refresh: {}", e.getMessage());
             refreshTokens();
-            return chartinkClient.fetchData(xsrfToken, payload);
+            try {
+                return action.apply();
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
         }
     }
 
-    private void sortResultByMargin(List<StockMarginDto> result) {
-        result.sort(Comparator.comparingDouble(StockMarginDto::getMargin).reversed());
+    private String getScanClauseOrThrow(String strategyName) {
+        var strategy = strategyService.getCachedStrategies().get(strategyName);
+        if (strategy == null) throw new BadRequestException("Strategy " + strategyName + " not found");
+        return strategy.getScanClause();
     }
 
-    private void sortMargins(List<Margin> result) {
-        result.sort(Comparator.comparingDouble(Margin::getMargin).reversed());
-    }
+    private List<ChartInkBacktestDto> mapBacktestResponse(ChartInkBacktestResponse resp) {
+        if (resp.getMetaData() == null || resp.getMetaData().isEmpty()) return Collections.emptyList();
 
-    private String executeBacktestWithRetry(String scanClause) {
-        Map<String, String> payload = new HashMap<>();
-        payload.put("scan_clause", scanClause);
-        payload.put("max_rows", "65");
+        ChartInkBacktestResponse.MetaData meta = resp.getMetaData().getFirst();
+        List<Long> tradeTimes = meta.getTradeTimes();
+        List<List<String>> aggregatedStockList = resp.getAggregatedStockList();
 
-        try {
-            if (StringUtils.isEmpty(xsrfToken)) {
-                refreshTokens();
+        List<ChartInkBacktestDto> signals = new ArrayList<>();
+        for (int i = 0; i < tradeTimes.size(); i++) {
+            long ts = tradeTimes.get(i);
+            long epochSec = (ts > 10_000_000_000L) ? ts / 1000 : ts;
+
+            LocalDateTime marketTime = Instant.ofEpochSecond(epochSec)
+                    .atZone(IST_ZONE)
+                    .toLocalDateTime();
+
+            List<String> stocks = new ArrayList<>();
+            if (aggregatedStockList != null && i < aggregatedStockList.size()) {
+                List<String> stockData = aggregatedStockList.get(i);
+                for (int j = 0; j < stockData.size(); j += 3) {
+                    stocks.add(stockData.get(j));
+                }
             }
-            return chartinkClient.fetchBackTestData(xsrfToken, payload);
-        } catch (HttpClientErrorException e) {
-            if (e.getStatusCode().value() == 419 || e.getStatusCode().value() == 401) {
-                log.warn("Chartink session expired ({}). Retrying...", e.getStatusCode().value());
-                refreshTokens();
-                return chartinkClient.fetchBackTestData(xsrfToken, payload);
-            }
-            throw e;
-        } catch (Exception e) {
-            log.error("Request failed: {}. Retrying...", e.getMessage());
-            refreshTokens();
-            return chartinkClient.fetchBackTestData(xsrfToken, payload);
+            signals.add(new ChartInkBacktestDto(marketTime, stocks));
         }
+        return signals;
     }
 
+    @FunctionalInterface
+    private interface ChartinkAction<T> {
+        T apply() throws Exception;
+    }
 }
