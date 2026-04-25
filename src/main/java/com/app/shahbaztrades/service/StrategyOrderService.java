@@ -1,6 +1,7 @@
 package com.app.shahbaztrades.service;
 
 import com.app.shahbaztrades.model.dto.order.StrategyOrderDto;
+import com.app.shahbaztrades.model.entity.StrategyOrder;
 
 import java.util.List;
 
@@ -17,4 +18,6 @@ public interface StrategyOrderService {
     void deleteOrder(String id);
 
     List<StrategyOrderDto> getOrdersByUserId(long userId);
+
+    List<StrategyOrder> getTodayOrders();
 }

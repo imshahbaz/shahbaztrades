@@ -22,7 +22,6 @@ import org.springframework.web.client.HttpClientErrorException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -174,7 +173,7 @@ public class ChartInkServiceImpl implements ChartInkService {
             return Collections.emptyList();
         }
 
-        var today = ZonedDateTime.now(DateUtil.IST_ZONE).toLocalDate();
+        var today = DateUtil.getTodayDate();
         var result = new ArrayList<ChartInkBacktestMarginDto>(data.size());
         for (var dto : data) {
             if (!dto.getStocks().isEmpty() && dto.getMarketTime().toLocalDate().isEqual(today)) {
@@ -221,7 +220,7 @@ public class ChartInkServiceImpl implements ChartInkService {
         result.sort(Comparator.comparingDouble(Margin::getMargin).reversed());
     }
 
-    private String executeBacktestWithRetry(String scanClause) throws Exception {
+    private String executeBacktestWithRetry(String scanClause) {
         Map<String, String> payload = new HashMap<>();
         payload.put("scan_clause", scanClause);
         payload.put("max_rows", "65");

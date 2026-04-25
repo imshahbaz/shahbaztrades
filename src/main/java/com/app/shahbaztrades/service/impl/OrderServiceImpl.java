@@ -140,7 +140,7 @@ public class OrderServiceImpl implements OrderService {
     public List<Order> getTodayOrders() {
         var today = DateUtil.getTodayDate();
         Query query = Query.query(Criteria.where(Order.Fields.date).gte(today.atStartOfDay())
-                .and(Order.Fields.date).lte(today.plusDays(1).atStartOfDay()));
+                .and(Order.Fields.date).lt(today.plusDays(1).atStartOfDay()));
         return mongoTemplate.find(query, Order.class);
     }
 

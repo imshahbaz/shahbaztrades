@@ -13,6 +13,7 @@ import java.util.HexFormat;
 import java.util.Random;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class HelperUtil {
@@ -21,6 +22,7 @@ public class HelperUtil {
     public static final Gson GSON = new Gson();
     public static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
     public static final RestTemplate REST_TEMPLATE = new RestTemplate();
+    public static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(5);
     private static final String ALPHA_NUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final int OTP_LENGTH = 6;
     private static final String HMAC_ALGO = "HmacSHA256";

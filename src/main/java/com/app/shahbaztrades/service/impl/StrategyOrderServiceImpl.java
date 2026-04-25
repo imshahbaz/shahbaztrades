@@ -6,6 +6,7 @@ import com.app.shahbaztrades.model.dto.order.StrategyOrderDto;
 import com.app.shahbaztrades.model.entity.StrategyOrder;
 import com.app.shahbaztrades.repo.StrategyOrderRepo;
 import com.app.shahbaztrades.service.StrategyOrderService;
+import com.app.shahbaztrades.util.DateUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
@@ -71,6 +72,14 @@ public class StrategyOrderServiceImpl implements StrategyOrderService {
         query.with(Sort.by(Sort.Direction.DESC, StrategyOrder.Fields.date));
         var orders = mongoTemplate.find(query, StrategyOrder.class);
         return orders.stream().map(StrategyOrder::toDto).toList();
+    }
+
+    @Override
+    public List<StrategyOrder> getTodayOrders() {
+        var today = DateUtil.getTodayDate();
+        Query query = Query.query(Criteria.where(StrategyOrder.Fields.date).gte(today.atStartOfDay())
+                .and(StrategyOrder.Fields.date).lt(today.plusDays(1).atStartOfDay()));
+        return mongoTemplate.find(query, StrategyOrder.class);
     }
 
 }
