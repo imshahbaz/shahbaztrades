@@ -2,6 +2,7 @@ package com.app.shahbaztrades.util;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 public class DateUtil {
 
@@ -10,6 +11,7 @@ public class DateUtil {
     private static final int MARKET_CLOSING_HOUR = 15;
     private static final int MARKET_CLOSING_GRACE_MINUTE = 25;
     private static final int MARKET_SQUARE_OFF_MIN = 30;
+    public static final DateTimeFormatter NSE_INPUT_LAYOUT = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
 
     public static long zerodhaTokenExpiry() {
         ZonedDateTime now = ZonedDateTime.now(IST_ZONE);
