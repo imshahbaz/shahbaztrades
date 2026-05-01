@@ -23,8 +23,8 @@ import java.util.List;
 @Component
 public class YahooClient {
 
-    private final RestClient restClient;
     private static final String BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
+    private final RestClient restClient;
     private final StringRedisTemplate stringRedisTemplate;
 
     public YahooClient(RestClient.Builder restClientBuilder, StringRedisTemplate stringRedisTemplate) {
