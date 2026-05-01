@@ -2,11 +2,12 @@ package com.app.shahbaztrades.util;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 public class DateUtil {
 
     public static final ZoneId IST_ZONE = ZoneId.of("Asia/Kolkata");
-    public static final DateTimeFormatter chartInkFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    public static final DateTimeFormatter NSE_INPUT_LAYOUT = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
     private static final int MARKET_CLOSING_HOUR = 15;
     private static final int MARKET_CLOSING_GRACE_MINUTE = 25;
     private static final int MARKET_SQUARE_OFF_MIN = 30;
