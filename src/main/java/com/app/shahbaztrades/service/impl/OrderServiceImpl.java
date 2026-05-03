@@ -1,6 +1,5 @@
 package com.app.shahbaztrades.service.impl;
 
-import com.app.shahbaztrades.components.helper.AsyncHelper;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
@@ -20,6 +19,7 @@ import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -47,7 +47,7 @@ public class OrderServiceImpl implements OrderService {
     private final MarginService marginService;
     private final ZerodhaService zerodhaService;
     private final AngelOneWebSocketService angelOneWebSocketService;
-    private final AsyncHelper asyncHelper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public OrderDto getById(String id) {
@@ -143,8 +143,8 @@ public class OrderServiceImpl implements OrderService {
         return mongoTemplate.find(query, Order.class);
     }
 
-    @Async
     @Override
+    @Async("taskExecutor")
     public void initiateMtfOrders() {
         processTodayOrders("Initiate MTF", (kc, order) -> {
             if (order.getBuyOrder() != null && StringUtils.isNotBlank(order.getBuyOrder().getOrderId())) {
@@ -323,7 +323,7 @@ public class OrderServiceImpl implements OrderService {
             try {
                 var orderId = zerodhaService.placeMTFStopLossOrder(kc, order.getSymbol(), order.getQuantity(), sl, sl);
                 order.setStopLossOrder(Order.OrderInfo.builder().orderId(orderId).averagePrice((float) sl).build());
-                asyncHelper.post(order);
+                eventPublisher.publishEvent(order);
                 return 1;
             } catch (Exception | KiteException e) {
                 log.error("Failed to place stop loss order for {} error {}", order.getSymbol(), e.getMessage());

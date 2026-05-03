@@ -68,4 +68,8 @@ public class DateUtil {
         return LocalDateTime.now(IST_ZONE);
     }
 
+    public static Duration getDurationUntilMarketClose() {
+        return Duration.between(LocalTime.now(IST_ZONE), LocalTime.of(MARKET_CLOSING_HOUR, MARKET_SQUARE_OFF_MIN));
+    }
+
 }

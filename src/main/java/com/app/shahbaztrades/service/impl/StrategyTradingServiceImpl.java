@@ -1,6 +1,5 @@
 package com.app.shahbaztrades.service.impl;
 
-import com.app.shahbaztrades.components.helper.AsyncHelper;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestMarginDto;
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
@@ -17,7 +16,7 @@ import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.util.CollectionUtils;
 
 import java.time.Duration;
@@ -28,8 +27,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+@Deprecated
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class StrategyTradingServiceImpl implements StrategyTradingService {
 
@@ -48,7 +47,7 @@ public class StrategyTradingServiceImpl implements StrategyTradingService {
     private final ChartInkService chartInkService;
     private final ZerodhaService zerodhaService;
     private final AngelOneWebSocketService angelOneWebSocketService;
-    private final AsyncHelper asyncHelper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public void continuousTrade() {
@@ -208,7 +207,7 @@ public class StrategyTradingServiceImpl implements StrategyTradingService {
                     kc, targetStock.getSymbol(), qty, targetPrice, Constants.TRANSACTION_TYPE_SELL, Constants.ORDER_TYPE_LIMIT
             );
 
-            asyncHelper.post(new NotificationRequest(
+            eventPublisher.publishEvent(new NotificationRequest(
                     userId,
                     "Order Placed",
                     String.format("%s | Entry: %.2f | Target: %.2f", targetStock.getSymbol(), entryPrice, targetPrice),
@@ -235,7 +234,7 @@ public class StrategyTradingServiceImpl implements StrategyTradingService {
                         var det = zerodhaService.getOrderDetails(kc, sOd.orderId);
                         if (Integer.parseInt(det.pendingQuantity) == 0) {
                             log.info("Exit order filled for {}", targetStock.getSymbol());
-                            asyncHelper.post(new NotificationRequest(
+                            eventPublisher.publishEvent(new NotificationRequest(
                                     userId,
                                     "Target Achieved!",
                                     String.format("%s | Target: %.2f", targetStock.getSymbol(), targetPrice),
