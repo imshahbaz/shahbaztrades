@@ -7,6 +7,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.*;
 
 @Slf4j
@@ -85,6 +86,15 @@ public class Cache<K, V> {
         public int compareTo(ExpiryNode<K> other) {
             return Long.compare(this.expiryTime, other.expiryTime);
         }
+    }
+
+    public Set<K> getActiveKeys() {
+        return cacheMap.keySet();
+    }
+
+    public void invalidateAll() {
+        cacheMap.clear();
+        expiryQueue.clear();
     }
 
 }
