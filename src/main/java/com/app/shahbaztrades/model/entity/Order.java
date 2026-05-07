@@ -30,9 +30,9 @@ public class Order {
 
     LocalDateTime date;
 
-    OrderInfo buyOrder;
+    ExecutionRecord entry;
 
-    OrderInfo stopLossOrder;
+    ExecutionRecord exit;
 
     Margin margin;
 
@@ -51,8 +51,8 @@ public class Order {
     @NoArgsConstructor
     @AllArgsConstructor
     @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class OrderInfo {
-        String orderId;
+    public static class ExecutionRecord {
+        String brokerOrderId;
         String orderStatus;
         float averagePrice;
     }

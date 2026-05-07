@@ -167,7 +167,7 @@ public class TradeEngineImpl implements TradeEngine {
                     }
                 }
             } catch (Exception e) {
-                log.error("Error processing signal {}", e.getMessage());
+                log.error("Error processing signal", e);
             }
         }
 
@@ -231,7 +231,7 @@ public class TradeEngineImpl implements TradeEngine {
             activeOrders.set(order.getId(), Boolean.TRUE, DateUtil.getDurationUntilMarketClose());
 
         } catch (KiteException | Exception e) {
-            log.error("Error in punchSingleTrade for {} error {}", targetStock.getSymbol(), e.getMessage());
+            log.error("Error in punchSingleTrade for {}", targetStock.getSymbol(), e);
         }
     }
 
@@ -265,7 +265,7 @@ public class TradeEngineImpl implements TradeEngine {
                 kiteConnectCache.set(userId, kc, DateUtil.getDurationUntilMarketClose());
                 return kc;
             } catch (Exception e) {
-                log.error("Error connecting to Kite Client for user {} error {}", userId, e.getMessage());
+                log.error("Error connecting to Kite Client for user {}", userId, e);
                 return null;
             }
         }

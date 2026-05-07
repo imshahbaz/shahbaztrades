@@ -71,7 +71,7 @@ public class YahooClient {
             return list;
 
         } catch (Exception e) {
-            log.error("Critical failure fetching Yahoo data for {}: {}", symbol, e.getMessage());
+            log.error("Critical failure fetching Yahoo data for {}", symbol, e);
             return Collections.emptyList();
         }
     }

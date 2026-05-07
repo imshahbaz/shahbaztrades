@@ -89,7 +89,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
 
             return userSession.accessToken;
         } catch (IOException | KiteException e) {
-            log.error("Failed to generate access token {}", e.getMessage());
+            log.error("Failed to generate access token", e);
             throw new UnauthorizedException("Failed to generate session");
         }
     }
