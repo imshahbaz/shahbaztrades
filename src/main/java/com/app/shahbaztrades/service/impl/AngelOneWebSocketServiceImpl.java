@@ -73,7 +73,7 @@ public class AngelOneWebSocketServiceImpl implements WebSocketHandler, AngelOneW
         try {
             session = client.execute(this, headers, java.net.URI.create(WS_URL)).get();
         } catch (Exception e) {
-            log.error("WebSocket Connection Error: {}", e.getMessage());
+            log.error("WebSocket Connection Error", e);
         }
     }
 

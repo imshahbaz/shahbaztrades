@@ -157,7 +157,7 @@ public class OrderServiceImpl implements OrderService {
                         Constants.TRANSACTION_TYPE_BUY, Constants.ORDER_TYPE_MARKET);
                 order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.orderId).build());
             } catch (KiteException | Exception e) {
-                log.error("Failed to place MTF order: {}", e.getMessage());
+                log.error("Failed to place MTF order", e);
             }
             return null;
         });
@@ -252,7 +252,7 @@ public class OrderServiceImpl implements OrderService {
                     saveOrderProgress(order);
                 }
             } catch (Exception e) {
-                log.error("Error processing orders for user {}: {}", userId, e.getMessage());
+                log.error("Error processing orders for user {}", userId, e);
             }
         }));
     }
@@ -274,7 +274,7 @@ public class OrderServiceImpl implements OrderService {
         try {
             kc = zerodhaService.getKiteClient(order.getUserId());
         } catch (Exception e) {
-            log.error("Failed to get kite connection for {} error {}", order.getUserId(), e.getMessage());
+            log.error("Failed to get kite connection for {}", order.getUserId(), e);
             return -1;
         }
 
@@ -290,7 +290,7 @@ public class OrderServiceImpl implements OrderService {
                 try {
                     zerodhaService.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), 0, Constants.TRANSACTION_TYPE_SELL, Constants.ORDER_TYPE_MARKET);
                 } catch (Exception | KiteException e) {
-                    log.error("Failed to square off for {} error {}", order.getSymbol(), e.getMessage());
+                    log.error("Failed to square off for {}", order.getSymbol(), e);
                     return 0;
                 }
             } else {
@@ -309,7 +309,7 @@ public class OrderServiceImpl implements OrderService {
                         zerodhaService.convertSLToMarket(kc, order.getExit().getBrokerOrderId(), pendingQty, 0);
                     }
                 } catch (Exception | KiteException e) {
-                    log.error("Failed to convert order for {} error {}", order.getSymbol(), e.getMessage());
+                    log.error("Failed to convert order for {}", order.getSymbol(), e);
                     return 0;
                 }
 
@@ -326,7 +326,7 @@ public class OrderServiceImpl implements OrderService {
                 eventPublisher.publishEvent(order);
                 return 1;
             } catch (Exception | KiteException e) {
-                log.error("Failed to place stop loss order for {} error {}", order.getSymbol(), e.getMessage());
+                log.error("Failed to place stop loss order for {}", order.getSymbol(), e);
                 return 0;
             }
         }

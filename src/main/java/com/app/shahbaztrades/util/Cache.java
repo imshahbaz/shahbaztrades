@@ -36,7 +36,7 @@ public class Cache<K, V> {
                     );
                 }
             } catch (Exception e) {
-                log.error("Error occurred while cleaning up {}", e.getMessage());
+                log.error("Error occurred while cleaning up", e);
             }
         }, 1, 1, TimeUnit.MINUTES);
     }

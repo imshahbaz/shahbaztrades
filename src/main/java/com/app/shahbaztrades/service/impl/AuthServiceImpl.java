@@ -103,7 +103,7 @@ public class AuthServiceImpl implements AuthService {
                 var user = userService.findOrCreateGoogleUser(gUser);
                 stringRedisTemplate.opsForValue().set(AUTH_KEY + id, HelperUtil.GSON.toJson(user), Duration.ofMinutes(2));
             } catch (Exception e) {
-                log.error("Failed to find or create google user {}", e.getMessage());
+                log.error("Failed to find or create google user", e);
             }
         });
 
