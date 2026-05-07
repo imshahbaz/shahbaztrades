@@ -147,7 +147,7 @@ public class OrderServiceImpl implements OrderService {
     @Async("taskExecutor")
     public void initiateMtfOrders() {
         processTodayOrders("Initiate MTF", (kc, order) -> {
-            if (order.getBuyOrder() != null && StringUtils.isNotBlank(order.getBuyOrder().getOrderId())) {
+            if (order.getEntry() != null && StringUtils.isNotBlank(order.getEntry().getBrokerOrderId())) {
                 log.warn("MTF order exists for user {} symbol {}", order.getUserId(), order.getSymbol());
                 return null;
             }
@@ -155,7 +155,7 @@ public class OrderServiceImpl implements OrderService {
             try {
                 var res = zerodhaService.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), 0,
                         Constants.TRANSACTION_TYPE_BUY, Constants.ORDER_TYPE_MARKET);
-                order.setBuyOrder(Order.OrderInfo.builder().orderId(res.orderId).build());
+                order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.orderId).build());
             } catch (KiteException | Exception e) {
                 log.error("Failed to place MTF order: {}", e.getMessage());
             }
@@ -166,15 +166,15 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public void updateMtfOrderStatus() {
         processTodayOrders("Update MTF Status", ((kc, order) -> {
-            if (order.getBuyOrder() == null || StringUtils.isEmpty(order.getBuyOrder().getOrderId())) {
+            if (order.getEntry() == null || StringUtils.isEmpty(order.getEntry().getBrokerOrderId())) {
                 log.info("Mtf order not found for userId {} symbol {} skipping status update", order.getUserId(), order.getSymbol());
                 throw new NotFoundException("Mtf order not found");
             }
 
             try {
-                var orderDetails = zerodhaService.getOrderDetails(kc, order.getBuyOrder().getOrderId());
-                order.getBuyOrder().setOrderStatus(orderDetails.status);
-                order.getBuyOrder().setAveragePrice(StringUtils.isNumeric(orderDetails.averagePrice) ? Float.parseFloat(orderDetails.averagePrice) : 0);
+                var orderDetails = zerodhaService.getOrderDetails(kc, order.getEntry().getBrokerOrderId());
+                order.getEntry().setOrderStatus(orderDetails.status);
+                order.getEntry().setAveragePrice(StringUtils.isNumeric(orderDetails.averagePrice) ? Float.parseFloat(orderDetails.averagePrice) : 0);
             } catch (Exception | KiteException e) {
                 throw new BadRequestException("Invalid MTF order or kite exception " + e.getMessage());
             }
@@ -192,7 +192,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         orders.forEach(order -> {
-            if (order.getBuyOrder() == null || order.getBuyOrder().getAveragePrice() <= 0) return;
+            if (order.getEntry() == null || order.getEntry().getAveragePrice() <= 0) return;
             try {
                 angelOneWebSocketService.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
             } catch (Exception e) {
@@ -202,7 +202,7 @@ public class OrderServiceImpl implements OrderService {
 
             HelperUtil.EXECUTOR.execute(() -> {
                 double prevLtp = 0;
-                var peakPrice = order.getBuyOrder().getAveragePrice();
+                var peakPrice = order.getEntry().getAveragePrice();
                 String token = order.getMargin().getToken();
 
                 log.info("Started LTP monitoring for {} (Entry: {})", order.getSymbol(), peakPrice);
@@ -260,13 +260,13 @@ public class OrderServiceImpl implements OrderService {
     private void saveOrderProgress(Order order) {
         Query query = Query.query(Criteria.where(Order.Fields.id).is(order.getId()));
         Update update = new Update()
-                .set(Order.Fields.buyOrder, order.getBuyOrder())
-                .set(Order.Fields.stopLossOrder, order.getStopLossOrder());
+                .set(Order.Fields.entry, order.getEntry())
+                .set(Order.Fields.exit, order.getExit());
         mongoTemplate.updateFirst(query, update, Order.class);
     }
 
     private short processOrder(Order order, double ltp, float peakPrice) {
-        if (order.getBuyOrder() == null || order.getBuyOrder().getAveragePrice() == 0) {
+        if (order.getEntry() == null || order.getEntry().getAveragePrice() == 0) {
             return -1;
         }
 
@@ -278,7 +278,7 @@ public class OrderServiceImpl implements OrderService {
             return -1;
         }
 
-        return addStopLoss(order, ltp, order.getBuyOrder().getAveragePrice(), kc, peakPrice);
+        return addStopLoss(order, ltp, order.getEntry().getAveragePrice(), kc, peakPrice);
     }
 
     private short addStopLoss(Order order, double ltp, float buyPrice, KiteConnect kc, float peakPrice) {
@@ -286,7 +286,7 @@ public class OrderServiceImpl implements OrderService {
             log.info("Symbol: {}. Stock price dropped more than 0.6% or Market is closing (3:25 PM). Squaring off...",
                     order.getSymbol());
 
-            if (order.getStopLossOrder() == null || StringUtils.isEmpty(order.getStopLossOrder().getOrderId())) {
+            if (order.getExit() == null || StringUtils.isEmpty(order.getExit().getBrokerOrderId())) {
                 try {
                     zerodhaService.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), 0, Constants.TRANSACTION_TYPE_SELL, Constants.ORDER_TYPE_MARKET);
                 } catch (Exception | KiteException e) {
@@ -295,7 +295,7 @@ public class OrderServiceImpl implements OrderService {
                 }
             } else {
                 try {
-                    var orderDetails = zerodhaService.getOrderDetails(kc, order.getStopLossOrder().getOrderId());
+                    var orderDetails = zerodhaService.getOrderDetails(kc, order.getExit().getBrokerOrderId());
                     if (orderDetails == null) {
                         return 0;
                     }
@@ -306,7 +306,7 @@ public class OrderServiceImpl implements OrderService {
 
                     var pendingQty = StringUtils.isNumeric(orderDetails.pendingQuantity) ? Integer.parseInt(orderDetails.pendingQuantity) : 0;
                     if (pendingQty > 0) {
-                        zerodhaService.convertSLToMarket(kc, order.getStopLossOrder().getOrderId(), pendingQty, 0);
+                        zerodhaService.convertSLToMarket(kc, order.getExit().getBrokerOrderId(), pendingQty, 0);
                     }
                 } catch (Exception | KiteException e) {
                     log.error("Failed to convert order for {} error {}", order.getSymbol(), e.getMessage());
@@ -318,11 +318,11 @@ public class OrderServiceImpl implements OrderService {
             return -1;
         }
 
-        if ((order.getStopLossOrder() == null || StringUtils.isEmpty(order.getStopLossOrder().getOrderId())) && ltp >= buyPrice * 1.006) {
+        if ((order.getExit() == null || StringUtils.isEmpty(order.getExit().getBrokerOrderId())) && ltp >= buyPrice * 1.006) {
             var sl = HelperUtil.fixToTick(buyPrice * 1.004);
             try {
                 var orderId = zerodhaService.placeMTFStopLossOrder(kc, order.getSymbol(), order.getQuantity(), sl, sl);
-                order.setStopLossOrder(Order.OrderInfo.builder().orderId(orderId).averagePrice((float) sl).build());
+                order.setExit(Order.ExecutionRecord.builder().brokerOrderId(orderId).averagePrice((float) sl).build());
                 eventPublisher.publishEvent(order);
                 return 1;
             } catch (Exception | KiteException e) {
