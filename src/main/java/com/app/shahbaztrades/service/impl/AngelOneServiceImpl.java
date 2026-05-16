@@ -1,12 +1,18 @@
 package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.angelone.AngelOneClient;
+import com.app.shahbaztrades.components.angelone.SmartApiFeignClient;
 import com.app.shahbaztrades.exceptions.BadRequestException;
+import com.app.shahbaztrades.exceptions.NotFoundException;
+import com.app.shahbaztrades.model.dto.ApiResponse;
+import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpDto;
+import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
 import com.app.shahbaztrades.model.dto.angelone.websocket.AngelOneLoginResponse;
 import com.app.shahbaztrades.model.dto.angelone.websocket.SmartStreamParams;
 import com.app.shahbaztrades.model.dto.angelone.websocket.SmartStreamRequest;
 import com.app.shahbaztrades.model.dto.angelone.websocket.TokenGroup;
-import com.app.shahbaztrades.service.AngelOneWebSocketService;
+import com.app.shahbaztrades.model.enums.ExchangeType;
+import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
@@ -18,7 +24,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 
@@ -28,6 +36,7 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -38,7 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AngelOneWebSocketServiceImpl implements WebSocketHandler, AngelOneWebSocketService {
+public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
 
     private static final String WS_URL = "wss://smartapisocket.angelone.in/smart-stream";
     private final ConcurrentHashMap<String, Double> ltpCache = new ConcurrentHashMap<>();
@@ -49,26 +58,18 @@ public class AngelOneWebSocketServiceImpl implements WebSocketHandler, AngelOneW
     private final AngelOneClient angelOneClient;
     private final MongoConfigService mongoConfigService;
     private WebSocketSession session;
-    private String jwt, apiKey, clientCode, feedToken;
-
-    @Override
-    public void setConfig(String jwt, String feedToken, String apiKey, String clientCode) {
-        this.jwt = jwt;
-        this.feedToken = feedToken;
-        this.apiKey = apiKey;
-        this.clientCode = clientCode;
-    }
+    private final SmartApiFeignClient smartApiFeignClient;
 
     @Override
     public void startWebSocket() {
-        if (connected.get() || jwt == null) return;
+        if (connected.get() || mongoConfigService.getAngelOneJwtToken() == null) return;
 
         StandardWebSocketClient client = new StandardWebSocketClient();
         WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
-        headers.add("Authorization", "Bearer " + jwt);
-        headers.add("x-api-key", apiKey);
-        headers.add("x-client-code", clientCode);
-        headers.add("x-feed-token", feedToken);
+        headers.add("Authorization", "Bearer " + mongoConfigService.getAngelOneJwtToken());
+        headers.add("x-api-key", mongoConfigService.getConfig().getAngelOneConfig().getApiKey());
+        headers.add("x-client-code", mongoConfigService.getConfig().getAngelOneConfig().getClientId());
+        headers.add("x-feed-token", mongoConfigService.getAngelOneFeedToken());
 
         try {
             session = client.execute(this, headers, java.net.URI.create(WS_URL)).get();
@@ -190,18 +191,16 @@ public class AngelOneWebSocketServiceImpl implements WebSocketHandler, AngelOneW
         var login = stringRedisTemplate.opsForValue().get(key);
         if (StringUtils.isNotEmpty(login)) {
             var loginData = HelperUtil.GSON.fromJson(login, AngelOneLoginResponse.LoginData.class);
-            this.setConfig(loginData.getJwtToken(), loginData.getFeedToken(),
-                    mongoConfigService.getConfig().getAngelOneConfig().getApiKey(),
-                    mongoConfigService.getConfig().getAngelOneConfig().getClientId());
+            mongoConfigService.setAngelOneJwtToken(loginData.getJwtToken());
+            mongoConfigService.setAngelOneFeedToken(loginData.getFeedToken());
             return;
         }
 
         var loginData = angelOneClient.getWebsocketLogin(mongoConfigService.getConfig().getAngelOneConfig());
         if (loginData != null) {
             stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(loginData), Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
-            this.setConfig(loginData.getJwtToken(), loginData.getFeedToken(),
-                    mongoConfigService.getConfig().getAngelOneConfig().getApiKey(),
-                    mongoConfigService.getConfig().getAngelOneConfig().getClientId());
+            mongoConfigService.setAngelOneJwtToken(loginData.getJwtToken());
+            mongoConfigService.setAngelOneFeedToken(loginData.getFeedToken());
         }
     }
 
@@ -229,6 +228,29 @@ public class AngelOneWebSocketServiceImpl implements WebSocketHandler, AngelOneW
     @PreDestroy
     public void tearDown() {
         disconnect();
+    }
+
+    @Override
+    public ResponseEntity<ApiResponse<SmartApiLtpResponse.MarketTicker>> getMarketTicker(String token) {
+        var key = "angel_one_ltp_" + token;
+        var data = stringRedisTemplate.opsForValue().get(key);
+        if (data != null) {
+            return ResponseEntity.ok(ApiResponse.ok(HelperUtil.GSON.fromJson(data, SmartApiLtpResponse.MarketTicker.class), "Ltp Fetched Successfully"));
+        }
+
+        var jwt = mongoConfigService.getAngelOneJwtToken();
+        var response = smartApiFeignClient.getMultipleLtp("Bearer " + jwt, mongoConfigService.getConfig().getAngelOneConfig().getApiKey(),
+                SmartApiLtpDto.builder()
+                        .mode("OHLC")
+                        .exchangeTokens(Map.of(ExchangeType.NSE.name(), List.of(token)))
+                        .build());
+
+        if (response != null && response.data() != null && !CollectionUtils.isEmpty(response.data().fetched())) {
+            stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(response.data().fetched().getFirst()), Duration.ofSeconds(60));
+            return ResponseEntity.ok(ApiResponse.ok(response.data().fetched().getFirst(), "Ltp Fetched Successfully"));
+        }
+
+        throw new NotFoundException("Ltp not found");
     }
 
 }

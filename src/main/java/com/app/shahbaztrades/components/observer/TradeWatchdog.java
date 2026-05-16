@@ -2,7 +2,7 @@ package com.app.shahbaztrades.components.observer;
 
 import com.app.shahbaztrades.model.dto.strategy.ActiveTrade;
 import com.app.shahbaztrades.model.dto.strategy.TradeCompletionEvent;
-import com.app.shahbaztrades.service.AngelOneWebSocketService;
+import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.util.Cache;
 import com.app.shahbaztrades.util.DateUtil;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 public class TradeWatchdog {
 
     private final Cache<String, List<ActiveTrade>> tradeWatchCache = new Cache<>();
-    private final AngelOneWebSocketService angelOneWebSocketService;
+    private final AngelOneService angelOneService;
     private final ApplicationEventPublisher applicationEventPublisher;
 
     public void watch(ActiveTrade trade) {
@@ -59,7 +59,7 @@ public class TradeWatchdog {
         }
 
         for (String activeKey : activeKeys) {
-            double ltp = angelOneWebSocketService.getLTP(activeKey);
+            double ltp = angelOneService.getLTP(activeKey);
             if (ltp <= 0) continue;
             List<ActiveTrade> trades = tradeWatchCache.get(activeKey);
             if (CollectionUtils.isEmpty(trades)) continue;
