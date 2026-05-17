@@ -41,7 +41,6 @@ public class TradeEngineImpl implements TradeEngine {
     private final Map<String, ScheduledFuture<?>> runningPollers = new ConcurrentHashMap<>();
     private final Cache<String, Boolean> activeOrders = new Cache<>();
     private final Cache<String, List<StrategyOrder>> strategyOrders = new Cache<>();
-    private final Cache<Long, KiteConnect> kiteConnectCache = new Cache<>();
 
     private final StrategyOrderService strategyOrderService;
     private final StrategyService strategyService;
@@ -258,18 +257,12 @@ public class TradeEngineImpl implements TradeEngine {
     }
 
     private KiteConnect getKiteConnect(long userId) {
-        var kc = kiteConnectCache.get(userId);
-        if (kc == null) {
-            try {
-                kc = zerodhaService.getKiteClient(userId);
-                kiteConnectCache.set(userId, kc, DateUtil.getDurationUntilMarketClose());
-                return kc;
-            } catch (Exception e) {
-                log.error("Error connecting to Kite Client for user {}", userId, e);
-                return null;
-            }
+        try {
+            return zerodhaService.getKiteClient(userId);
+        } catch (Exception e) {
+            log.error("Error connecting to Kite Client for user {}", userId, e);
+            return null;
         }
-        return kc;
     }
 
 }
