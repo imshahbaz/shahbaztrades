@@ -1,16 +1,17 @@
 package com.app.shahbaztrades.controller;
 
 import com.app.shahbaztrades.config.security.PublicEndpoint;
+import com.app.shahbaztrades.model.dto.ApiResponse;
+import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
 import com.app.shahbaztrades.model.dto.angelone.websocket.AngelOneWsSubscribeDto;
-import com.app.shahbaztrades.service.AngelOneWebSocketService;
+import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.util.HelperUtil;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -20,24 +21,24 @@ import java.util.concurrent.CompletableFuture;
 @RequestMapping("/api/angelone")
 public class AngelOneController {
 
-    private final AngelOneWebSocketService angelOneWebSocketService;
+    private final AngelOneService angelOneService;
 
     @PublicEndpoint
     @PostMapping("/refresh-session")
     public void refreshSession() {
-        angelOneWebSocketService.refreshBrokerSession();
+        angelOneService.refreshBrokerSession();
     }
 
     @PublicEndpoint
     @PostMapping("/ws/connect")
     public void connect() {
-        angelOneWebSocketService.startWebSocket();
+        angelOneService.startWebSocket();
     }
 
     @PublicEndpoint
     @PostMapping("/ws/disconnect")
     public void disconnect() {
-        angelOneWebSocketService.disconnect();
+        angelOneService.disconnect();
     }
 
     @PublicEndpoint
@@ -45,7 +46,7 @@ public class AngelOneController {
     public void subscribe(@RequestBody @Valid AngelOneWsSubscribeDto request) {
         for (String token : request.getTokens()) {
             try {
-                angelOneWebSocketService.subscribe(token, request.getExchangeType());
+                angelOneService.subscribe(token, request.getExchangeType());
                 startMonitoring(token);
             } catch (Exception e) {
                 log.error("Failed to subscribe to token: {}", token, e);
@@ -59,7 +60,7 @@ public class AngelOneController {
             long timeoutMillis = 30 * 1000; // 30 Seconds timeout for the loop
 
             while (System.currentTimeMillis() - startTime < timeoutMillis) {
-                double ltp = angelOneWebSocketService.getLTP(token);
+                double ltp = angelOneService.getLTP(token);
 
                 if (ltp == -2) {
                     log.warn("Monitor stopping for {}: WebSocket connection lost", token);
@@ -77,6 +78,12 @@ public class AngelOneController {
             }
             log.info("Monitor for {} finished after 30 seconds", token);
         }, HelperUtil.EXECUTOR);
+    }
+
+    @PublicEndpoint
+    @GetMapping("/ltp")
+    public ResponseEntity<ApiResponse<SmartApiLtpResponse.MarketTicker>> getMultipleLtp(@RequestParam @NotBlank String token) {
+        return angelOneService.getMarketTicker(token);
     }
 
 }

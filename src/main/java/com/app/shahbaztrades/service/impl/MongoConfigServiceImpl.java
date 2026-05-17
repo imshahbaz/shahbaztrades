@@ -4,7 +4,9 @@ import com.app.shahbaztrades.model.entity.MongoEnvConfig;
 import com.app.shahbaztrades.repo.MongoConfigsRepo;
 import com.app.shahbaztrades.service.MongoConfigService;
 import jakarta.annotation.PostConstruct;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,10 @@ public class MongoConfigServiceImpl implements MongoConfigService {
     private final Environment environment;
     private MongoEnvConfig cachedConfig;
     private MongoEnvConfig clientConfig;
+
+    @Getter
+    @Setter
+    private String angelOneJwtToken, angelOneFeedToken;
 
     @PostConstruct
     public void init() {
@@ -39,7 +45,7 @@ public class MongoConfigServiceImpl implements MongoConfigService {
     @Override
     public void refreshClientConfig() {
         var id = Objects.equals(environment.getProperty("ENV"), "production") ? "clientConfigId" : "clientConfigIdDev";
-        this.clientConfig = mongoConfigsRepo.findById("clientConfigIdDev")
+        this.clientConfig = mongoConfigsRepo.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Configuration not found in MongoDB"));
         log.info("Client configuration loaded successfully");
     }

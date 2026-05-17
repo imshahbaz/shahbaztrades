@@ -47,7 +47,7 @@ public class TradeEngineImpl implements TradeEngine {
     private final StrategyService strategyService;
     private final ChartInkService chartInkService;
     private final ApplicationEventPublisher eventPublisher;
-    private final AngelOneWebSocketService angelOneWebSocketService;
+    private final AngelOneService angelOneService;
     private final TradeWatchdog tradeWatchdog;
     private final ZerodhaService zerodhaService;
 
@@ -146,15 +146,15 @@ public class TradeEngineImpl implements TradeEngine {
                 if (now.isAfter(signal.getMarketTime().plusMinutes(20)) && now.isBefore(signal.getMarketTime().plusMinutes(23))) {
                     if (!CollectionUtils.isEmpty(signal.getMargins())) {
                         var target = signal.getMargins().getFirst();
-                        var ltp = angelOneWebSocketService.getLTP(target.getToken());
+                        var ltp = angelOneService.getLTP(target.getToken());
                         if (ltp == -2) {
                             continue;
                         }
 
                         if (ltp == -1) {
-                            angelOneWebSocketService.subscribe(target.getToken(), ExchangeType.NSE.getValue());
+                            angelOneService.subscribe(target.getToken(), ExchangeType.NSE.getValue());
                             Thread.sleep(1000);
-                            ltp = angelOneWebSocketService.getLTP(target.getToken());
+                            ltp = angelOneService.getLTP(target.getToken());
                             if (ltp < 0) {
                                 continue;
                             }

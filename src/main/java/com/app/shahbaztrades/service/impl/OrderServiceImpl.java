@@ -7,7 +7,7 @@ import com.app.shahbaztrades.model.dto.order.OrderDto;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.repo.OrderRepo;
-import com.app.shahbaztrades.service.AngelOneWebSocketService;
+import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.OrderService;
 import com.app.shahbaztrades.service.ZerodhaService;
@@ -46,7 +46,7 @@ public class OrderServiceImpl implements OrderService {
     private final MongoTemplate mongoTemplate;
     private final MarginService marginService;
     private final ZerodhaService zerodhaService;
-    private final AngelOneWebSocketService angelOneWebSocketService;
+    private final AngelOneService angelOneService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -194,7 +194,7 @@ public class OrderServiceImpl implements OrderService {
         orders.forEach(order -> {
             if (order.getEntry() == null || order.getEntry().getAveragePrice() <= 0) return;
             try {
-                angelOneWebSocketService.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
+                angelOneService.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
             } catch (Exception e) {
                 log.error("WS Subscription failed for {}", order.getSymbol());
                 return;
@@ -208,7 +208,7 @@ public class OrderServiceImpl implements OrderService {
                 log.info("Started LTP monitoring for {} (Entry: {})", order.getSymbol(), peakPrice);
 
                 while (!Thread.currentThread().isInterrupted()) {
-                    var ltp = angelOneWebSocketService.getLTP(token);
+                    var ltp = angelOneService.getLTP(token);
                     if (ltp == -2) {
                         log.error("LTP feed lost for {}", order.getSymbol());
                         break;
