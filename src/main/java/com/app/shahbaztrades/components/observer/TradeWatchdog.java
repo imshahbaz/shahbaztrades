@@ -72,20 +72,26 @@ public class TradeWatchdog {
         }
 
         for (String activeKey : activeKeys) {
-            double ltp = angelOneService.getLTP(activeKey);
-            if (ltp <= 0) continue;
-            List<ActiveTrade> trades = tradeWatchCache.get(activeKey);
-            if (CollectionUtils.isEmpty(trades)) continue;
-            trades.removeIf(trade -> {
-                if (ltp >= trade.getTargetPrice()) {
-                    applicationEventPublisher.publishEvent(new TradeCompletionEvent(trade.getUserId(), trade));
-                    return true;
-                }
-                return false;
-            });
+            Lock lock = tokenLocks.get(activeKey);
+            lock.lock();
+            try {
+                double ltp = angelOneService.getLTP(activeKey);
+                if (ltp <= 0) continue;
+                List<ActiveTrade> trades = tradeWatchCache.get(activeKey);
+                if (CollectionUtils.isEmpty(trades)) continue;
+                trades.removeIf(trade -> {
+                    if (ltp >= trade.getTargetPrice()) {
+                        applicationEventPublisher.publishEvent(new TradeCompletionEvent(trade.getUserId(), trade));
+                        return true;
+                    }
+                    return false;
+                });
 
-            if (trades.isEmpty()) {
-                tradeWatchCache.remove(activeKey);
+                if (trades.isEmpty()) {
+                    tradeWatchCache.remove(activeKey);
+                }
+            } finally {
+                lock.unlock();
             }
         }
     }
