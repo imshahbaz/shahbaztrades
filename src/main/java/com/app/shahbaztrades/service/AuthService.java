@@ -16,7 +16,7 @@ public interface AuthService {
 
     ResponseEntity<ApiResponse<UserDto>> getMe(UserDto dto);
 
-    ResponseEntity<ApiResponse<String>> validateGoogleToken(String code);
+    ResponseEntity<ApiResponse<String>> validateGoogleToken(String code, boolean nativeFlow);
 
     ResponseEntity<?> googleAuthCallback(String code, String state);
 }
