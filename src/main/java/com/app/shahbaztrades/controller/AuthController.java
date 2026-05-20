@@ -37,8 +37,8 @@ public class AuthController {
 
     @PublicEndpoint
     @PostMapping("/google/token")
-    public ResponseEntity<ApiResponse<String>> validateGoogleToken(@RequestParam @NotBlank String code) {
-        return authService.validateGoogleToken(code);
+    public ResponseEntity<ApiResponse<String>> validateGoogleToken(@RequestParam @NotBlank String code, @RequestHeader(required = false) boolean nativeFlow) {
+        return authService.validateGoogleToken(code, nativeFlow);
     }
 
     @PublicEndpoint

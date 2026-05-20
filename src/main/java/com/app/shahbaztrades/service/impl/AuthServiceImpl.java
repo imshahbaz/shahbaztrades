@@ -88,9 +88,22 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public ResponseEntity<ApiResponse<String>> validateGoogleToken(String code) {
+    public ResponseEntity<ApiResponse<String>> validateGoogleToken(String code, boolean nativeFlow) {
         String id = UUID.randomUUID().toString();
         String signedUuid = HelperUtil.signState(id, mongoConfigService.getConfig().getGoogleAuth().getEncryptionKey());
+        if (nativeFlow) {
+            var gUser = googleAuthUtils.validateIdToken(code);
+            if (Objects.isNull(gUser)) {
+                log.warn("Invalid Google Token");
+                throw new BadRequestException("Invalid Google Token");
+            }
+
+            var user = userService.findOrCreateGoogleUser(gUser);
+            String tokenStr = jwtService.generateToken(user.toDto());
+            String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), "production"));
+            return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie)
+                    .body(ApiResponse.ok(tokenStr, "Google Token"));
+        }
 
         HelperUtil.EXECUTOR.execute(() -> {
             try {

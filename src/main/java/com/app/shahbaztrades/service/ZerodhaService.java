@@ -4,6 +4,7 @@ import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.zerodha.ZerodhaLoginDto;
 import com.app.shahbaztrades.model.entity.User;
+import com.app.shahbaztrades.util.Cache;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import com.zerodhatech.models.Order;
@@ -13,6 +14,8 @@ import org.springframework.http.ResponseEntity;
 public interface ZerodhaService {
 
     String ZERODHA_TOKEN_KEY = "zerodha_token_";
+
+    Cache<Long, KiteConnect> kiteClientCache = new Cache<>();
 
     KiteConnect initiateKiteConnect(String accessToken, Long userId);
 

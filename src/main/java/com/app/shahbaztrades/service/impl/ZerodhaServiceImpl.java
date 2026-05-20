@@ -9,7 +9,6 @@ import com.app.shahbaztrades.model.dto.zerodha.ZerodhaLoginDto;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.service.ZerodhaService;
-import com.app.shahbaztrades.util.CacheUtils;
 import com.app.shahbaztrades.util.DateUtil;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
@@ -97,7 +96,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     @Override
     public KiteConnect getKiteClient(Long userId) {
 
-        var cachedClient = CacheUtils.kiteClientCache.get(userId);
+        var cachedClient = kiteClientCache.get(userId);
         if (cachedClient != null) {
             return cachedClient;
         }
@@ -109,7 +108,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
 
         KiteConnect kc = initiateKiteConnect(accessToken, userId);
 
-        CacheUtils.kiteClientCache.set(userId, kc, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
+        kiteClientCache.set(userId, kc, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
 
         return kc;
     }
@@ -212,7 +211,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     public ResponseEntity<ApiResponse<Void>> login(ZerodhaLoginDto request) {
         var token = generateAccessToken(request.requestToken(), request.userId());
         stringRedisTemplate.opsForValue().set(ZERODHA_TOKEN_KEY + request.userId(), token, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
-        CacheUtils.kiteClientCache.remove(request.userId());
+        kiteClientCache.remove(request.userId());
         return ResponseEntity.ok(ApiResponse.ok(null, "Flow invocation success"));
     }
 

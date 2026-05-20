@@ -1,8 +1,10 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.components.observer.TradeWatchdog;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
+import com.app.shahbaztrades.model.dto.order.ActiveMtfTrade;
 import com.app.shahbaztrades.model.dto.order.OrderDto;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.ExchangeType;
@@ -20,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -48,6 +51,7 @@ public class OrderServiceImpl implements OrderService {
     private final ZerodhaService zerodhaService;
     private final AngelOneService angelOneService;
     private final ApplicationEventPublisher eventPublisher;
+    private final TradeWatchdog tradeWatchdog;
 
     @Override
     public OrderDto getById(String id) {
@@ -122,7 +126,7 @@ public class OrderServiceImpl implements OrderService {
         Update update = new Update();
         update.set(Order.Fields.date, orderDate.atStartOfDay());
         update.set(Order.Fields.quantity, orderDto.getQuantity());
-        update.set(Order.Fields.margin, margin.getMargin());
+        update.set(Order.Fields.margin, margin);
         update.set(Order.Fields.symbol, orderDto.getSymbol().toUpperCase());
         var res = mongoTemplate.updateFirst(query, update, Order.class);
         if (res.getModifiedCount() < 1) {
@@ -200,37 +204,10 @@ public class OrderServiceImpl implements OrderService {
                 return;
             }
 
-            HelperUtil.EXECUTOR.execute(() -> {
-                double prevLtp = 0;
-                var peakPrice = order.getEntry().getAveragePrice();
-                String token = order.getMargin().getToken();
-
-                log.info("Started LTP monitoring for {} (Entry: {})", order.getSymbol(), peakPrice);
-
-                while (!Thread.currentThread().isInterrupted()) {
-                    var ltp = angelOneService.getLTP(token);
-                    if (ltp == -2) {
-                        log.error("LTP feed lost for {}", order.getSymbol());
-                        break;
-                    }
-
-                    if (ltp > 0 && ltp != prevLtp) {
-                        var res = processOrder(order, ltp, peakPrice);
-                        if (res < 0) {
-                            log.info("Order squared off - stopping monitoring orderId {} symbol {}", order.getId(), order.getSymbol());
-                            break;
-                        }
-                        prevLtp = ltp;
-                        if (ltp > peakPrice) {
-                            peakPrice = (float) ltp;
-                        }
-                    }
-
-                    if (!HelperUtil.pollWait(200)) {
-                        break;
-                    }
-                }
-            });
+            tradeWatchdog.watchMtfTrade(ActiveMtfTrade.builder()
+                    .order(order)
+                    .peakPrice(order.getEntry().getAveragePrice())
+                    .build());
         });
     }
 
@@ -282,11 +259,18 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private short addStopLoss(Order order, double ltp, float buyPrice, KiteConnect kc, float peakPrice) {
-        if (ltp > buyPrice * 1.004 && (ltp <= peakPrice * 0.994 || DateUtil.isPastClosingGrace())) {
+        boolean reachedProfitThreshold = ltp > buyPrice * 1.004;
+        boolean droppedFromPeak = ltp <= peakPrice * 0.994;
+        boolean marketClosing = DateUtil.isPastClosingGrace();
+
+        Order.ExecutionRecord exitRecord = order.getExit();
+        boolean hasNoExitOrder = (exitRecord == null || StringUtils.isEmpty(exitRecord.getBrokerOrderId()));
+
+        if (reachedProfitThreshold && (droppedFromPeak || marketClosing)) {
             log.info("Symbol: {}. Stock price dropped more than 0.6% or Market is closing (3:25 PM). Squaring off...",
                     order.getSymbol());
 
-            if (order.getExit() == null || StringUtils.isEmpty(order.getExit().getBrokerOrderId())) {
+            if (hasNoExitOrder) {
                 try {
                     zerodhaService.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), 0, Constants.TRANSACTION_TYPE_SELL, Constants.ORDER_TYPE_MARKET);
                 } catch (Exception | KiteException e) {
@@ -318,7 +302,7 @@ public class OrderServiceImpl implements OrderService {
             return -1;
         }
 
-        if ((order.getExit() == null || StringUtils.isEmpty(order.getExit().getBrokerOrderId())) && ltp >= buyPrice * 1.006) {
+        if (hasNoExitOrder && ltp >= buyPrice * 1.006) {
             var sl = HelperUtil.fixToTick(buyPrice * 1.004);
             try {
                 var orderId = zerodhaService.placeMTFStopLossOrder(kc, order.getSymbol(), order.getQuantity(), sl, sl);
@@ -332,6 +316,26 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return 0;
+    }
+
+    @EventListener
+    @Async("taskExecutor")
+    public void handleActiveMtfOrderEvent(ActiveMtfTrade event) {
+        var ltp = event.getLtp();
+        var order = event.getOrder();
+        if (event.getLtp() > 0 && ltp != event.getPrevLtp()) {
+            var res = processOrder(order, ltp, event.getPeakPrice());
+            if (res < 0) {
+                log.info("Order squared off - stopping monitoring orderId {} symbol {}", order.getId(), order.getSymbol());
+                tradeWatchdog.unwatchMtfTrade(event);
+                return;
+            }
+
+            event.setPrevLtp(ltp);
+            if (ltp > event.getPeakPrice()) {
+                event.setPeakPrice((float) ltp);
+            }
+        }
     }
 
 }
