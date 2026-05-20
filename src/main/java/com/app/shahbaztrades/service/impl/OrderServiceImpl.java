@@ -126,7 +126,7 @@ public class OrderServiceImpl implements OrderService {
         Update update = new Update();
         update.set(Order.Fields.date, orderDate.atStartOfDay());
         update.set(Order.Fields.quantity, orderDto.getQuantity());
-        update.set(Order.Fields.margin, margin.getMargin());
+        update.set(Order.Fields.margin, margin);
         update.set(Order.Fields.symbol, orderDto.getSymbol().toUpperCase());
         var res = mongoTemplate.updateFirst(query, update, Order.class);
         if (res.getModifiedCount() < 1) {
