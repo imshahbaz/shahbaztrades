@@ -59,6 +59,10 @@ public class FcmServiceImpl implements FcmService {
                         .setTitle(title)
                         .setBody(body)
                         .build())
+                .setNotification(com.google.firebase.messaging.Notification.builder()
+                        .setTitle(title)
+                        .setBody(body)
+                        .build())
                 .build();
 
         try {
