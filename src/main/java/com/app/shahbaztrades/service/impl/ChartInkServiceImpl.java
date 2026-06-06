@@ -80,11 +80,11 @@ public class ChartInkServiceImpl implements ChartInkService {
                 .map(stock -> {
                     Margin m = marginService.getMarginCache().get(stock.getNsecode());
                     return m == null ? null : StockMarginDto.builder()
-                                              .name(stock.getName())
-                                              .symbol(stock.getNsecode())
-                                              .margin(m.getMargin())
-                                              .close(stock.getClose())
-                                              .build();
+                            .name(stock.getName())
+                            .symbol(stock.getNsecode())
+                            .margin(m.getMargin())
+                            .close(stock.getClose())
+                            .build();
                 })
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparingDouble(StockMarginDto::getMargin).reversed())
