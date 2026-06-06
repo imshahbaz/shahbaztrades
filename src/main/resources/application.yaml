@@ -19,6 +19,10 @@ spring:
   mongodb:
     uri: ${MONGO_URI}
 
+  services:
+    session-manager:
+      url: ${SESSION_MANAGER_URI}
+
 server:
   port: ${PORT:8080}
   jetty:
