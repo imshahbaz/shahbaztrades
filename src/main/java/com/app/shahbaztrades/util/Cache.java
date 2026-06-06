@@ -73,6 +73,15 @@ public class Cache<K, V> {
         expiryQueue.offer(new ExpiryNode<>(key, expiryTime));
     }
 
+    public Set<K> getActiveKeys() {
+        return cacheMap.keySet();
+    }
+
+    public void invalidateAll() {
+        cacheMap.clear();
+        expiryQueue.clear();
+    }
+
     @Data
     @Builder
     @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -86,15 +95,6 @@ public class Cache<K, V> {
         public int compareTo(ExpiryNode<K> other) {
             return Long.compare(this.expiryTime, other.expiryTime);
         }
-    }
-
-    public Set<K> getActiveKeys() {
-        return cacheMap.keySet();
-    }
-
-    public void invalidateAll() {
-        cacheMap.clear();
-        expiryQueue.clear();
     }
 
 }

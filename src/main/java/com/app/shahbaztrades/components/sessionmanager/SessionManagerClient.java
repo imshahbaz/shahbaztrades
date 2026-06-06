@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*;
 @FeignClient(name = "session-manager-client", url = "${spring.services.session-manager.url}")
 public interface SessionManagerClient {
 
+    String source = "1Klik";
+
     @PostMapping("/api/zerodha/login-token")
     ZerodhaLoginResponseDTO autoLogin(@RequestBody ZerodhaLoginRequestDTO zerodhaLoginRequestDTO, @RequestHeader String source);
 

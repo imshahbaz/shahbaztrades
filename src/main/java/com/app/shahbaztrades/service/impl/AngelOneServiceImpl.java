@@ -57,8 +57,8 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     private final StringRedisTemplate stringRedisTemplate;
     private final AngelOneClient angelOneClient;
     private final MongoConfigService mongoConfigService;
-    private WebSocketSession session;
     private final SmartApiFeignClient smartApiFeignClient;
+    private WebSocketSession session;
 
     @Override
     public void startWebSocket() {
