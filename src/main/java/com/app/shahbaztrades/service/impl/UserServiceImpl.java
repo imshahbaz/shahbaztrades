@@ -102,7 +102,6 @@ public class UserServiceImpl implements UserService {
         if (!user.getProfile().equals(gUser.getPicture())) {
             user.setProfile(gUser.getPicture());
             update.set(User.Fields.profile, gUser.getPicture());
-
         }
 
         if (!user.getName().equals(gUser.getName()) && StringUtils.isNotEmpty(gUser.getName())) {
