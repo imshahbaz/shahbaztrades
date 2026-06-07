@@ -6,6 +6,7 @@ import com.app.shahbaztrades.model.enums.UserTheme;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.FieldNameConstants;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
@@ -53,6 +54,14 @@ public class User {
 
         String apiKey;
         String apiSecret;
+        String userName;
+        String password;
+        String totpSecret;
+
+        public boolean isTotpEnabled() {
+            return StringUtils.isNotEmpty(this.totpSecret) && StringUtils.isNotEmpty(this.userName)
+                    && StringUtils.isNotEmpty(this.password);
+        }
     }
 
     @Data

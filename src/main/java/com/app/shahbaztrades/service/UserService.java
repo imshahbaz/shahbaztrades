@@ -7,7 +7,9 @@ import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.model.enums.UserTheme;
 import org.springframework.http.ResponseEntity;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public interface UserService {
 
@@ -24,4 +26,6 @@ public interface UserService {
     ResponseEntity<ApiResponse<Void>> updateUserName(UserDto userDto);
 
     ResponseEntity<ApiResponse<UserTheme>> updateUserTheme(UserDto userDto);
+
+    List<User> findByIds(Set<Long> userIds);
 }

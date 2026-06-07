@@ -11,6 +11,8 @@ import com.zerodhatech.models.Order;
 import com.zerodhatech.models.OrderResponse;
 import org.springframework.http.ResponseEntity;
 
+import java.util.Set;
+
 public interface ZerodhaService {
 
     String ZERODHA_TOKEN_KEY = "zerodha_token_";
@@ -41,4 +43,6 @@ public interface ZerodhaService {
     ResponseEntity<ApiResponse<String>> getAuth(UserDto userDto);
 
     ResponseEntity<ApiResponse<Long>> setConfig(User.ZerodhaConfig config, UserDto userDto);
+
+    void autoLogin(Set<Long> userIds);
 }
