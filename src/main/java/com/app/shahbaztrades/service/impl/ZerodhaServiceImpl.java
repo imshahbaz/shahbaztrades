@@ -285,14 +285,14 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     }
 
     private void tryAutoLogin(long userId, User.ZerodhaConfig zerodhaConfig) throws InterruptedException {
-        var kc = getKiteClient(userId);
-        if (kc != null) {
-            try {
-                kc.getProfile();
-                return;
-            } catch (IOException | KiteException e) {
-                log.info("Kite connection failed proceeding with auto login {}", userId);
-            }
+        try {
+            var kc = getKiteClient(userId);
+            kc.getProfile();
+            return;
+        } catch (NotFoundException e) {
+            log.info("Access token not found proceeding with auto login {}", userId);
+        } catch (IOException | KiteException e) {
+            log.info("Kite connection failed proceeding with auto login {}", userId);
         }
 
         sessionManagerClient.autoLogin(ZerodhaLoginRequestDTO.mapDto(userId, zerodhaConfig), SessionManagerClient.source);
