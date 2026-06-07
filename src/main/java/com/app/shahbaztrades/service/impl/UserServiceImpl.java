@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -151,6 +152,11 @@ public class UserServiceImpl implements UserService {
         }
         stringRedisTemplate.delete(AuthService.AUTH_KEY + userDto.getUserId());
         return ResponseEntity.ok(ApiResponse.ok(userDto.getTheme(), "Theme synchronized"));
+    }
+
+    @Override
+    public List<User> findByIds(Set<Long> userIds) {
+        return userRepo.findAllById(userIds);
     }
 
 }

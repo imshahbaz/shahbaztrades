@@ -1,15 +1,18 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.components.sessionmanager.SessionManagerClient;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.UnauthorizedException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
+import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginRequestDTO;
 import com.app.shahbaztrades.model.dto.zerodha.ZerodhaLoginDto;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.service.ZerodhaService;
 import com.app.shahbaztrades.util.DateUtil;
+import com.app.shahbaztrades.util.HelperUtil;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import com.zerodhatech.kiteconnect.utils.Constants;
@@ -31,6 +34,7 @@ import org.springframework.util.CollectionUtils;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -40,6 +44,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     private final UserService userService;
     private final StringRedisTemplate stringRedisTemplate;
     private final MongoTemplate mongoTemplate;
+    private final SessionManagerClient sessionManagerClient;
 
     @Override
     public KiteConnect initiateKiteConnect(String accessToken, Long userId) {
@@ -257,6 +262,64 @@ public class ZerodhaServiceImpl implements ZerodhaService {
         }
 
         return ResponseEntity.ok(ApiResponse.ok(userDto.getUserId(), "Zerodha configuration updated successfully"));
+    }
+
+    @Override
+    public void autoLogin(Set<Long> userIds) {
+        var users = userService.findByIds(userIds);
+        if (users.isEmpty()) {
+            return;
+        }
+
+        for (User user : users) {
+            if (user.getZerodhaConfig() != null && user.getZerodhaConfig().isTotpEnabled()) {
+                HelperUtil.EXECUTOR.execute(() -> {
+                    try {
+                        tryAutoLogin(user.getUserId(), user.getZerodhaConfig());
+                    } catch (InterruptedException e) {
+                        log.info("Auto login interrupted {}", user.getUserId(), e);
+                    }
+                });
+            }
+        }
+    }
+
+    private void tryAutoLogin(long userId, User.ZerodhaConfig zerodhaConfig) throws InterruptedException {
+        var kc = getKiteClient(userId);
+        if (kc != null) {
+            try {
+                kc.getProfile();
+                return;
+            } catch (IOException | KiteException e) {
+                log.info("Kite connection failed proceeding with auto login {}", userId);
+            }
+        }
+
+        sessionManagerClient.autoLogin(ZerodhaLoginRequestDTO.mapDto(userId, zerodhaConfig), SessionManagerClient.source);
+
+        String requestToken = null;
+        for (int i = 0; i < 10; i++) {
+            Thread.sleep(Duration.ofSeconds(10));
+            var res = sessionManagerClient.getToken(userId, SessionManagerClient.source);
+            if (res != null) {
+                if (res.isSuccess()) {
+                    requestToken = res.requestToken();
+                    break;
+                }
+
+                if (res.isError()) {
+                    return;
+                }
+            }
+        }
+
+        if (StringUtils.isEmpty(requestToken)) {
+            log.info("Auto login failed {}", userId);
+            return;
+        }
+
+        log.info("Auto login success {}", userId);
+        login(new ZerodhaLoginDto(requestToken, userId));
     }
 
 }
