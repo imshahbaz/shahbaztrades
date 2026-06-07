@@ -97,11 +97,19 @@ public class UserServiceImpl implements UserService {
             return this.createUser(dto);
         }
 
+        Query query = new Query(Criteria.where(User.Fields.userId).is(user.getUserId()));
+        Update update = new Update();
         if (!user.getProfile().equals(gUser.getPicture())) {
-            Query query = new Query(Criteria.where(User.Fields.userId).is(user.getUserId()));
             user.setProfile(gUser.getPicture());
-            Update update = new Update();
             update.set(User.Fields.profile, gUser.getPicture());
+        }
+
+        if (!user.getName().equals(gUser.getName()) && StringUtils.isNotEmpty(gUser.getName())) {
+            user.setName(gUser.getName());
+            update.set(User.Fields.name, gUser.getName());
+        }
+
+        if (!update.getUpdateObject().isEmpty()) {
             mongoTemplate.updateFirst(query, update, User.class);
         }
 
