@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.time.Duration;
 import java.util.List;
 
 @Slf4j
@@ -45,7 +46,7 @@ public class NewsServiceImpl implements NewsService {
 
         var res = TradingViewClient.getStockNews(symbol);
         if (res != null && !CollectionUtils.isEmpty(res.items())) {
-            stringRedisTemplate.opsForValue().set(cacheKey, HelperUtil.GSON.toJson(res.items()));
+            stringRedisTemplate.opsForValue().set(cacheKey, HelperUtil.GSON.toJson(res.items()), Duration.ofMinutes(10));
             return ResponseEntity.ok(ApiResponse.ok(res.items(), "News Fetched Successfully"));
         }
 
