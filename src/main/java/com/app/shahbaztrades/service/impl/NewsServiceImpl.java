@@ -10,6 +10,7 @@ import com.app.shahbaztrades.model.dto.analysis.TradingViewNewsResponse;
 import com.app.shahbaztrades.model.enums.YahooTimeRange;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.service.NewsService;
+import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
 import com.google.gson.reflect.TypeToken;
 import lombok.RequiredArgsConstructor;
@@ -72,7 +73,7 @@ public class NewsServiceImpl implements NewsService {
 
         try {
             var res = HelperUtil.GSON.fromJson(analysis, AIAnalysis.class);
-            stringRedisTemplate.opsForValue().set(cacheKey, analysis);
+            stringRedisTemplate.opsForValue().set(cacheKey, analysis, DateUtil.getNseCacheExpiryTime());
             return ResponseEntity.ok(ApiResponse.ok(res, "Ai Analysis Fetched Successfully"));
         } catch (Exception e) {
             log.error("Error while getting GenAiStockAnalysis data", e);
