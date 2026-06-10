@@ -146,6 +146,13 @@
             <scope>compile</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.google.genai</groupId>
+            <artifactId>google-genai</artifactId>
+            <version>1.57.0</version>
+            <scope>compile</scope>
+        </dependency>
+
     </dependencies>
 
     <build>

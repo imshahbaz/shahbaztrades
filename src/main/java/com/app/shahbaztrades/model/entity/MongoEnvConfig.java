@@ -45,7 +45,7 @@ public class MongoEnvConfig {
         String secret;
         String callbackUrl;
         String encryptionKey;
-        String geminiApiKey;
+        String geminiKey;
     }
 
     @Data
