@@ -21,6 +21,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
@@ -74,8 +75,9 @@ public class MarginServiceImpl implements MarginService {
         return ResponseEntity.ok(ApiResponse.ok(margin, "Success"));
     }
 
-    @SneakyThrows
     @Override
+    @SneakyThrows
+    @Async("taskExecutor")
     public void syncMTF(InputStream file) {
         float minLeverage = mongoConfigService.getConfig().getLeverage();
         MappingIterator<RawMTF> it = jsonMapper.readerFor(RawMTF.class).readValues(file);
@@ -106,6 +108,7 @@ public class MarginServiceImpl implements MarginService {
     }
 
     @Override
+    @Async("taskExecutor")
     public void syncAngelOneToken() {
         var margins = angelOneClient.getTokens(cachedMargins);
         if (CollectionUtils.isEmpty(margins)) {
