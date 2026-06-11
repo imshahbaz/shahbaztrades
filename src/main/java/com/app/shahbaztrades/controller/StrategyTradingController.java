@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.controller;
 
+import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.service.TradeEngine;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ public class StrategyTradingController {
 
     private final TradeEngine tradeEngine;
 
+    @PublicEndpoint
     @PostMapping("/continuous")
     public ResponseEntity<ApiResponse<Void>> continuousTrade() {
         tradeEngine.continuousTrade();
