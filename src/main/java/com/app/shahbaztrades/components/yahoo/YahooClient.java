@@ -54,9 +54,8 @@ public class YahooClient {
                             .build(symbol))
                     .retrieve()
                     .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
-                            (request, resp) -> {
-                                log.error("Yahoo API Error: {} {}", resp.getStatusCode(), resp.getStatusText());
-                            })
+                            (request, resp) ->
+                                    log.error("Yahoo API Error: {} {}", resp.getStatusCode(), resp.getStatusText()))
                     .body(YahooChartResponse.class);
 
             List<NSEHistoricalData> list = (response != null) ? parseResponse(symbol, response) : Collections.emptyList();
