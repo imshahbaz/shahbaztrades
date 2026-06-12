@@ -7,6 +7,7 @@ import com.app.shahbaztrades.model.dto.scheduler.CronTaskDto;
 import com.app.shahbaztrades.model.dto.scheduler.ScheduledTaskDto;
 import com.app.shahbaztrades.model.enums.SchedulerTaskType;
 import com.app.shahbaztrades.service.SchedulerService;
+import com.app.shahbaztrades.validator.SchedulerValidator;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.CronSchedule;
 import org.redisson.api.RScheduledExecutorService;
@@ -25,7 +26,7 @@ public class SchedulerServiceImpl implements SchedulerService {
 
     @Override
     public ResponseEntity<ApiResponse<String>> scheduleTask(ScheduledTaskDto scheduledTaskDto) {
-        scheduledTaskDto.validate();
+        SchedulerValidator.validateScheduledTaskDto(scheduledTaskDto);
         scheduledTaskDto.generateTaskId();
         var delay = scheduledTaskDto.getExecutionTime() - System.currentTimeMillis();
         scheduledExecutorService.schedule(scheduledTaskDto.getTaskId(), new SchedulerTask(scheduledTaskDto), Duration.ofMillis(delay));
@@ -36,7 +37,7 @@ public class SchedulerServiceImpl implements SchedulerService {
 
     @Override
     public ResponseEntity<ApiResponse<String>> scheduleCron(CronTaskDto cronTaskDto) {
-        cronTaskDto.validate();
+        SchedulerValidator.validateCronDto(cronTaskDto);
         scheduledExecutorService.schedule(cronTaskDto.getCronId(), new SchedulerTask(cronTaskDto), CronSchedule.of(cronTaskDto.getCronExpression()));
         var rMap = redissonClient.getMap(cronTaskDto.getType().getValue());
         rMap.put(cronTaskDto.getCronId(), cronTaskDto);

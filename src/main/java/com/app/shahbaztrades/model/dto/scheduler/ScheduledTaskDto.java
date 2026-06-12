@@ -1,6 +1,5 @@
 package com.app.shahbaztrades.model.dto.scheduler;
 
-import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.model.enums.SchedulerTaskType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -10,7 +9,6 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.Duration;
 import java.util.UUID;
 
 @Data
@@ -30,16 +28,6 @@ public class ScheduledTaskDto implements Serializable {
 
     @Min(1)
     private final long executionTime;
-
-    public void validate() {
-        if (this.type != SchedulerTaskType.TASK) {
-            throw new BadRequestException("Invalid type of task");
-        }
-
-        if (this.executionTime < System.currentTimeMillis() + Duration.ofSeconds(10).toMillis()) {
-            throw new BadRequestException("Invalid execution time");
-        }
-    }
 
     public void generateTaskId() {
         this.taskId = UUID.randomUUID() + "-" + System.currentTimeMillis();

@@ -3,6 +3,7 @@ package com.app.shahbaztrades.components.scheduler;
 import com.app.shahbaztrades.model.dto.scheduler.CronTaskDto;
 import com.app.shahbaztrades.model.dto.scheduler.ScheduledTaskDto;
 import com.app.shahbaztrades.model.enums.SchedulerTaskType;
+import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.CronSchedule;
@@ -22,15 +23,16 @@ public class ScheduledTaskExecutor {
     private final RedissonClient redissonClient;
 
     public void executeTask(ScheduledTaskDto scheduledTask) {
-        //TODO call api
         log.info("Executing scheduled task {}", scheduledTask.getTaskId());
-        log.info("Executed scheduled task {}", scheduledTask);
+        var res = HelperUtil.executeCallBack(scheduledTask.getCallBack());
+        log.info("Executed scheduled task {} responseStatus {}", scheduledTask, res.getStatusCode());
         redissonClient.getMap(scheduledTask.getType().getValue()).remove(scheduledTask.getTaskId());
     }
 
     public void executeCron(CronTaskDto cronTaskDto) {
         log.info("Executing cron {}", cronTaskDto.getCronId());
-        log.info("Executed cron {}", cronTaskDto);
+        var res = HelperUtil.executeCallBack(cronTaskDto.getCallBack());
+        log.info("Executed cron {} responseStatus {}", cronTaskDto, res.getStatusCode());
     }
 
     @EventListener(ApplicationReadyEvent.class)
