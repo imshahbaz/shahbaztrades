@@ -1,15 +1,19 @@
 package com.app.shahbaztrades.config.redis;
 
-import com.app.shahbaztrades.service.MongoConfigService;
-import io.lettuce.core.ClientOptions;
-import io.lettuce.core.SocketOptions;
 import lombok.RequiredArgsConstructor;
+import org.redisson.Redisson;
+import org.redisson.api.RScheduledExecutorService;
+import org.redisson.api.RedissonClient;
+import org.redisson.api.WorkerOptions;
+import org.redisson.codec.JsonJacksonCodec;
+import org.redisson.config.Config;
+import org.redisson.executor.SpringTasksInjector;
+import org.redisson.spring.data.connection.RedissonConnectionFactory;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
-import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Duration;
 
@@ -17,35 +21,50 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class RedisConfig {
 
-    private final MongoConfigService mongoConfigService;
+    private static final String SCHEDULER_NAME = "1Klik-Scheduler";
 
     @Bean
-    public LettuceConnectionFactory redisConnectionFactory(
+    public RedissonConnectionFactory redisConnectionFactory(RedissonClient redissonClient) {
+        return new RedissonConnectionFactory(redissonClient);
+    }
+
+    @Bean
+    public StringRedisTemplate stringRedisTemplate(RedissonConnectionFactory factory) {
+        return new StringRedisTemplate(factory);
+    }
+
+    @Bean
+    public RedissonClient redissonClient(
             @Value("${REDIS_HOST}") String host,
             @Value("${REDIS_PORT}") int port,
             @Value("${REDIS_USER}") String user,
             @Value("${REDIS_PASS}") String pass) {
 
-        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(host, port);
+        Config config = new Config();
         config.setUsername(user);
         config.setPassword(pass);
+        config.setCodec(new JsonJacksonCodec());
 
-        SocketOptions socketOptions = SocketOptions.builder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .keepAlive(true)
-                .build();
+        String redisUrl = String.format("rediss://%s:%d", host, port);
 
-        ClientOptions clientOptions = ClientOptions.builder()
-                .socketOptions(socketOptions)
-                .disconnectedBehavior(ClientOptions.DisconnectedBehavior.DEFAULT)
-                .build();
+        config.useSingleServer()
+                .setAddress(redisUrl)
+                .setConnectTimeout((int) Duration.ofSeconds(10).toMillis())
+                .setTimeout((int) Duration.ofSeconds(5).toMillis());
 
-        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
-                .clientOptions(clientOptions)
-                .commandTimeout(Duration.ofSeconds(5))
-                .useSsl()
-                .build();
-
-        return new LettuceConnectionFactory(config, clientConfig);
+        return Redisson.create(config);
     }
+
+    @Bean(destroyMethod = "")
+    public RScheduledExecutorService rScheduledExecutorService(RedissonClient redissonClient, BeanFactory beanFactory) {
+        RScheduledExecutorService executorService = redissonClient.getExecutorService(SCHEDULER_NAME);
+        executorService.deregisterWorkers();
+        WorkerOptions options = WorkerOptions.defaults()
+                .workers(5)
+                .tasksInjector(new SpringTasksInjector(beanFactory));
+
+        executorService.registerWorkers(options);
+        return executorService;
+    }
+
 }

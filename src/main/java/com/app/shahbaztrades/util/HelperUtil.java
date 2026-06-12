@@ -1,15 +1,19 @@
 package com.app.shahbaztrades.util;
 
+import com.app.shahbaztrades.model.dto.scheduler.SchedulerCallBackDto;
 import com.google.gson.Gson;
-import org.springframework.http.ResponseCookie;
+import org.springframework.http.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Collections;
 import java.util.HexFormat;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -132,6 +136,28 @@ public class HelperUtil {
         }
 
         return Math.round(price / tick) * tick;
+    }
+
+    public static ResponseEntity<String> executeCallBack(SchedulerCallBackDto schedulerCallBackDto) {
+        var headers = new HttpHeaders();
+        if (!CollectionUtils.isEmpty(schedulerCallBackDto.headers())) {
+            for (Map.Entry<String, String> header : schedulerCallBackDto.headers().entrySet()) {
+                headers.set(header.getKey(), header.getValue());
+            }
+        }
+
+        Object body = null;
+        var method = HttpMethod.valueOf(schedulerCallBackDto.httpMethod());
+        if (method == HttpMethod.POST || method == HttpMethod.PUT || method == HttpMethod.PATCH) {
+            body = schedulerCallBackDto.body();
+        }
+
+        if (body == null) {
+            body = Collections.emptyMap();
+        }
+
+        HttpEntity<Object> entity = new HttpEntity<>(body, headers);
+        return REST_TEMPLATE.exchange(schedulerCallBackDto.url(), method, entity, String.class);
     }
 
 }
