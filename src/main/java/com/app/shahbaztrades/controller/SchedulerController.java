@@ -8,9 +8,13 @@ import com.app.shahbaztrades.model.enums.SchedulerTaskType;
 import com.app.shahbaztrades.service.SchedulerService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.websocket.server.PathParam;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -42,4 +46,17 @@ public class SchedulerController {
     public ResponseEntity<ApiResponse<Boolean>> deleteCron(@RequestParam @NotBlank String id) {
         return schedulerService.deleteTask(id, SchedulerTaskType.CRON);
     }
+
+    @PublicEndpoint
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<List<Object>>> getAllTasks(@RequestParam @NotNull SchedulerTaskType taskType) {
+        return schedulerService.getAllTask(taskType);
+    }
+
+    @PublicEndpoint
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<Object>> getTaskById(@PathParam("id") @NotBlank String id, @RequestParam @NotNull SchedulerTaskType taskType) {
+        return schedulerService.getTask(id, taskType);
+    }
+
 }
