@@ -3,6 +3,7 @@ package com.app.shahbaztrades.components.scheduler;
 import com.app.shahbaztrades.model.dto.scheduler.CronTaskDto;
 import com.app.shahbaztrades.model.dto.scheduler.ScheduledTaskDto;
 import com.app.shahbaztrades.model.enums.SchedulerTaskType;
+import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,7 +53,7 @@ public class ScheduledTaskExecutor {
                 scheduledExecutorService.schedule(
                         cronId,
                         new SchedulerTask(dto),
-                        CronSchedule.of(dto.getCronExpression())
+                        CronSchedule.of(dto.getCronExpression(), DateUtil.IST_ZONE)
                 );
 
                 log.info("✅ Successfully revived cron loop for ID: {}", cronId);
