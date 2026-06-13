@@ -1,6 +1,7 @@
 package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
+import com.app.shahbaztrades.components.zerodha.ZerodhaOrderClient;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestMarginDto;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkSignalEvent;
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
@@ -182,7 +183,7 @@ public class TradeEngineImpl implements TradeEngine {
         }
 
         try {
-            var orderResp = zerodhaService.placeMTFOrder(
+            var orderResp = ZerodhaOrderClient.placeMTFOrder(
                     kc,
                     targetStock.getSymbol(),
                     qty,
@@ -193,14 +194,14 @@ public class TradeEngineImpl implements TradeEngine {
 
             HelperUtil.pollWait(1000);
 
-            var orderDetails = zerodhaService.getOrderDetails(kc, orderResp.orderId);
+            var orderDetails = ZerodhaOrderClient.getOrderDetails(kc, orderResp.orderId);
             double entryPrice = Double.parseDouble(orderDetails.averagePrice);
 
             double targetPrice = HelperUtil.fixToTick(entryPrice * 1.004);
 
             log.info("Entry Executed at: {} | Target Set at: {}", entryPrice, targetPrice);
 
-            var exitResp = zerodhaService.placeMTFOrder(
+            var exitResp = ZerodhaOrderClient.placeMTFOrder(
                     kc,
                     targetStock.getSymbol(),
                     qty,
@@ -242,7 +243,7 @@ public class TradeEngineImpl implements TradeEngine {
             return;
         }
 
-        var det = zerodhaService.getOrderDetails(kc, event.trade().getExitOrderId());
+        var det = ZerodhaOrderClient.getOrderDetails(kc, event.trade().getExitOrderId());
         if (Integer.parseInt(det.pendingQuantity) == 0) {
             log.info("Exit order filled for {}", event.trade().getSymbol());
             eventPublisher.publishEvent(new NotificationRequest(

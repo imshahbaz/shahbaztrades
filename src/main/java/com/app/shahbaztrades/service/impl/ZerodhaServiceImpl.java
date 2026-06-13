@@ -3,6 +3,7 @@ package com.app.shahbaztrades.service.impl;
 import com.app.shahbaztrades.components.sessionmanager.SessionManagerClient;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
+import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
 import com.app.shahbaztrades.exceptions.UnauthorizedException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
@@ -11,14 +12,12 @@ import com.app.shahbaztrades.model.dto.zerodha.ZerodhaLoginDto;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.service.ZerodhaService;
+import com.app.shahbaztrades.util.Constants;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
+import com.app.shahbaztrades.validator.ZerodhaValidator;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
-import com.zerodhatech.kiteconnect.utils.Constants;
-import com.zerodhatech.models.Order;
-import com.zerodhatech.models.OrderParams;
-import com.zerodhatech.models.OrderResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -29,11 +28,9 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.List;
 import java.util.Set;
 
 @Slf4j
@@ -50,15 +47,9 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     public KiteConnect initiateKiteConnect(String accessToken, Long userId) {
         log.info("Initiating KiteConnect for User ID: {}", userId);
 
-        User user = userService.findByUserIdOrEmailOrMobile(userId, "", 0L);
+        User user = getUser(userId);
 
-        if (user == null) {
-            throw new UnauthorizedException("User not found with ID: " + userId);
-        }
-
-        if (user.getZerodhaConfig() == null ||
-                StringUtils.isEmpty(user.getZerodhaConfig().getApiKey()) ||
-                StringUtils.isEmpty(user.getZerodhaConfig().getApiSecret())) {
+        if (!ZerodhaValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
             throw new NotFoundException("Zerodha API configuration is missing for this user");
         }
 
@@ -71,15 +62,9 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     public String generateAccessToken(String requestToken, Long userId) {
         log.info("Generating access token for User ID: {}", userId);
 
-        User user = userService.findByUserIdOrEmailOrMobile(userId, "", 0L);
+        User user = getUser(userId);
 
-        if (user == null) {
-            throw new NotFoundException("User not found with ID: " + userId);
-        }
-
-        if (user.getZerodhaConfig() == null ||
-                StringUtils.isEmpty(user.getZerodhaConfig().getApiKey()) ||
-                StringUtils.isEmpty(user.getZerodhaConfig().getApiSecret())) {
+        if (!ZerodhaValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
             throw new BadRequestException("Zerodha config not found");
         }
 
@@ -119,100 +104,6 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     }
 
     @Override
-    public OrderResponse placeMTFOrder(KiteConnect kc, String symbol, int qty, double price,
-                                       String transactionType, String orderType) throws Exception, KiteException {
-
-        OrderParams orderParams = new OrderParams();
-        orderParams.exchange = Constants.EXCHANGE_NSE;
-        orderParams.tradingsymbol = symbol;
-        orderParams.transactionType = transactionType;
-        orderParams.quantity = qty;
-        orderParams.price = price;
-        orderParams.product = Constants.PRODUCT_MTF;
-        orderParams.orderType = orderType;
-        orderParams.validity = Constants.VALIDITY_DAY;
-        orderParams.tag = "Shahbaz Trades";
-
-        if (Constants.ORDER_TYPE_MARKET.equals(orderType)) {
-            orderParams.marketProtection = -1.0;
-        }
-
-        return kc.placeOrder(orderParams, Constants.VARIETY_REGULAR);
-    }
-
-    @Override
-    public String placeMTFStopLossOrder(KiteConnect kc, String symbol, int qty, double price, double triggerPrice) throws Exception, KiteException {
-
-        OrderParams orderParams = new OrderParams();
-
-        orderParams.exchange = Constants.EXCHANGE_NSE;
-        orderParams.tradingsymbol = symbol;
-        orderParams.transactionType = Constants.TRANSACTION_TYPE_SELL;
-        orderParams.quantity = qty;
-        orderParams.price = price;
-        orderParams.triggerPrice = triggerPrice;
-
-        orderParams.product = Constants.PRODUCT_MTF;
-        orderParams.orderType = Constants.ORDER_TYPE_SL;
-        orderParams.validity = Constants.VALIDITY_DAY;
-
-        OrderResponse orderResponse = kc.placeOrder(orderParams, Constants.VARIETY_REGULAR);
-
-        if (orderResponse == null || orderResponse.orderId == null) {
-            throw new Exception("Order placement failed: No Order ID returned");
-        }
-
-        return orderResponse.orderId;
-    }
-
-    @Override
-    public Order getOrderDetails(KiteConnect kc, String orderId) throws Exception, KiteException {
-
-        List<Order> history = kc.getOrderHistory(orderId);
-
-        if (CollectionUtils.isEmpty(history)) {
-            throw new Exception("No history found for order id " + orderId);
-        }
-
-        return history.getLast();
-    }
-
-    @Override
-    public void updateMTFStopLossOrder(KiteConnect kc, String orderId, double newPrice, double newTriggerPrice) throws Exception, KiteException {
-        OrderParams modParams = new OrderParams();
-        modParams.price = newPrice;
-        modParams.triggerPrice = newTriggerPrice;
-        kc.modifyOrder(orderId, modParams, Constants.VARIETY_REGULAR);
-    }
-
-    @Override
-    public Order cancelOrder(KiteConnect kc, String orderId) throws Exception {
-        try {
-            Order orderResponse = kc.cancelOrder(orderId, Constants.VARIETY_REGULAR, null);
-
-            if (orderResponse == null) {
-                throw new Exception("Failed to cancel order " + orderId + ": No response from server");
-            }
-
-            return orderResponse;
-        } catch (Exception e) {
-            throw new Exception(String.format("failed to cancel order %s: %s", orderId, e.getMessage()), e);
-        } catch (KiteException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public Order convertSLToMarket(KiteConnect kc, String orderId, int quantity, double price) throws Exception, KiteException {
-        OrderParams params = new OrderParams();
-        params.orderType = Constants.ORDER_TYPE_MARKET;
-        params.quantity = quantity;
-        params.price = price;
-        params.marketProtection = -1.0;
-        return kc.modifyOrder(orderId, params, Constants.VARIETY_REGULAR);
-    }
-
-    @Override
     public ResponseEntity<ApiResponse<Void>> login(ZerodhaLoginDto request) {
         var token = generateAccessToken(request.requestToken(), request.userId());
         stringRedisTemplate.opsForValue().set(ZERODHA_TOKEN_KEY + request.userId(), token, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
@@ -222,15 +113,17 @@ public class ZerodhaServiceImpl implements ZerodhaService {
 
     @Override
     public ResponseEntity<ApiResponse<String>> getAuth(UserDto userDto) {
-        var user = userService.findByUserIdOrEmailOrMobile(userDto.getUserId(), null, null);
-        if (user == null) {
-            throw new UnauthorizedException("User not found");
+        var user = getUser(userDto.getUserId());
+
+        if (!ZerodhaValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
+            throw new NotFoundException("E001");
         }
 
-        if (user.getZerodhaConfig() == null ||
-                StringUtils.isEmpty(user.getZerodhaConfig().getApiSecret()) ||
-                StringUtils.isEmpty(user.getZerodhaConfig().getApiKey())) {
-            throw new NotFoundException("E001");
+        if (user.getZerodhaConfig().isTotpEnabled()) {
+            var key = stringRedisTemplate.opsForValue().get(Constants.ZERODHA_AUTO_LOGIN_KEY + userDto.getUserId());
+            if (!StringUtils.isEmpty(key)) {
+                throw new ResourceAlreadyExistsException("E002");
+            }
         }
 
         try {
@@ -250,6 +143,10 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     @Override
     public ResponseEntity<ApiResponse<Long>> setConfig(User.ZerodhaConfig config, UserDto userDto) {
         if (config == null || StringUtils.isEmpty(config.getApiSecret()) || StringUtils.isEmpty(config.getApiKey())) {
+            throw new BadRequestException("Invalid request");
+        }
+
+        if (!StringUtils.isEmpty(config.getUserName()) && StringUtils.isAnyEmpty(config.getPassword(), config.getTotpSecret())) {
             throw new BadRequestException("Invalid request");
         }
 
@@ -275,16 +172,55 @@ public class ZerodhaServiceImpl implements ZerodhaService {
             if (user.getZerodhaConfig() != null && user.getZerodhaConfig().isTotpEnabled()) {
                 HelperUtil.EXECUTOR.execute(() -> {
                     try {
-                        tryAutoLogin(user.getUserId(), user.getZerodhaConfig());
+                        tryAutoLogin(user);
                     } catch (InterruptedException e) {
                         log.info("Auto login interrupted {}", user.getUserId(), e);
+                    } catch (Exception e) {
+                        log.info("Auto login failed {} {}", user.getUserId(), e.getMessage());
                     }
                 });
             }
         }
     }
 
-    private void tryAutoLogin(long userId, User.ZerodhaConfig zerodhaConfig) throws InterruptedException {
+    @Override
+    public void autoConnectZerodhaSession(User user) {
+        if (user.getZerodhaConfig() != null && user.getZerodhaConfig().isTotpEnabled() && ZerodhaValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
+            var res = sessionManagerClient.autoLogin(ZerodhaLoginRequestDTO.mapDto(user.getUserId(), user.getZerodhaConfig()), SessionManagerClient.source);
+            if (res.isPending()) {
+                throw new ResourceAlreadyExistsException("Request already exists");
+            } else if (res.isError()) {
+                log.error("Auto login failed at session manager{}", user.getUserId());
+                stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
+                throw new BadRequestException("Auto login failed at session manager");
+            }
+        } else {
+            stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
+            throw new BadRequestException("Auto login is not enabled");
+        }
+
+        String requestToken;
+        try {
+            requestToken = pollForRequestToken(user.getUserId());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Auto login interrupted {}", user.getUserId(), e);
+            stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
+            throw new BadRequestException("Auto login interrupted");
+        }
+
+        if (StringUtils.isEmpty(requestToken)) {
+            log.error("Token generation failed {}", user.getUserId());
+            stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
+            throw new BadRequestException("Token generation failed");
+        }
+
+        login(new ZerodhaLoginDto(requestToken, user.getUserId()));
+        stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
+    }
+
+    private void tryAutoLogin(User user) throws InterruptedException {
+        var userId = user.getUserId();
         try {
             var kc = getKiteClient(userId);
             kc.getProfile();
@@ -295,31 +231,35 @@ public class ZerodhaServiceImpl implements ZerodhaService {
             log.info("Kite connection failed proceeding with auto login {}", userId);
         }
 
-        sessionManagerClient.autoLogin(ZerodhaLoginRequestDTO.mapDto(userId, zerodhaConfig), SessionManagerClient.source);
+        autoConnectZerodhaSession(user);
+    }
 
-        String requestToken = null;
+    private User getUser(Long userId) {
+        User user = userService.findByUserIdOrEmailOrMobile(userId, "", 0L);
+
+        if (user == null) {
+            throw new UnauthorizedException("User not found");
+        }
+
+        return user;
+    }
+
+    private String pollForRequestToken(long userId) throws InterruptedException {
         for (int i = 0; i < 10; i++) {
             Thread.sleep(Duration.ofSeconds(10));
             var res = sessionManagerClient.getToken(userId, SessionManagerClient.source);
             if (res != null) {
                 if (res.isSuccess()) {
-                    requestToken = res.requestToken();
-                    break;
+                    return res.requestToken();
                 }
 
                 if (res.isError()) {
-                    return;
+                    return null;
                 }
             }
         }
 
-        if (StringUtils.isEmpty(requestToken)) {
-            log.info("Auto login failed {}", userId);
-            return;
-        }
-
-        log.info("Auto login success {}", userId);
-        login(new ZerodhaLoginDto(requestToken, userId));
+        return null;
     }
 
 }
