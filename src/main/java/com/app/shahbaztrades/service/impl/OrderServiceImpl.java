@@ -1,6 +1,7 @@
 package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
+import com.app.shahbaztrades.components.zerodha.ZerodhaOrderClient;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
@@ -157,7 +158,7 @@ public class OrderServiceImpl implements OrderService {
             }
 
             try {
-                var res = zerodhaService.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), 0,
+                var res = ZerodhaOrderClient.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), 0,
                         Constants.TRANSACTION_TYPE_BUY, Constants.ORDER_TYPE_MARKET);
                 order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.orderId).build());
             } catch (KiteException | Exception e) {
@@ -176,7 +177,7 @@ public class OrderServiceImpl implements OrderService {
             }
 
             try {
-                var orderDetails = zerodhaService.getOrderDetails(kc, order.getEntry().getBrokerOrderId());
+                var orderDetails = ZerodhaOrderClient.getOrderDetails(kc, order.getEntry().getBrokerOrderId());
                 order.getEntry().setOrderStatus(orderDetails.status);
                 order.getEntry().setAveragePrice(StringUtils.isNumeric(orderDetails.averagePrice) ? Float.parseFloat(orderDetails.averagePrice) : 0);
             } catch (Exception | KiteException e) {
@@ -272,14 +273,14 @@ public class OrderServiceImpl implements OrderService {
 
             if (hasNoExitOrder) {
                 try {
-                    zerodhaService.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), 0, Constants.TRANSACTION_TYPE_SELL, Constants.ORDER_TYPE_MARKET);
+                    ZerodhaOrderClient.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), 0, Constants.TRANSACTION_TYPE_SELL, Constants.ORDER_TYPE_MARKET);
                 } catch (Exception | KiteException e) {
                     log.error("Failed to square off for {}", order.getSymbol(), e);
                     return 0;
                 }
             } else {
                 try {
-                    var orderDetails = zerodhaService.getOrderDetails(kc, order.getExit().getBrokerOrderId());
+                    var orderDetails = ZerodhaOrderClient.getOrderDetails(kc, order.getExit().getBrokerOrderId());
                     if (orderDetails == null) {
                         return 0;
                     }
@@ -290,7 +291,7 @@ public class OrderServiceImpl implements OrderService {
 
                     var pendingQty = StringUtils.isNumeric(orderDetails.pendingQuantity) ? Integer.parseInt(orderDetails.pendingQuantity) : 0;
                     if (pendingQty > 0) {
-                        zerodhaService.convertSLToMarket(kc, order.getExit().getBrokerOrderId(), pendingQty, 0);
+                        ZerodhaOrderClient.convertSLToMarket(kc, order.getExit().getBrokerOrderId(), pendingQty, 0);
                     }
                 } catch (Exception | KiteException e) {
                     log.error("Failed to convert order for {}", order.getSymbol(), e);
@@ -305,7 +306,7 @@ public class OrderServiceImpl implements OrderService {
         if (hasNoExitOrder && ltp >= buyPrice * 1.006) {
             var sl = HelperUtil.fixToTick(buyPrice * 1.004);
             try {
-                var orderId = zerodhaService.placeMTFStopLossOrder(kc, order.getSymbol(), order.getQuantity(), sl, sl);
+                var orderId = ZerodhaOrderClient.placeMTFStopLossOrder(kc, order.getSymbol(), order.getQuantity(), sl, sl);
                 order.setExit(Order.ExecutionRecord.builder().brokerOrderId(orderId).averagePrice((float) sl).build());
                 eventPublisher.publishEvent(order);
                 return 1;
