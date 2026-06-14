@@ -12,11 +12,19 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Set;
 
 @Slf4j
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class RequestLoggingFilter extends OncePerRequestFilter {
+
+    private static final Set<String> EXCLUDED_URIS = Set.of(
+            "/api/user/fcm-token",
+            "/api/auth/me",
+            "/health",
+            "/api/angelone/ltp"
+    );
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -46,6 +54,6 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.equals("/health") || path.startsWith("/static/") || path.endsWith(".ico");
+        return EXCLUDED_URIS.contains(path) || path.startsWith("/static/") || path.endsWith(".ico");
     }
 }
