@@ -2,6 +2,7 @@ package com.app.shahbaztrades.service;
 
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
+import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginResponseDTO;
 import com.app.shahbaztrades.model.dto.zerodha.ZerodhaLoginDto;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.util.Cache;
@@ -31,4 +32,6 @@ public interface ZerodhaService {
     void autoLogin(Set<Long> userIds);
 
     void autoConnectZerodhaSession(User user);
+
+    void sessionManagerCallback(ZerodhaLoginResponseDTO request);
 }
