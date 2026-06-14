@@ -44,7 +44,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+    protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
         return path.equals("/health") || path.startsWith("/static/") || path.endsWith(".ico");
     }
