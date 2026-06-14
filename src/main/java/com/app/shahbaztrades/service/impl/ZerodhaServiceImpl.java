@@ -187,7 +187,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     public void autoConnectZerodhaSession(User user) {
         if (user.getZerodhaConfig() != null && user.getZerodhaConfig().isTotpEnabled() && ZerodhaValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
             var res = sessionManagerClient.autoLogin(ZerodhaLoginRequestDTO.mapDto(user.getUserId(), user.getZerodhaConfig()), SessionManagerClient.source);
-            if (res.isPending()) {
+            if (res.isPending() && res.message().equals("Token generation already in progress")) {
                 throw new ResourceAlreadyExistsException("Request already exists");
             } else if (res.isError()) {
                 log.error("Auto login failed at session manager{}", user.getUserId());
@@ -199,24 +199,27 @@ public class ZerodhaServiceImpl implements ZerodhaService {
             throw new BadRequestException("Auto login is not enabled");
         }
 
-        String requestToken;
-        try {
-            requestToken = pollForRequestToken(user.getUserId());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("Auto login interrupted {}", user.getUserId(), e);
-            stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
-            throw new BadRequestException("Auto login interrupted");
-        }
+        HelperUtil.EXECUTOR.execute(() -> {
+            try {
+                String requestToken;
+                try {
+                    requestToken = pollForRequestToken(user.getUserId());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.error("Auto login interrupted {}", user.getUserId(), e);
+                    return;
+                }
 
-        if (StringUtils.isEmpty(requestToken)) {
-            log.error("Token generation failed {}", user.getUserId());
-            stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
-            throw new BadRequestException("Token generation failed");
-        }
+                if (StringUtils.isEmpty(requestToken)) {
+                    log.error("Token generation failed {}", user.getUserId());
+                    return;
+                }
 
-        login(new ZerodhaLoginDto(requestToken, user.getUserId()));
-        stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
+                login(new ZerodhaLoginDto(requestToken, user.getUserId()));
+            } finally {
+                stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
+            }
+        });
     }
 
     private void tryAutoLogin(User user) throws InterruptedException {
