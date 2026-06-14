@@ -200,24 +200,25 @@ public class ZerodhaServiceImpl implements ZerodhaService {
         }
 
         HelperUtil.EXECUTOR.execute(() -> {
-            String requestToken;
             try {
-                requestToken = pollForRequestToken(user.getUserId());
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.error("Auto login interrupted {}", user.getUserId(), e);
-                stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
-                throw new BadRequestException("Auto login interrupted");
-            }
+                String requestToken;
+                try {
+                    requestToken = pollForRequestToken(user.getUserId());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.error("Auto login interrupted {}", user.getUserId(), e);
+                    return;
+                }
 
-            if (StringUtils.isEmpty(requestToken)) {
-                log.error("Token generation failed {}", user.getUserId());
-                stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
-                throw new BadRequestException("Token generation failed");
-            }
+                if (StringUtils.isEmpty(requestToken)) {
+                    log.error("Token generation failed {}", user.getUserId());
+                    return;
+                }
 
-            login(new ZerodhaLoginDto(requestToken, user.getUserId()));
-            stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
+                login(new ZerodhaLoginDto(requestToken, user.getUserId()));
+            } finally {
+                stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
+            }
         });
     }
 
