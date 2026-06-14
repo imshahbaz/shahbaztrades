@@ -8,6 +8,7 @@ import com.app.shahbaztrades.exceptions.UnauthorizedException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginRequestDTO;
+import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginResponseDTO;
 import com.app.shahbaztrades.model.dto.zerodha.ZerodhaLoginDto;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.service.UserService;
@@ -27,6 +28,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -198,28 +200,22 @@ public class ZerodhaServiceImpl implements ZerodhaService {
             stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
             throw new BadRequestException("Auto login is not enabled");
         }
+    }
 
-        HelperUtil.EXECUTOR.execute(() -> {
-            try {
-                String requestToken;
-                try {
-                    requestToken = pollForRequestToken(user.getUserId());
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.error("Auto login interrupted {}", user.getUserId(), e);
-                    return;
-                }
-
-                if (StringUtils.isEmpty(requestToken)) {
-                    log.error("Token generation failed {}", user.getUserId());
-                    return;
-                }
-
-                login(new ZerodhaLoginDto(requestToken, user.getUserId()));
-            } finally {
-                stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + user.getUserId());
+    @Override
+    @Async("taskExecutor")
+    public void sessionManagerCallback(ZerodhaLoginResponseDTO request) {
+        try {
+            if (request.isError() || StringUtils.isEmpty(request.requestToken())) {
+                return;
             }
-        });
+
+            login(new ZerodhaLoginDto(request.requestToken(), request.userid()));
+        } catch (Exception e) {
+            log.error("Session Manager callback exception {}", request.requestToken(), e);
+        } finally {
+            stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + request.userid());
+        }
     }
 
     private void tryAutoLogin(User user) throws InterruptedException {
@@ -245,24 +241,6 @@ public class ZerodhaServiceImpl implements ZerodhaService {
         }
 
         return user;
-    }
-
-    private String pollForRequestToken(long userId) throws InterruptedException {
-        for (int i = 0; i < 10; i++) {
-            Thread.sleep(Duration.ofSeconds(10));
-            var res = sessionManagerClient.getToken(userId, SessionManagerClient.source);
-            if (res != null) {
-                if (res.isSuccess()) {
-                    return res.requestToken();
-                }
-
-                if (res.isError()) {
-                    return null;
-                }
-            }
-        }
-
-        return null;
     }
 
 }
