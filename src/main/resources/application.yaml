@@ -5,6 +5,7 @@ spring:
   jackson:
     deserialization:
       fail-on-null-for-primitives: false
+      accept-empty-string-as-null-object: true
 
   main:
     lazy-initialization: true

@@ -7,7 +7,6 @@ import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpDto;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
-import com.app.shahbaztrades.model.dto.angelone.websocket.AngelOneLoginResponse;
 import com.app.shahbaztrades.model.dto.angelone.websocket.SmartStreamParams;
 import com.app.shahbaztrades.model.dto.angelone.websocket.SmartStreamRequest;
 import com.app.shahbaztrades.model.dto.angelone.websocket.TokenGroup;
@@ -21,7 +20,6 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
@@ -188,14 +186,6 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     @PostConstruct
     public void refreshBrokerSession() {
         var key = "angel_one_login_data";
-        var login = stringRedisTemplate.opsForValue().get(key);
-        if (StringUtils.isNotEmpty(login)) {
-            var loginData = HelperUtil.GSON.fromJson(login, AngelOneLoginResponse.LoginData.class);
-            mongoConfigService.setAngelOneJwtToken(loginData.getJwtToken());
-            mongoConfigService.setAngelOneFeedToken(loginData.getFeedToken());
-            return;
-        }
-
         var loginData = angelOneClient.getWebsocketLogin(mongoConfigService.getConfig().getAngelOneConfig());
         if (loginData != null) {
             stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(loginData), Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
