@@ -1,5 +1,5 @@
 # -------- BUILD STAGE --------
-FROM ibm-semeru-runtimes:open-21-jdk-jammy AS builder
+FROM --platform=linux/amd64 ibm-semeru-runtimes:open-21-jdk-jammy AS builder
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY src ./src
 RUN ./mvnw clean package -DskipTests -B
 
 # -------- RUNTIME STAGE --------
-FROM ibm-semeru-runtimes:open-21-jre-jammy
+FROM --platform=linux/amd64 ibm-semeru-runtimes:open-21-jre-jammy
 
 WORKDIR /app
 
@@ -29,17 +29,8 @@ COPY --chown=nonroot:nonroot --from=builder /app/target/*.jar app.jar
 
 EXPOSE 8080
 
-# Environment variables for OpenJ9 configuration to reduce RAM consumption
-# -Xshareclasses: Re-uses AOT compiled code memory across restarts
-# -Xgcpolicy:gencon: Great for short lived object throughput
-# -Xtune:virtualized: Reduces JVM thread footprint specifically for cloud/containers
-# IdleTuning flags: Forces JVM to return RAM back to OS (Render) during idle times!
-# -Xss256K: Slashes memory per thread from 1MB to 256KB
-# -Xquickstart: Prevents deep JIT compilation at boot, massively speeding up start time!
 ENV JAVA_OPTS="-Xshareclasses:name=appcache,cacheDir=/app/scc -Xscmx64M -Xgcpolicy:gencon -Xtune:virtualized -Xquickstart -Xmns8M -Xmnx32M -Xms48M -Xmx128M -Xss256K -XX:+IdleTuningGcOnIdle -XX:+IdleTuningCompactOnIdle -Xcpuweighted"
 
-# Pre-populate the Shared Classes Cache (CDS equivalent)
-# Run once and exit to populate cache
 RUN /bin/bash -c 'java $JAVA_OPTS -jar app.jar & PID=$!; sleep 15; kill $PID 2>/dev/null || true'
 
 # Run with OpenJ9 optimizations 
