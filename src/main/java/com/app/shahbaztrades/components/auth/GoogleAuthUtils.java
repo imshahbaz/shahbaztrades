@@ -7,7 +7,6 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -16,19 +15,22 @@ import java.util.Map;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class GoogleAuthUtils {
 
     private final MongoConfigService mongoConfigService;
+    private final GoogleIdTokenVerifier verifier;
+
+    public GoogleAuthUtils(MongoConfigService mongoConfigService) {
+        this.mongoConfigService = mongoConfigService;
+        this.verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
+                .setAudience(Collections.singletonList(mongoConfigService.getConfig().getGoogleAuth().getClientId()))
+                .build();
+    }
 
     public GoogleUser validateIdToken(String idTokenString) {
         if (idTokenString == null || idTokenString.isEmpty()) {
             throw new RuntimeException("Empty ID token");
         }
-
-        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
-                .setAudience(Collections.singletonList(mongoConfigService.getConfig().getGoogleAuth().getClientId()))
-                .build();
 
         try {
             GoogleIdToken idToken = verifier.verify(idTokenString);
