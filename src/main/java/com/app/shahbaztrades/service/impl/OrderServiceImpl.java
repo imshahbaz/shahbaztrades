@@ -33,6 +33,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -69,8 +70,14 @@ public class OrderServiceImpl implements OrderService {
         } catch (Exception e) {
             throw new BadRequestException("Invalid date format");
         }
-        Query query = Query.query(Criteria.where(Order.Fields.date).gte(localDate.atStartOfDay())
-                .and(Order.Fields.date).lte(localDate.plusDays(1).atStartOfDay()));
+        Instant startOfIstDay = localDate.atStartOfDay(DateUtil.IST_ZONE).toInstant();
+        Instant endOfIstDay   = localDate.plusDays(1).atStartOfDay(DateUtil.IST_ZONE).toInstant();
+
+        Query query = Query.query(
+                Criteria.where(Order.Fields.date)
+                        .gte(startOfIstDay)
+                        .lt(endOfIstDay)
+        );
 
         return mongoTemplate.find(query, Order.class).stream().map(Order::toDto).toList();
     }
