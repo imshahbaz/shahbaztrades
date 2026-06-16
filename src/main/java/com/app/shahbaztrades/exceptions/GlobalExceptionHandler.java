@@ -56,7 +56,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
-    public ProblemDetail handleNoResourceFound(NoResourceFoundException ex, HttpServletRequest request) {
+    public ProblemDetail handleNoResourceFound() {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "The requested resource was not found.");
         problemDetail.setTitle("Not Found");
         return problemDetail;
