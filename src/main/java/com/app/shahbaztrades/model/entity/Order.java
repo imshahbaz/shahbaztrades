@@ -1,13 +1,14 @@
 package com.app.shahbaztrades.model.entity;
 
 import com.app.shahbaztrades.model.dto.order.OrderDto;
+import com.app.shahbaztrades.util.DateUtil;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.FieldNameConstants;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 
 @Data
@@ -28,7 +29,7 @@ public class Order {
 
     int quantity;
 
-    LocalDateTime date;
+    Instant date;
 
     ExecutionRecord entry;
 
@@ -42,7 +43,7 @@ public class Order {
                 .userId(userId)
                 .symbol(symbol)
                 .quantity(quantity)
-                .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                .date(DateTimeFormatter.ISO_LOCAL_DATE.withZone(DateUtil.IST_ZONE).format(date))
                 .build();
     }
 

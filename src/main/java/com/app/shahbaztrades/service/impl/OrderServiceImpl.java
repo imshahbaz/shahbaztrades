@@ -83,25 +83,12 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public void createOrder(OrderDto orderDto) {
-        LocalDate orderDate;
-        try {
-            orderDate = LocalDate.parse(orderDto.getDate(), DateTimeFormatter.ISO_LOCAL_DATE);
-        } catch (Exception e) {
-            throw new BadRequestException("Invalid date format");
-        }
-
         var margin = marginService.getMarginCache().get(orderDto.getSymbol().toUpperCase());
         if (margin == null) {
             throw new NotFoundException("Margin not found");
         }
 
-        var entity = Order.builder()
-                .userId(orderDto.getUserId())
-                .symbol(margin.getSymbol())
-                .quantity(orderDto.getQuantity())
-                .date(orderDate.atStartOfDay())
-                .margin(margin).build();
-
+        var entity = orderDto.toEntity(margin);
         try {
             mongoTemplate.insert(entity);
         } catch (DataIntegrityViolationException e) {
@@ -111,27 +98,15 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public void updateOrder(OrderDto orderDto) {
-        LocalDate orderDate;
-        try {
-            orderDate = LocalDate.parse(orderDto.getDate(), DateTimeFormatter.ISO_LOCAL_DATE);
-        } catch (Exception e) {
-            throw new BadRequestException("Invalid date format");
-        }
-
         var margin = marginService.getMarginCache().get(orderDto.getSymbol().toUpperCase());
         if (margin == null) {
             throw new NotFoundException("Margin not found");
         }
-
-        Query query = new Query(Criteria.where(Order.Fields.id).is(orderDto.getId()));
-        Update update = new Update();
-        update.set(Order.Fields.date, orderDate.atStartOfDay());
-        update.set(Order.Fields.quantity, orderDto.getQuantity());
-        update.set(Order.Fields.margin, margin);
-        update.set(Order.Fields.symbol, orderDto.getSymbol().toUpperCase());
-        var res = mongoTemplate.updateFirst(query, update, Order.class);
-        if (res.getModifiedCount() < 1) {
-            throw new BadRequestException("Order not found");
+        var entity = orderDto.toEntity(margin);
+        try {
+            orderRepo.save(entity);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResourceAlreadyExistsException("Order already exists for this user on this date");
         }
     }
 
@@ -143,8 +118,11 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public List<Order> getTodayOrders() {
         var today = DateUtil.getTodayDate();
-        Query query = Query.query(Criteria.where(Order.Fields.date).gte(today.atStartOfDay())
-                .lt(today.plusDays(1).atStartOfDay()));
+        var startOfIstDay = today.atStartOfDay(DateUtil.IST_ZONE).toInstant();
+        var endOfIstDay = today.plusDays(1).atStartOfDay(DateUtil.IST_ZONE).toInstant();
+        Query query = Query.query(Criteria.where(Order.Fields.date)
+                .gte(startOfIstDay)
+                .lt(endOfIstDay));
         return mongoTemplate.find(query, Order.class);
     }
 
@@ -291,7 +269,7 @@ public class OrderServiceImpl implements OrderService {
 
                     var pendingQty = StringUtils.isNumeric(orderDetails.pendingQuantity) ? Integer.parseInt(orderDetails.pendingQuantity) : 0;
                     if (pendingQty > 0) {
-                        ZerodhaOrderClient.convertSLToMarket(kc, order.getExit().getBrokerOrderId(), pendingQty, 0);
+                        ZerodhaOrderClient.convertSLToMarket(kc, order.getExit().getBrokerOrderId(), pendingQty);
                     }
                 } catch (Exception | KiteException e) {
                     log.error("Failed to convert order for {}", order.getSymbol(), e);

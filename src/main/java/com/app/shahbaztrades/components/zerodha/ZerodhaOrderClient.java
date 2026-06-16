@@ -20,7 +20,6 @@ public class ZerodhaOrderClient {
         orderParams.tradingsymbol = symbol;
         orderParams.transactionType = transactionType;
         orderParams.quantity = qty;
-        orderParams.price = price;
         orderParams.product = Constants.PRODUCT_MTF;
         orderParams.orderType = orderType;
         orderParams.validity = Constants.VALIDITY_DAY;
@@ -28,6 +27,9 @@ public class ZerodhaOrderClient {
 
         if (Constants.ORDER_TYPE_MARKET.equals(orderType)) {
             orderParams.marketProtection = -1.0;
+            orderParams.price = null;
+        } else {
+            orderParams.price = price;
         }
 
         return kc.placeOrder(orderParams, Constants.VARIETY_REGULAR);
@@ -91,11 +93,12 @@ public class ZerodhaOrderClient {
         }
     }
 
-    public static Order convertSLToMarket(KiteConnect kc, String orderId, int quantity, double price) throws Exception, KiteException {
+    public static Order convertSLToMarket(KiteConnect kc, String orderId, int quantity) throws Exception, KiteException {
         OrderParams params = new OrderParams();
         params.orderType = Constants.ORDER_TYPE_MARKET;
         params.quantity = quantity;
-        params.price = price;
+        params.price = null;
+        params.triggerPrice = null;
         params.marketProtection = -1.0;
         return kc.modifyOrder(orderId, params, Constants.VARIETY_REGULAR);
     }
