@@ -262,6 +262,7 @@ public class OrderServiceImpl implements OrderService {
             if (hasNoExitOrder) {
                 try {
                     ZerodhaOrderClient.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), null, Constants.TRANSACTION_TYPE_SELL, Constants.ORDER_TYPE_MARKET);
+                    log.info("Successfully placed MTF sell order for user {} symbol {}", order.getUserId(), order.getSymbol());
                 } catch (Exception | KiteException e) {
                     log.error("Failed to square off for {}", order.getSymbol(), e);
                     return 0;
@@ -274,15 +275,17 @@ public class OrderServiceImpl implements OrderService {
                     }
 
                     if (Objects.equals(orderDetails.status, Constants.ORDER_COMPLETE) || Objects.equals(orderDetails.status, Constants.ORDER_REJECTED)) {
+                        log.info("Order has been completed/rejected for user {} symbol {} order status {}", order.getUserId(), order.getSymbol(), orderDetails.status);
                         return -1;
                     }
 
                     var pendingQty = StringUtils.isNumeric(orderDetails.pendingQuantity) ? Integer.parseInt(orderDetails.pendingQuantity) : 0;
                     if (pendingQty > 0) {
                         ZerodhaOrderClient.convertSLToMarket(kc, order.getExit().getBrokerOrderId(), pendingQty);
+                        log.info("MTF SL order converted to market for user {} symbol {}", order.getUserId(), order.getSymbol());
                     }
                 } catch (Exception | KiteException e) {
-                    log.error("Failed to convert order for {}", order.getSymbol(), e);
+                    log.error("Failed to convert order for user {} symbol {} error {}", order.getUserId(), order.getSymbol(), e.getMessage());
                     return 0;
                 }
 
@@ -297,9 +300,10 @@ public class OrderServiceImpl implements OrderService {
                 var orderId = ZerodhaOrderClient.placeMTFStopLossOrder(kc, order.getSymbol(), order.getQuantity(), sl, sl);
                 order.setExit(Order.ExecutionRecord.builder().brokerOrderId(orderId).averagePrice((float) sl).build());
                 eventPublisher.publishEvent(order);
+                log.info("Successfully placed MTF SL order for user {} symbol {}", order.getUserId(), order.getSymbol());
                 return 1;
             } catch (Exception | KiteException e) {
-                log.error("Failed to place stop loss order for {}", order.getSymbol(), e);
+                log.error("Failed to place stop loss order for user {} symbol {} error {}", order.getUserId(), order.getSymbol(), e.getMessage());
                 return 0;
             }
         }
