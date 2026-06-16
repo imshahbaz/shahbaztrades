@@ -120,8 +120,14 @@ public class TradeWatchdog {
                 List<ActiveMtfTrade> trades = mtfTradeWatchCache.get(activeKey);
                 if (CollectionUtils.isEmpty(trades)) continue;
                 trades.forEach(trade -> {
-                    trade.setLtp(ltp);
-                    applicationEventPublisher.publishEvent(trade);
+                    if (ltp != trade.getPrevLtp()) {
+                        trade.setPrevLtp(ltp);
+                        trade.setLtp(ltp);
+                        if (ltp > trade.getPeakPrice()) {
+                            trade.setPeakPrice((float) ltp);
+                        }
+                        applicationEventPublisher.publishEvent(trade);
+                    }
                 });
             } finally {
                 lock.unlock();
