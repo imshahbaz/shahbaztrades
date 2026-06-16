@@ -1,6 +1,8 @@
 package com.app.shahbaztrades.model.dto.order;
 
+import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.model.entity.StrategyOrder;
+import com.app.shahbaztrades.util.DateUtil;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
@@ -31,12 +33,18 @@ public class StrategyOrderDto {
     float amount;
 
     public StrategyOrder toEntity() {
-        var date = LocalDate.parse(this.date, DateTimeFormatter.ISO_LOCAL_DATE);
+        LocalDate date;
+        try {
+            date = LocalDate.parse(this.date, DateTimeFormatter.ISO_LOCAL_DATE);
+        } catch (Exception e) {
+            throw new BadRequestException("Invalid date format");
+        }
+
         return StrategyOrder.builder()
                 .id(id)
                 .userId(userId)
                 .strategyName(strategyName)
-                .date(date.atStartOfDay())
+                .date(date.atStartOfDay(DateUtil.IST_ZONE).toInstant())
                 .amount(amount)
                 .build();
     }

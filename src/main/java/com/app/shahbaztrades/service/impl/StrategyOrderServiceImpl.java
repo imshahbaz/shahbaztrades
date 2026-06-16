@@ -77,8 +77,11 @@ public class StrategyOrderServiceImpl implements StrategyOrderService {
     @Override
     public List<StrategyOrder> getTodayOrders() {
         var today = DateUtil.getTodayDate();
-        Query query = Query.query(Criteria.where(StrategyOrder.Fields.date).gte(today.atStartOfDay())
-                .lt(today.plusDays(1).atStartOfDay()));
+        var startOfIstDay = today.atStartOfDay(DateUtil.IST_ZONE).toInstant();
+        var endOfIstDay = today.plusDays(1).atStartOfDay(DateUtil.IST_ZONE).toInstant();
+        Query query = Query.query(Criteria.where(StrategyOrder.Fields.date)
+                .gte(startOfIstDay)
+                .lt(endOfIstDay));
         return mongoTemplate.find(query, StrategyOrder.class);
     }
 

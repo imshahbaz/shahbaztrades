@@ -1,13 +1,14 @@
 package com.app.shahbaztrades.model.entity;
 
 import com.app.shahbaztrades.model.dto.order.StrategyOrderDto;
+import com.app.shahbaztrades.util.DateUtil;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.FieldNameConstants;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 
 @Data
@@ -24,7 +25,7 @@ public class StrategyOrder {
 
     long userId;
 
-    LocalDateTime date;
+    Instant date;
 
     String strategyName;
 
@@ -35,7 +36,7 @@ public class StrategyOrder {
                 .id(id)
                 .userId(userId)
                 .strategyName(strategyName)
-                .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                .date(DateTimeFormatter.ISO_LOCAL_DATE.withZone(DateUtil.IST_ZONE).format(date))
                 .amount(amount)
                 .build();
     }
