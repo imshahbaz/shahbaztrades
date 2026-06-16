@@ -187,7 +187,7 @@ public class TradeEngineImpl implements TradeEngine {
                     kc,
                     targetStock.getSymbol(),
                     qty,
-                    0,
+                    null,
                     Constants.TRANSACTION_TYPE_BUY,
                     Constants.ORDER_TYPE_MARKET
             );
