@@ -59,9 +59,16 @@ public class DateUtil {
     }
 
     public static boolean isMarketClosedForTrading() {
-        LocalTime now = ZonedDateTime.now(IST_ZONE).toLocalTime();
-        LocalTime marketCloseTime = LocalTime.of(MARKET_CLOSING_HOUR, MARKET_CLOSING_HOUR);
-        return !now.isBefore(marketCloseTime);
+        ZonedDateTime nowInIndia = ZonedDateTime.now(IST_ZONE);
+        java.time.DayOfWeek day = nowInIndia.getDayOfWeek();
+        if (day == java.time.DayOfWeek.SATURDAY || day == java.time.DayOfWeek.SUNDAY) {
+            return true;
+        }
+
+        LocalTime time = nowInIndia.toLocalTime();
+        LocalTime marketOpenTime = LocalTime.of(9, 15);
+        LocalTime marketCloseTime = LocalTime.of(MARKET_CLOSING_HOUR, MARKET_SQUARE_OFF_MIN);
+        return time.isBefore(marketOpenTime) || time.isAfter(marketCloseTime);
     }
 
     public static LocalDateTime getCurrentDateTime() {

@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.components.zerodha;
 
+import com.app.shahbaztrades.util.DateUtil;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import com.zerodhatech.kiteconnect.utils.Constants;
@@ -12,7 +13,7 @@ import java.util.List;
 
 public class ZerodhaOrderClient {
 
-    public static OrderResponse placeMTFOrder(KiteConnect kc, String symbol, int qty, double price,
+    public static OrderResponse placeMTFOrder(KiteConnect kc, String symbol, int qty, Double price,
                                               String transactionType, String orderType) throws Exception, KiteException {
 
         OrderParams orderParams = new OrderParams();
@@ -24,15 +25,13 @@ public class ZerodhaOrderClient {
         orderParams.orderType = orderType;
         orderParams.validity = Constants.VALIDITY_DAY;
         orderParams.tag = "Shahbaz Trades";
+        orderParams.price = price;
 
         if (Constants.ORDER_TYPE_MARKET.equals(orderType)) {
             orderParams.marketProtection = -1.0;
-            orderParams.price = null;
-        } else {
-            orderParams.price = price;
         }
 
-        return kc.placeOrder(orderParams, Constants.VARIETY_REGULAR);
+        return kc.placeOrder(orderParams, getVariety());
     }
 
     public static String placeMTFStopLossOrder(KiteConnect kc, String symbol, int qty, double price, double triggerPrice) throws Exception, KiteException {
@@ -50,7 +49,7 @@ public class ZerodhaOrderClient {
         orderParams.orderType = Constants.ORDER_TYPE_SL;
         orderParams.validity = Constants.VALIDITY_DAY;
 
-        OrderResponse orderResponse = kc.placeOrder(orderParams, Constants.VARIETY_REGULAR);
+        OrderResponse orderResponse = kc.placeOrder(orderParams, getVariety());
 
         if (orderResponse == null || orderResponse.orderId == null) {
             throw new Exception("Order placement failed: No Order ID returned");
@@ -74,12 +73,12 @@ public class ZerodhaOrderClient {
         OrderParams modParams = new OrderParams();
         modParams.price = newPrice;
         modParams.triggerPrice = newTriggerPrice;
-        kc.modifyOrder(orderId, modParams, Constants.VARIETY_REGULAR);
+        kc.modifyOrder(orderId, modParams, getVariety());
     }
 
     public static Order cancelOrder(KiteConnect kc, String orderId) throws Exception {
         try {
-            Order orderResponse = kc.cancelOrder(orderId, Constants.VARIETY_REGULAR, null);
+            Order orderResponse = kc.cancelOrder(orderId, getVariety(), null);
 
             if (orderResponse == null) {
                 throw new Exception("Failed to cancel order " + orderId + ": No response from server");
@@ -100,6 +99,10 @@ public class ZerodhaOrderClient {
         params.price = null;
         params.triggerPrice = null;
         params.marketProtection = -1.0;
-        return kc.modifyOrder(orderId, params, Constants.VARIETY_REGULAR);
+        return kc.modifyOrder(orderId, params, getVariety());
+    }
+
+    private static String getVariety() {
+        return DateUtil.isMarketClosedForTrading() ? Constants.VARIETY_AMO : Constants.VARIETY_REGULAR;
     }
 }

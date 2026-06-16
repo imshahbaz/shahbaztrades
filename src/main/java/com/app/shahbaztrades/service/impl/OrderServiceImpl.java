@@ -143,7 +143,7 @@ public class OrderServiceImpl implements OrderService {
             }
 
             try {
-                var res = ZerodhaOrderClient.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), 0,
+                var res = ZerodhaOrderClient.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), null,
                         Constants.TRANSACTION_TYPE_BUY, Constants.ORDER_TYPE_MARKET);
                 order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.orderId).build());
             } catch (KiteException | Exception e) {
@@ -258,7 +258,7 @@ public class OrderServiceImpl implements OrderService {
 
             if (hasNoExitOrder) {
                 try {
-                    ZerodhaOrderClient.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), 0, Constants.TRANSACTION_TYPE_SELL, Constants.ORDER_TYPE_MARKET);
+                    ZerodhaOrderClient.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), null, Constants.TRANSACTION_TYPE_SELL, Constants.ORDER_TYPE_MARKET);
                 } catch (Exception | KiteException e) {
                     log.error("Failed to square off for {}", order.getSymbol(), e);
                     return 0;
