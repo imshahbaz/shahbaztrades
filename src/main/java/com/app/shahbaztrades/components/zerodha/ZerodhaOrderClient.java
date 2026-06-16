@@ -28,7 +28,7 @@ public class ZerodhaOrderClient {
         orderParams.price = price;
 
         if (Constants.ORDER_TYPE_MARKET.equals(orderType)) {
-            orderParams.marketProtection = -1.0;
+            orderParams.marketProtection = 10;
         }
 
         return kc.placeOrder(orderParams, getVariety());
@@ -98,7 +98,7 @@ public class ZerodhaOrderClient {
         params.quantity = quantity;
         params.price = null;
         params.triggerPrice = null;
-        params.marketProtection = -1.0;
+        params.marketProtection = 10;
         return kc.modifyOrder(orderId, params, getVariety());
     }
 
