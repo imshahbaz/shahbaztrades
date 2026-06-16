@@ -71,7 +71,7 @@ public class OrderServiceImpl implements OrderService {
             throw new BadRequestException("Invalid date format");
         }
         Instant startOfIstDay = localDate.atStartOfDay(DateUtil.IST_ZONE).toInstant();
-        Instant endOfIstDay   = localDate.plusDays(1).atStartOfDay(DateUtil.IST_ZONE).toInstant();
+        Instant endOfIstDay = localDate.plusDays(1).atStartOfDay(DateUtil.IST_ZONE).toInstant();
 
         Query query = Query.query(
                 Criteria.where(Order.Fields.date)
@@ -146,8 +146,9 @@ public class OrderServiceImpl implements OrderService {
                 var res = ZerodhaOrderClient.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), null,
                         Constants.TRANSACTION_TYPE_BUY, Constants.ORDER_TYPE_MARKET);
                 order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.orderId).build());
+                log.info("MTF order placed for user {} symbol {} at init", order.getUserId(), order.getSymbol());
             } catch (KiteException | Exception e) {
-                log.error("Failed to place MTF order", e);
+                log.error("Failed to place MTF order for user {} symbol {} error {} at init", order.getUserId(), order.getSymbol(), e.getMessage());
             }
             return null;
         });
@@ -165,7 +166,9 @@ public class OrderServiceImpl implements OrderService {
                 var orderDetails = ZerodhaOrderClient.getOrderDetails(kc, order.getEntry().getBrokerOrderId());
                 order.getEntry().setOrderStatus(orderDetails.status);
                 order.getEntry().setAveragePrice(StringUtils.isNumeric(orderDetails.averagePrice) ? Float.parseFloat(orderDetails.averagePrice) : 0);
+                log.info("MTF status updated for user {} symbol {} at update", order.getUserId(), order.getSymbol());
             } catch (Exception | KiteException e) {
+                log.error("Failed to update MTF status for user {} symbol {} error {} at update", order.getUserId(), order.getSymbol(), e.getMessage());
                 throw new BadRequestException("Invalid MTF order or kite exception " + e.getMessage());
             }
 
@@ -307,20 +310,11 @@ public class OrderServiceImpl implements OrderService {
     @EventListener
     @Async("taskExecutor")
     public void handleActiveMtfOrderEvent(ActiveMtfTrade event) {
-        var ltp = event.getLtp();
         var order = event.getOrder();
-        if (event.getLtp() > 0 && ltp != event.getPrevLtp()) {
-            var res = processOrder(order, ltp, event.getPeakPrice());
-            if (res < 0) {
-                log.info("Order squared off - stopping monitoring orderId {} symbol {}", order.getId(), order.getSymbol());
-                tradeWatchdog.unwatchMtfTrade(event);
-                return;
-            }
-
-            event.setPrevLtp(ltp);
-            if (ltp > event.getPeakPrice()) {
-                event.setPeakPrice((float) ltp);
-            }
+        var res = processOrder(order, event.getLtp(), event.getPeakPrice());
+        if (res < 0) {
+            log.info("Order squared off - stopping monitoring orderId {} symbol {}", order.getId(), order.getSymbol());
+            tradeWatchdog.unwatchMtfTrade(event);
         }
     }
 
