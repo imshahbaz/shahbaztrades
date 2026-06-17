@@ -167,6 +167,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     public void autoLogin(Set<Long> userIds) {
         var users = userService.findByIds(userIds);
         if (users.isEmpty()) {
+            log.info("Users not found for zerodha auto login");
             return;
         }
 
