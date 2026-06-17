@@ -22,6 +22,7 @@ import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -165,7 +166,7 @@ public class OrderServiceImpl implements OrderService {
             try {
                 var orderDetails = ZerodhaOrderClient.getOrderDetails(kc, order.getEntry().getBrokerOrderId());
                 order.getEntry().setOrderStatus(orderDetails.status);
-                order.getEntry().setAveragePrice(StringUtils.isNumeric(orderDetails.averagePrice) ? Float.parseFloat(orderDetails.averagePrice) : 0);
+                order.getEntry().setAveragePrice(NumberUtils.isCreatable(orderDetails.averagePrice) ? Float.parseFloat(orderDetails.averagePrice) : 0);
                 log.info("MTF status updated for user {} symbol {} at update", order.getUserId(), order.getSymbol());
             } catch (Exception | KiteException e) {
                 log.error("Failed to update MTF status for user {} symbol {} error {} at update", order.getUserId(), order.getSymbol(), e.getMessage());
@@ -279,7 +280,7 @@ public class OrderServiceImpl implements OrderService {
                         return -1;
                     }
 
-                    var pendingQty = StringUtils.isNumeric(orderDetails.pendingQuantity) ? Integer.parseInt(orderDetails.pendingQuantity) : 0;
+                    var pendingQty = NumberUtils.isCreatable(orderDetails.pendingQuantity) ? Integer.parseInt(orderDetails.pendingQuantity) : 0;
                     if (pendingQty > 0) {
                         ZerodhaOrderClient.convertSLToMarket(kc, order.getExit().getBrokerOrderId(), pendingQty);
                         log.info("MTF SL order converted to market for user {} symbol {}", order.getUserId(), order.getSymbol());
