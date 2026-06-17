@@ -5,6 +5,7 @@ import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.Constants;
+import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -41,7 +42,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
 
             orders.forEach(order -> res.add(order.getUserId()));
             return res;
-        });
+        }, HelperUtil.EXECUTOR);
 
         var strategyOrderFuture = CompletableFuture.supplyAsync(() -> {
             var res = new HashSet<Long>();
@@ -52,7 +53,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
 
             orders.forEach(order -> res.add(order.getUserId()));
             return res;
-        });
+        }, HelperUtil.EXECUTOR);
 
         CompletableFuture.allOf(orderFuture, strategyOrderFuture).join();
         var userIds = orderFuture.get();

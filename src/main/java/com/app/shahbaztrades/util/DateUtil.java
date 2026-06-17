@@ -66,7 +66,7 @@ public class DateUtil {
         }
 
         LocalTime time = nowInIndia.toLocalTime();
-        LocalTime marketOpenTime = LocalTime.of(9, 15);
+        LocalTime marketOpenTime = LocalTime.of(9, 0);
         LocalTime marketCloseTime = LocalTime.of(MARKET_CLOSING_HOUR, MARKET_SQUARE_OFF_MIN);
         return time.isBefore(marketOpenTime) || time.isAfter(marketCloseTime);
     }
