@@ -22,6 +22,7 @@ import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -165,7 +166,7 @@ public class OrderServiceImpl implements OrderService {
             try {
                 var orderDetails = ZerodhaOrderClient.getOrderDetails(kc, order.getEntry().getBrokerOrderId());
                 order.getEntry().setOrderStatus(orderDetails.status);
-                order.getEntry().setAveragePrice(StringUtils.isNumeric(orderDetails.averagePrice) ? Float.parseFloat(orderDetails.averagePrice) : 0);
+                order.getEntry().setAveragePrice(NumberUtils.isCreatable(orderDetails.averagePrice) ? Float.parseFloat(orderDetails.averagePrice) : 0);
                 log.info("MTF status updated for user {} symbol {} at update", order.getUserId(), order.getSymbol());
             } catch (Exception | KiteException e) {
                 log.error("Failed to update MTF status for user {} symbol {} error {} at update", order.getUserId(), order.getSymbol(), e.getMessage());
@@ -256,59 +257,70 @@ public class OrderServiceImpl implements OrderService {
         boolean hasNoExitOrder = (exitRecord == null || StringUtils.isEmpty(exitRecord.getBrokerOrderId()));
 
         if (reachedProfitThreshold && (droppedFromPeak || marketClosing)) {
-            log.info("Symbol: {}. Stock price dropped more than 0.6% or Market is closing (3:25 PM). Squaring off...",
-                    order.getSymbol());
-
-            if (hasNoExitOrder) {
-                try {
-                    ZerodhaOrderClient.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), null, Constants.TRANSACTION_TYPE_SELL, Constants.ORDER_TYPE_MARKET);
-                    log.info("Successfully placed MTF sell order for user {} symbol {}", order.getUserId(), order.getSymbol());
-                } catch (Exception | KiteException e) {
-                    log.error("Failed to square off for {}", order.getSymbol(), e);
-                    return 0;
-                }
-            } else {
-                try {
-                    var orderDetails = ZerodhaOrderClient.getOrderDetails(kc, order.getExit().getBrokerOrderId());
-                    if (orderDetails == null) {
-                        return 0;
-                    }
-
-                    if (Objects.equals(orderDetails.status, Constants.ORDER_COMPLETE) || Objects.equals(orderDetails.status, Constants.ORDER_REJECTED)) {
-                        log.info("Order has been completed/rejected for user {} symbol {} order status {}", order.getUserId(), order.getSymbol(), orderDetails.status);
-                        return -1;
-                    }
-
-                    var pendingQty = StringUtils.isNumeric(orderDetails.pendingQuantity) ? Integer.parseInt(orderDetails.pendingQuantity) : 0;
-                    if (pendingQty > 0) {
-                        ZerodhaOrderClient.convertSLToMarket(kc, order.getExit().getBrokerOrderId(), pendingQty);
-                        log.info("MTF SL order converted to market for user {} symbol {}", order.getUserId(), order.getSymbol());
-                    }
-                } catch (Exception | KiteException e) {
-                    log.error("Failed to convert order for user {} symbol {} error {}", order.getUserId(), order.getSymbol(), e.getMessage());
-                    return 0;
-                }
-
-            }
-
-            return -1;
+            return handleSquareOff(order, kc, hasNoExitOrder);
         }
 
         if (hasNoExitOrder && ltp >= buyPrice * 1.006) {
-            var sl = HelperUtil.fixToTick(buyPrice * 1.004);
-            try {
-                var orderId = ZerodhaOrderClient.placeMTFStopLossOrder(kc, order.getSymbol(), order.getQuantity(), sl, sl);
-                order.setExit(Order.ExecutionRecord.builder().brokerOrderId(orderId).averagePrice((float) sl).build());
-                eventPublisher.publishEvent(order);
-                log.info("Successfully placed MTF SL order for user {} symbol {}", order.getUserId(), order.getSymbol());
-                return 1;
-            } catch (Exception | KiteException e) {
-                log.error("Failed to place stop loss order for user {} symbol {} error {}", order.getUserId(), order.getSymbol(), e.getMessage());
-                return 0;
-            }
+            return placeStopLossOrder(order, buyPrice, kc);
         }
 
         return 0;
+    }
+
+    private short handleSquareOff(Order order, KiteConnect kc, boolean hasNoExitOrder) {
+        log.info("Symbol: {}. Stock price dropped more than 0.6% or Market is closing (3:25 PM). Squaring off...", order.getSymbol());
+        if (hasNoExitOrder) {
+            return placeMarketSellOrder(order, kc);
+        } else {
+            return convertPendingExitToMarket(order, kc);
+        }
+    }
+
+    private short placeMarketSellOrder(Order order, KiteConnect kc) {
+        try {
+            ZerodhaOrderClient.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), null, Constants.TRANSACTION_TYPE_SELL, Constants.ORDER_TYPE_MARKET);
+            log.info("Successfully placed MTF sell order for user {} symbol {}", order.getUserId(), order.getSymbol());
+            return -1;
+        } catch (Exception | KiteException e) {
+            log.error("Failed to square off for {}", order.getSymbol(), e);
+            return 0;
+        }
+    }
+
+    private short convertPendingExitToMarket(Order order, KiteConnect kc) {
+        try {
+            var orderDetails = ZerodhaOrderClient.getOrderDetails(kc, order.getExit().getBrokerOrderId());
+            if (orderDetails == null) return 0;
+
+            if (Objects.equals(orderDetails.status, Constants.ORDER_COMPLETE) || Objects.equals(orderDetails.status, Constants.ORDER_REJECTED)) {
+                log.info("Order has been completed/rejected for user {} symbol {} order status {}", order.getUserId(), order.getSymbol(), orderDetails.status);
+                return -1;
+            }
+
+            var pendingQty = NumberUtils.isCreatable(orderDetails.pendingQuantity) ? Integer.parseInt(orderDetails.pendingQuantity) : 0;
+            if (pendingQty > 0) {
+                ZerodhaOrderClient.convertSLToMarket(kc, order.getExit().getBrokerOrderId(), pendingQty);
+                log.info("MTF SL order converted to market for user {} symbol {}", order.getUserId(), order.getSymbol());
+            }
+            return -1;
+        } catch (Exception | KiteException e) {
+            log.error("Failed to convert order for user {} symbol {} error {}", order.getUserId(), order.getSymbol(), e.getMessage());
+            return 0;
+        }
+    }
+
+    private short placeStopLossOrder(Order order, float buyPrice, KiteConnect kc) {
+        var sl = HelperUtil.fixToTick(buyPrice * 1.004);
+        try {
+            var orderId = ZerodhaOrderClient.placeMTFStopLossOrder(kc, order.getSymbol(), order.getQuantity(), sl, sl);
+            order.setExit(Order.ExecutionRecord.builder().brokerOrderId(orderId).averagePrice((float) sl).build());
+            eventPublisher.publishEvent(order);
+            log.info("Successfully placed MTF SL order for user {} symbol {}", order.getUserId(), order.getSymbol());
+            return 1;
+        } catch (Exception | KiteException e) {
+            log.error("Failed to place stop loss order for user {} symbol {} error {}", order.getUserId(), order.getSymbol(), e.getMessage());
+            return 0;
+        }
     }
 
     @EventListener

@@ -33,9 +33,9 @@ public class StrategyOrderDto {
     float amount;
 
     public StrategyOrder toEntity() {
-        LocalDate date;
+        LocalDate parsedDate;
         try {
-            date = LocalDate.parse(this.date, DateTimeFormatter.ISO_LOCAL_DATE);
+            parsedDate = LocalDate.parse(this.date, DateTimeFormatter.ISO_LOCAL_DATE);
         } catch (Exception e) {
             throw new BadRequestException("Invalid date format");
         }
@@ -44,7 +44,7 @@ public class StrategyOrderDto {
                 .id(id)
                 .userId(userId)
                 .strategyName(strategyName)
-                .date(date.atStartOfDay(DateUtil.IST_ZONE).toInstant())
+                .date(parsedDate.atStartOfDay(DateUtil.IST_ZONE).toInstant())
                 .amount(amount)
                 .build();
     }

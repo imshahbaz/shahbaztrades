@@ -57,7 +57,7 @@ public class AngelOneController {
     private void startMonitoring(String token) {
         CompletableFuture.runAsync(() -> {
             long startTime = System.currentTimeMillis();
-            long timeoutMillis = 30 * 1000; // 30 Seconds timeout for the loop
+            long timeoutMillis = 30 * 1000L; // 30 Seconds timeout for the loop
 
             while (System.currentTimeMillis() - startTime < timeoutMillis) {
                 double ltp = angelOneService.getLTP(token);

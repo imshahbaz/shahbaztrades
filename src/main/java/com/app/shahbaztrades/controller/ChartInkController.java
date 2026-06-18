@@ -22,41 +22,43 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ChartInkController {
 
+    private static final String SUCCESS_MSG = "Success";
+
     private final ChartInkService chartInkService;
 
     @PublicEndpoint
     @GetMapping("/fetch")
     public ResponseEntity<ApiResponse<ChartInkResponseDto>> fetch(@RequestParam @NotBlank String strategy) {
         var result = chartInkService.fetchData(strategy);
-        return ResponseEntity.ok(ApiResponse.ok(result, "Success"));
+        return ResponseEntity.ok(ApiResponse.ok(result, SUCCESS_MSG));
     }
 
     @PublicEndpoint
     @GetMapping("/fetchWithMargin")
     public ResponseEntity<ApiResponse<List<StockMarginDto>>> fetchWithMargin(@RequestParam @NotBlank String strategy) {
         var result = chartInkService.fetchWithMargin(strategy);
-        return ResponseEntity.ok(ApiResponse.ok(result, "Success"));
+        return ResponseEntity.ok(ApiResponse.ok(result, SUCCESS_MSG));
     }
 
     @PublicEndpoint
     @GetMapping("/backtest")
     public ResponseEntity<ApiResponse<List<ChartInkBacktestDto>>> fetchBackTestData(@RequestParam @NotBlank String strategy) {
         var result = chartInkService.fetchBacktestData(strategy);
-        return ResponseEntity.ok(ApiResponse.ok(result, "Success"));
+        return ResponseEntity.ok(ApiResponse.ok(result, SUCCESS_MSG));
     }
 
     @PublicEndpoint
     @GetMapping("/backtestWithMargin")
     public ResponseEntity<ApiResponse<List<ChartInkBacktestMarginDto>>> fetchBackTestDataWithMargin(@RequestParam @NotBlank String strategy) {
         var result = chartInkService.fetchBacktestDataWithMargin(strategy);
-        return ResponseEntity.ok(ApiResponse.ok(result, "Success"));
+        return ResponseEntity.ok(ApiResponse.ok(result, SUCCESS_MSG));
     }
 
     @PublicEndpoint
     @GetMapping("/backtestTodayWithMargin")
     public ResponseEntity<ApiResponse<List<ChartInkBacktestMarginDto>>> fetchBackTodayTestDataWithMargin(@RequestParam @NotBlank String strategy) {
         var result = chartInkService.fetchTodayBacktestDataWithMargin(strategy);
-        return ResponseEntity.ok(ApiResponse.ok(result, "Success"));
+        return ResponseEntity.ok(ApiResponse.ok(result, SUCCESS_MSG));
     }
 
 }

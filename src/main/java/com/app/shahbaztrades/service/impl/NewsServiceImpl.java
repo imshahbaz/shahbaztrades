@@ -29,6 +29,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NewsServiceImpl implements NewsService {
 
+    private static final String NEWS_FETCHED_SUCCESS_MSG = "News Fetched Successfully";
+
     private final StringRedisTemplate stringRedisTemplate;
     private final GenAiClient genAiClient;
     private final YahooClient yahooClient;
@@ -41,13 +43,13 @@ public class NewsServiceImpl implements NewsService {
         if (StringUtils.isNotBlank(value)) {
             List<TradingViewNewsResponse.NewsItem> res = HelperUtil.GSON.fromJson(value, new TypeToken<List<TradingViewNewsResponse.NewsItem>>() {
             }.getType());
-            return ResponseEntity.ok(ApiResponse.ok(res, "News Fetched Successfully"));
+            return ResponseEntity.ok(ApiResponse.ok(res, NEWS_FETCHED_SUCCESS_MSG));
         }
 
         var res = TradingViewClient.getStockNews(symbol);
         if (res != null && !CollectionUtils.isEmpty(res.items())) {
             stringRedisTemplate.opsForValue().set(cacheKey, HelperUtil.GSON.toJson(res.items()), Duration.ofMinutes(10));
-            return ResponseEntity.ok(ApiResponse.ok(res.items(), "News Fetched Successfully"));
+            return ResponseEntity.ok(ApiResponse.ok(res.items(), NEWS_FETCHED_SUCCESS_MSG));
         }
 
         throw new NotFoundException("News Not Found");
@@ -59,7 +61,7 @@ public class NewsServiceImpl implements NewsService {
         var value = stringRedisTemplate.opsForValue().get(cacheKey);
         if (StringUtils.isNotBlank(value)) {
             var res = HelperUtil.GSON.fromJson(value, AIAnalysis.class);
-            return ResponseEntity.ok(ApiResponse.ok(res, "News Fetched Successfully"));
+            return ResponseEntity.ok(ApiResponse.ok(res, NEWS_FETCHED_SUCCESS_MSG));
         }
 
         var history = yahooClient.getHistoricalData(symbol, YahooTimeRange.RANGE_1MO.getValue());

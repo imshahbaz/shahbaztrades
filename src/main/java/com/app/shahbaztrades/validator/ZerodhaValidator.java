@@ -1,7 +1,11 @@
 package com.app.shahbaztrades.validator;
 
 import com.app.shahbaztrades.model.entity.User;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 
 public class ZerodhaValidator {
 

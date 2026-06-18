@@ -25,7 +25,7 @@ import java.util.Map;
 @Component
 public class AngelOneClient {
 
-    private static final String url = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json";
+    private static final String URL = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json";
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
     private final RestClient websocketRestClient;
@@ -45,41 +45,49 @@ public class AngelOneClient {
     public List<Margin> getTokens(Map<String, Margin> cachedMargin) {
         List<Margin> margins = new ArrayList<>();
         restClient.get()
-                .uri(url)
-                .exchange((request, response) -> {
-                    if (response.getStatusCode().isError()) {
-                        log.error("Failed to fetch Scrip Master. Status: {}", response.getStatusCode());
-                        return null;
-                    }
-
-                    try (InputStream is = response.getBody();
-                         JsonParser parser = objectMapper.getFactory().createParser(is)) {
-
-                        if (parser.nextToken() != JsonToken.START_ARRAY) return null;
-
-                        while (parser.nextToken() == JsonToken.START_OBJECT) {
-                            MinimalInstrument inst = objectMapper.readValue(parser, MinimalInstrument.class);
-                            if ("NSE".equals(inst.exchSeg()) && inst.symbol().endsWith("-EQ")) {
-                                if (cachedMargin.containsKey(inst.name())) {
-                                    Margin margin = cachedMargin.get(inst.name());
-                                    margin.setToken(inst.token());
-                                    margins.add(margin);
-                                }
-                            }
-                        }
-                    } catch (IOException e) {
-                        log.error("Error while streaming Scrip Master JSON", e);
-                    }
-                    return null;
-                });
+                .uri(URL)
+                .exchange((request, response) -> handleResponse(response, cachedMargin, margins));
 
         return margins;
     }
 
+    private Void handleResponse(org.springframework.http.client.ClientHttpResponse response, Map<String, Margin> cachedMargin, List<Margin> margins) {
+        try {
+            if (response.getStatusCode().isError()) {
+                log.error("Failed to fetch Scrip Master. Status: {}", response.getStatusCode());
+                return null;
+            }
+
+            try (InputStream is = response.getBody();
+                 JsonParser parser = objectMapper.getFactory().createParser(is)) {
+
+                if (parser.nextToken() != JsonToken.START_ARRAY) return null;
+
+                while (parser.nextToken() == JsonToken.START_OBJECT) {
+                    processInstrument(parser, cachedMargin, margins);
+                }
+            }
+        } catch (IOException e) {
+            log.error("Error while streaming Scrip Master JSON", e);
+        }
+        return null;
+    }
+
+    private void processInstrument(JsonParser parser, Map<String, Margin> cachedMargin, List<Margin> margins) throws IOException {
+        MinimalInstrument inst = objectMapper.readValue(parser, MinimalInstrument.class);
+        Margin margin;
+        if ("NSE".equals(inst.exchSeg()) && inst.symbol().endsWith("-EQ") && (margin = cachedMargin.get(inst.name())) != null) {
+            margin.setToken(inst.token());
+            margins.add(margin);
+        }
+    }
+
+
+
     public AngelOneLoginResponse.LoginData getWebsocketLogin(MongoEnvConfig.AngelOneConfig config) {
         String otp = TotpUtil.generateTOTP(config.getSeed());
         if (otp.isEmpty()) {
-            throw new RuntimeException("Failed to generate TOTP");
+            throw new IllegalStateException("Failed to generate TOTP");
         }
 
         AngelOneLoginResponse response = websocketRestClient.post()
@@ -103,7 +111,7 @@ public class AngelOneClient {
         if (response == null || !response.isStatus()) {
             String msg = (response != null) ? response.getMessage() : "No response";
             log.error("AngelOne login rejected: {}", msg);
-            throw new RuntimeException("Broker auth failed: " + msg);
+            throw new IllegalStateException("Broker auth failed: " + msg);
         }
 
         return response.getData();

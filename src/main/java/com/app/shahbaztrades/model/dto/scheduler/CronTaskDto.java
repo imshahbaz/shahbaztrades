@@ -18,7 +18,11 @@ public class CronTaskDto implements Serializable {
     @Serial
     private static final long serialVersionUID = 3L;
 
-    private final SchedulerTaskType type = SchedulerTaskType.CRON;
+    private static final SchedulerTaskType TYPE = SchedulerTaskType.CRON;
+
+    public SchedulerTaskType getType() {
+        return TYPE;
+    }
 
     @NotBlank
     private final String cronId;

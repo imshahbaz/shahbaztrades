@@ -2,6 +2,8 @@ package com.app.shahbaztrades.util;
 
 import com.app.shahbaztrades.model.dto.scheduler.SchedulerCallBackDto;
 import com.google.gson.Gson;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.util.CollectionUtils;
@@ -11,18 +13,20 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.HexFormat;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+
 public class HelperUtil {
     public static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
-    public static final Random RANDOM = new Random();
+    public static final SecureRandom RANDOM = new SecureRandom();
     public static final Gson GSON = new Gson();
     public static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
     public static final RestTemplate REST_TEMPLATE = new RestTemplate();

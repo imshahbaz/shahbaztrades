@@ -12,7 +12,7 @@ public interface AuthService {
 
     ResponseEntity<ApiResponse<SignUpResponse>> signUp(AuthRequest request);
 
-    ResponseEntity<ApiResponse<Void>> Logout();
+    ResponseEntity<ApiResponse<Void>> logout();
 
     ResponseEntity<ApiResponse<UserDto>> getMe(UserDto dto);
 

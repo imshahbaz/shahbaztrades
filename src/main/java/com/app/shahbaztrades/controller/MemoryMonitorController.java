@@ -15,7 +15,7 @@ public class MemoryMonitorController {
     @GetMapping("/mem")
     public Map<String, Object> getMemoryStats() {
         Runtime runtime = Runtime.getRuntime();
-        long mb = 1024 * 1024;
+        long mb = 1024L * 1024;
 
         return Map.of(
                 "used_memory_mb", (runtime.totalMemory() - runtime.freeMemory()) / mb,

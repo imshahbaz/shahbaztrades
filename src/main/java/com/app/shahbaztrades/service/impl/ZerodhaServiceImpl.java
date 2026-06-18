@@ -167,6 +167,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     public void autoLogin(Set<Long> userIds) {
         var users = userService.findByIds(userIds);
         if (users.isEmpty()) {
+            log.info("Users not found for zerodha auto login");
             return;
         }
 
@@ -177,6 +178,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
                         tryAutoLogin(user);
                     } catch (InterruptedException e) {
                         log.info("Auto login interrupted {}", user.getUserId(), e);
+                        Thread.currentThread().interrupt();
                     } catch (Exception e) {
                         log.info("Auto login failed {} {}", user.getUserId(), e.getMessage());
                     }
@@ -188,7 +190,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     @Override
     public void autoConnectZerodhaSession(User user) {
         if (user.getZerodhaConfig() != null && user.getZerodhaConfig().isTotpEnabled() && ZerodhaValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
-            var res = sessionManagerClient.autoLogin(ZerodhaLoginRequestDTO.mapDto(user.getUserId(), user.getZerodhaConfig()), SessionManagerClient.source);
+            var res = sessionManagerClient.autoLogin(ZerodhaLoginRequestDTO.mapDto(user.getUserId(), user.getZerodhaConfig()), SessionManagerClient.SOURCE);
             if (res.isPending() && res.message().equals("Token generation already in progress")) {
                 throw new ResourceAlreadyExistsException("Request already exists");
             } else if (res.isError()) {

@@ -117,7 +117,7 @@ public class GenAiClient {
             );
 
             if (response == null || response.text() == null) {
-                throw new RuntimeException("Empty response matrix returned from target execution model context.");
+                throw new IllegalStateException("Empty response matrix returned from target execution model context.");
             }
 
             return response.text();

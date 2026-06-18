@@ -2,6 +2,8 @@ package com.app.shahbaztrades.components.analysis;
 
 import com.app.shahbaztrades.model.dto.analysis.TradingViewNewsResponse;
 import com.app.shahbaztrades.util.HelperUtil;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -9,12 +11,14 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+
 public class TradingViewClient {
 
-    public static String newsEndpoint = "https://news-mediator.tradingview.com/public/news-flow/v2/news";
+    public static final String NEWS_ENDPOINT = "https://news-mediator.tradingview.com/public/news-flow/v2/news";
 
     public static TradingViewNewsResponse getStockNews(String symbol) {
-        URI uri = UriComponentsBuilder.fromUriString(newsEndpoint)
+        URI uri = UriComponentsBuilder.fromUriString(NEWS_ENDPOINT)
                 .queryParam("client", "chart").queryParam("user_prostatus", "non_pro")
                 .queryParam("filter", "lang:en").queryParam("filter", "symbol:NSE:" + symbol)
                 .build().toUri();
