@@ -126,67 +126,76 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public ResponseEntity<?> googleAuthCallback(String code, String state) {
         if (state != null && state.startsWith("redirect|")) {
-            String[] parts = state.split("\\|");
-            if (parts.length == 2) {
-                String potentialTarget = parts[1];
-                boolean isAllowed = mongoConfigService.getConfig().getFrontendUrls().stream()
-                        .anyMatch(potentialTarget::startsWith);
-
-                if (!isAllowed) {
-                    throw new BadRequestException("Unauthorized redirect origin");
-                }
-
-                String id = UUID.randomUUID().toString();
-                String signedUuid = HelperUtil.signState(id, mongoConfigService.getConfig().getGoogleAuth().getEncryptionKey());
-
-                HelperUtil.EXECUTOR.execute(() -> {
-                    var gUser = googleAuthUtils.googleCallbackProcessing(code, id);
-                    if (Objects.isNull(gUser)) {
-                        return;
-                    }
-                    var user = userService.findOrCreateGoogleUser(gUser);
-                    stringRedisTemplate.opsForValue().set(AUTH_KEY + id, HelperUtil.GSON.toJson(user), Duration.ofMinutes(2));
-                });
-
-                String targetURL = potentialTarget + "/google/callback?code=" + signedUuid + "&state=standard";
-                return ResponseEntity.status(HttpStatus.TEMPORARY_REDIRECT)
-                        .header(HttpHeaders.LOCATION, targetURL)
-                        .build();
-            }
+            return processRedirectCallback(code, state);
         }
 
         if ("standard".equals(state)) {
-            String id = HelperUtil.extractAndVerify(code,
-                    mongoConfigService.getConfig().getGoogleAuth().getEncryptionKey());
-
-            if (id == null) {
-                throw new BadRequestException("Invalid or tampered session state");
-            }
-
-            String cacheKey = "auth_" + id;
-            var redisUser = stringRedisTemplate.opsForValue().get(cacheKey);
-
-            if (StringUtils.isEmpty(redisUser)) {
-                throw new NotFoundException("Request still under process or expired");
-            }
-
-            UserDto userDto = HelperUtil.GSON.fromJson(redisUser, UserDto.class);
-            String tokenStr = jwtService.generateToken(userDto);
-            String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), "production"));
-
-            stringRedisTemplate.opsForValue().set("auth_" + userDto.getUserId(), HelperUtil.GSON.toJson(userDto), Duration.ofHours(1));
-            stringRedisTemplate.delete(cacheKey);
-
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.SET_COOKIE, cookie)
-                    .body(ApiResponse.<UserDto>builder()
-                            .success(true)
-                            .message("User created")
-                            .data(userDto)
-                            .build());
+            return processStandardCallback(code);
         }
 
         throw new UnauthorizedException("Invalid state");
+    }
+
+    private ResponseEntity<?> processRedirectCallback(String code, String state) {
+        String[] parts = state.split("\\|");
+        if (parts.length == 2) {
+            String potentialTarget = parts[1];
+            boolean isAllowed = mongoConfigService.getConfig().getFrontendUrls().stream()
+                    .anyMatch(potentialTarget::startsWith);
+
+            if (!isAllowed) {
+                throw new BadRequestException("Unauthorized redirect origin");
+            }
+
+            String id = UUID.randomUUID().toString();
+            String signedUuid = HelperUtil.signState(id, mongoConfigService.getConfig().getGoogleAuth().getEncryptionKey());
+
+            HelperUtil.EXECUTOR.execute(() -> {
+                var gUser = googleAuthUtils.googleCallbackProcessing(code, id);
+                if (Objects.isNull(gUser)) {
+                    return;
+                }
+                var user = userService.findOrCreateGoogleUser(gUser);
+                stringRedisTemplate.opsForValue().set(AUTH_KEY + id, HelperUtil.GSON.toJson(user), Duration.ofMinutes(2));
+            });
+
+            String targetURL = potentialTarget + "/google/callback?code=" + signedUuid + "&state=standard";
+            return ResponseEntity.status(HttpStatus.TEMPORARY_REDIRECT)
+                    .header(HttpHeaders.LOCATION, targetURL)
+                    .build();
+        }
+        throw new UnauthorizedException("Invalid state");
+    }
+
+    private ResponseEntity<?> processStandardCallback(String code) {
+        String id = HelperUtil.extractAndVerify(code,
+                mongoConfigService.getConfig().getGoogleAuth().getEncryptionKey());
+
+        if (id == null) {
+            throw new BadRequestException("Invalid or tampered session state");
+        }
+
+        String cacheKey = "auth_" + id;
+        var redisUser = stringRedisTemplate.opsForValue().get(cacheKey);
+
+        if (StringUtils.isEmpty(redisUser)) {
+            throw new NotFoundException("Request still under process or expired");
+        }
+
+        UserDto userDto = HelperUtil.GSON.fromJson(redisUser, UserDto.class);
+        String tokenStr = jwtService.generateToken(userDto);
+        String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), "production"));
+
+        stringRedisTemplate.opsForValue().set("auth_" + userDto.getUserId(), HelperUtil.GSON.toJson(userDto), Duration.ofHours(1));
+        stringRedisTemplate.delete(cacheKey);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie)
+                .body(ApiResponse.<UserDto>builder()
+                        .success(true)
+                        .message("User created")
+                        .data(userDto)
+                        .build());
     }
 
 }

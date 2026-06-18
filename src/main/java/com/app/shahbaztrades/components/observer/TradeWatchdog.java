@@ -99,11 +99,7 @@ public class TradeWatchdog {
     @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.SECONDS)
     public void executeMtfPulse() {
         var activeKeys = mtfTradeWatchCache.getActiveKeys();
-        if (DateUtil.isSquareOffTimeReached()) {
-            if (!activeKeys.isEmpty()) {
-                log.info("Market session over. Purging mtf watchdog cache.");
-                mtfTradeWatchCache.invalidateAll();
-            }
+        if (handleMtfSquareOff(activeKeys)) {
             return;
         }
 
@@ -112,26 +108,41 @@ public class TradeWatchdog {
         }
 
         for (String activeKey : activeKeys) {
-            Lock lock = mtfTokenLocks.get(activeKey);
-            lock.lock();
-            try {
-                double ltp = angelOneService.getLTP(activeKey);
-                if (ltp <= 0) continue;
-                List<ActiveMtfTrade> trades = mtfTradeWatchCache.get(activeKey);
-                if (CollectionUtils.isEmpty(trades)) continue;
-                trades.forEach(trade -> {
-                    if (ltp != trade.getPrevLtp()) {
-                        trade.setPrevLtp(ltp);
-                        trade.setLtp(ltp);
-                        if (ltp > trade.getPeakPrice()) {
-                            trade.setPeakPrice((float) ltp);
-                        }
-                        applicationEventPublisher.publishEvent(trade);
-                    }
-                });
-            } finally {
-                lock.unlock();
+            processMtfActiveKey(activeKey);
+        }
+    }
+
+    private boolean handleMtfSquareOff(java.util.Set<String> activeKeys) {
+        if (DateUtil.isSquareOffTimeReached()) {
+            if (!activeKeys.isEmpty()) {
+                log.info("Market session over. Purging mtf watchdog cache.");
+                mtfTradeWatchCache.invalidateAll();
             }
+            return true;
+        }
+        return false;
+    }
+
+    private void processMtfActiveKey(String activeKey) {
+        Lock lock = mtfTokenLocks.get(activeKey);
+        lock.lock();
+        try {
+            double ltp = angelOneService.getLTP(activeKey);
+            if (ltp <= 0) return;
+            List<ActiveMtfTrade> trades = mtfTradeWatchCache.get(activeKey);
+            if (CollectionUtils.isEmpty(trades)) return;
+            trades.forEach(trade -> {
+                if (ltp != trade.getPrevLtp()) {
+                    trade.setPrevLtp(ltp);
+                    trade.setLtp(ltp);
+                    if (ltp > trade.getPeakPrice()) {
+                        trade.setPeakPrice((float) ltp);
+                    }
+                    applicationEventPublisher.publishEvent(trade);
+                }
+            });
+        } finally {
+            lock.unlock();
         }
     }
 

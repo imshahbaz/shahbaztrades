@@ -46,35 +46,45 @@ public class AngelOneClient {
         List<Margin> margins = new ArrayList<>();
         restClient.get()
                 .uri(url)
-                .exchange((request, response) -> {
-                    if (response.getStatusCode().isError()) {
-                        log.error("Failed to fetch Scrip Master. Status: {}", response.getStatusCode());
-                        return null;
-                    }
-
-                    try (InputStream is = response.getBody();
-                         JsonParser parser = objectMapper.getFactory().createParser(is)) {
-
-                        if (parser.nextToken() != JsonToken.START_ARRAY) return null;
-
-                        while (parser.nextToken() == JsonToken.START_OBJECT) {
-                            MinimalInstrument inst = objectMapper.readValue(parser, MinimalInstrument.class);
-                            if ("NSE".equals(inst.exchSeg()) && inst.symbol().endsWith("-EQ")) {
-                                if (cachedMargin.containsKey(inst.name())) {
-                                    Margin margin = cachedMargin.get(inst.name());
-                                    margin.setToken(inst.token());
-                                    margins.add(margin);
-                                }
-                            }
-                        }
-                    } catch (IOException e) {
-                        log.error("Error while streaming Scrip Master JSON", e);
-                    }
-                    return null;
-                });
+                .exchange((request, response) -> handleResponse(response, cachedMargin, margins));
 
         return margins;
     }
+
+    private Void handleResponse(org.springframework.http.client.ClientHttpResponse response, Map<String, Margin> cachedMargin, List<Margin> margins) {
+        try {
+            if (response.getStatusCode().isError()) {
+                log.error("Failed to fetch Scrip Master. Status: {}", response.getStatusCode());
+                return null;
+            }
+
+            try (InputStream is = response.getBody();
+                 JsonParser parser = objectMapper.getFactory().createParser(is)) {
+
+                if (parser.nextToken() != JsonToken.START_ARRAY) return null;
+
+                while (parser.nextToken() == JsonToken.START_OBJECT) {
+                    processInstrument(parser, cachedMargin, margins);
+                }
+            }
+        } catch (IOException e) {
+            log.error("Error while streaming Scrip Master JSON", e);
+        }
+        return null;
+    }
+
+    private void processInstrument(JsonParser parser, Map<String, Margin> cachedMargin, List<Margin> margins) throws IOException {
+        MinimalInstrument inst = objectMapper.readValue(parser, MinimalInstrument.class);
+        if ("NSE".equals(inst.exchSeg()) && inst.symbol().endsWith("-EQ")) {
+            Margin margin = cachedMargin.get(inst.name());
+            if (margin != null) {
+                margin.setToken(inst.token());
+                margins.add(margin);
+            }
+        }
+    }
+
+
 
     public AngelOneLoginResponse.LoginData getWebsocketLogin(MongoEnvConfig.AngelOneConfig config) {
         String otp = TotpUtil.generateTOTP(config.getSeed());
