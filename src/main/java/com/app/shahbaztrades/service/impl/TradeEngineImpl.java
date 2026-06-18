@@ -62,59 +62,67 @@ public class TradeEngineImpl implements TradeEngine {
         Set<String> processedStrategies = new HashSet<>();
 
         for (var order : orders) {
-            String strategyName = order.getStrategyName();
-            var strategy = strategyService.getCachedStrategies().get(strategyName);
-
-            if (strategy == null) {
-                log.error("Strategy configuration not found for {}", strategyName);
-                continue;
-            }
-
-            var list = strategyOrders.get(strategyName);
-            if (list == null) {
-                list = new CopyOnWriteArrayList<>();
-                list.add(order);
-            } else list.add(order);
-
-            strategyOrders.set(strategyName, list, DateUtil.getDurationUntilMarketClose());
-
-            if (processedStrategies.contains(strategyName)) {
-                continue;
-            }
-
-            processedStrategies.add(strategyName);
-            HelperUtil.EXECUTOR.execute(() -> startManualPoller(strategy));
+            processStrategyOrder(order, processedStrategies);
         }
 
+    }
+
+    private void processStrategyOrder(StrategyOrder order, Set<String> processedStrategies) {
+        String strategyName = order.getStrategyName();
+        var strategy = strategyService.getCachedStrategies().get(strategyName);
+
+        if (strategy == null) {
+            log.error("Strategy configuration not found for {}", strategyName);
+            return;
+        }
+
+        var list = strategyOrders.get(strategyName);
+        if (list == null) {
+            list = new CopyOnWriteArrayList<>();
+            list.add(order);
+        } else {
+            list.add(order);
+        }
+
+        strategyOrders.set(strategyName, list, DateUtil.getDurationUntilMarketClose());
+
+        if (processedStrategies.contains(strategyName)) {
+            return;
+        }
+
+        processedStrategies.add(strategyName);
+        HelperUtil.EXECUTOR.execute(() -> startManualPoller(strategy));
     }
 
     public void startManualPoller(StrategyDto strategy) {
         runningPollers.computeIfAbsent(strategy.getName(), name -> {
             log.info("Manual Watchdog Poller started for strategy {}", name);
-            return HelperUtil.SCHEDULER.scheduleAtFixedRate(() -> HelperUtil.EXECUTOR.execute(() -> {
-                if (DateUtil.isSquareOffTimeReached()) {
-                    log.info("Market closed. Watchdog exiting.");
-                    var task = runningPollers.remove(name);
-                    if (task != null) {
-                        task.cancel(false);
-                    }
-                    return;
-                }
-
-                String currentTime = LocalTime.now(DateUtil.IST_ZONE).format(HOUR_MIN_FORMATTER);
-
-                if (FIFTEEN_MIN_TARGETS.contains(currentTime)) {
-                    log.info("Target match at time {} ! Fetching signals...", currentTime);
-                    try {
-                        var signals = chartInkService.fetchTodayBacktestDataWithMargin(name);
-                        log.info("Complete signals list: {}", signals);
-                        eventPublisher.publishEvent(new ChartInkSignalEvent(name, signals));
-                    } catch (Exception e) {
-                        log.error("Manual fetch failed", e);
-                    }
-                }
-            }), 1, 1, TimeUnit.MINUTES);
+            return HelperUtil.SCHEDULER.scheduleAtFixedRate(() -> HelperUtil.EXECUTOR.execute(() -> runPollerTask(name)), 1, 1, TimeUnit.MINUTES);
         });
+    }
+
+    private void runPollerTask(String name) {
+        if (DateUtil.isSquareOffTimeReached()) {
+            log.info("Market closed. Watchdog exiting.");
+            var task = runningPollers.remove(name);
+            if (task != null) {
+                task.cancel(false);
+            }
+            return;
+        }
+
+        String currentTime = LocalTime.now(DateUtil.IST_ZONE).format(HOUR_MIN_FORMATTER);
+
+        if (FIFTEEN_MIN_TARGETS.contains(currentTime)) {
+            log.info("Target match at time {} ! Fetching signals...", currentTime);
+            try {
+                var signals = chartInkService.fetchTodayBacktestDataWithMargin(name);
+                log.info("Complete signals list: {}", signals);
+                eventPublisher.publishEvent(new ChartInkSignalEvent(name, signals));
+            } catch (Exception e) {
+                log.error("Manual fetch failed", e);
+            }
+        }
     }
 
     @EventListener
@@ -126,51 +134,66 @@ public class TradeEngineImpl implements TradeEngine {
         }
 
         for (var order : list) {
-            Boolean active = activeOrders.get(order.getId());
-            if (active != null && active)
-                continue;
-
-            var targetStock = findTargetStock(event.signals(), order.getAmount());
-            if (targetStock == null)
-                continue;
-
-            HelperUtil.EXECUTOR.execute(() -> punchSingleTrade(targetStock.margin(), targetStock.qty(), order.getUserId(), order));
+            processSignalForOrder(order, event.signals());
         }
+    }
+
+    private void processSignalForOrder(StrategyOrder order, List<ChartInkBacktestMarginDto> signals) {
+        Boolean active = activeOrders.get(order.getId());
+        if (active != null && active)
+            return;
+
+        var targetStock = findTargetStock(signals, order.getAmount());
+        if (targetStock == null)
+            return;
+
+        HelperUtil.EXECUTOR.execute(() -> punchSingleTrade(targetStock.margin(), targetStock.qty(), order.getUserId(), order));
     }
 
     private TargetStockResult findTargetStock(List<ChartInkBacktestMarginDto> signals, float orderAmount) {
         for (int i = signals.size() - 1; i >= 0; i--) {
             var signal = signals.get(i);
-            try {
-                var now = DateUtil.getCurrentDateTime();
-                if (now.isAfter(signal.getMarketTime().plusMinutes(20)) && now.isBefore(signal.getMarketTime().plusMinutes(23))) {
-                    if (!CollectionUtils.isEmpty(signal.getMargins())) {
-                        var target = signal.getMargins().getFirst();
-                        var ltp = angelOneService.getLTP(target.getToken());
-                        if (ltp == -2) {
-                            continue;
-                        }
+            var result = processSignal(signal, orderAmount);
+            if (result != null) return result;
+        }
+        return null;
+    }
 
-                        if (ltp == -1) {
-                            angelOneService.subscribe(target.getToken(), ExchangeType.NSE.getValue());
-                            Thread.sleep(1000);
-                            ltp = angelOneService.getLTP(target.getToken());
-                            if (ltp < 0) {
-                                continue;
-                            }
-                        }
+    private TargetStockResult processSignal(ChartInkBacktestMarginDto signal, float orderAmount) {
+        try {
+            var now = DateUtil.getCurrentDateTime();
+            if (now.isAfter(signal.getMarketTime().plusMinutes(20)) && now.isBefore(signal.getMarketTime().plusMinutes(23)) && !CollectionUtils.isEmpty(signal.getMargins())) {
+                var target = signal.getMargins().getFirst();
+                return processTargetMargin(target, orderAmount);
+            }
+        } catch (InterruptedException e) {
+            log.error("Interrupted processing signal", e);
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            log.error("Error processing signal", e);
+        }
+        return null;
+    }
 
-                        int quantity = (int) (orderAmount / target.getMargin());
-                        if (quantity > 0) {
-                            return new TargetStockResult(target, quantity);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                log.error("Error processing signal", e);
+    private TargetStockResult processTargetMargin(Margin target, float orderAmount) throws Exception {
+        var ltp = angelOneService.getLTP(target.getToken());
+        if (ltp == -2) {
+            return null;
+        }
+
+        if (ltp == -1) {
+            angelOneService.subscribe(target.getToken(), ExchangeType.NSE.getValue());
+            Thread.sleep(1000);
+            ltp = angelOneService.getLTP(target.getToken());
+            if (ltp < 0) {
+                return null;
             }
         }
 
+        int quantity = (int) (orderAmount / target.getRequiredMargin());
+        if (quantity > 0) {
+            return new TargetStockResult(target, quantity);
+        }
         return null;
     }
 

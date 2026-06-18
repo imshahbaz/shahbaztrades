@@ -3,6 +3,7 @@ package com.app.shahbaztrades.model.entity;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
 @Data
@@ -18,7 +19,8 @@ public class Margin {
 
     String name;
 
-    float margin;
+    @Field("margin")
+    float requiredMargin;
 
     String token;
 }

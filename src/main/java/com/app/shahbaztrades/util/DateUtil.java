@@ -1,8 +1,13 @@
 package com.app.shahbaztrades.util;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 
 public class DateUtil {
 
@@ -61,7 +66,7 @@ public class DateUtil {
     public static boolean isMarketClosedForTrading() {
         ZonedDateTime nowInIndia = ZonedDateTime.now(IST_ZONE);
         java.time.DayOfWeek day = nowInIndia.getDayOfWeek();
-        if (day == java.time.DayOfWeek.SATURDAY || day == java.time.DayOfWeek.SUNDAY) {
+        if (day.equals(java.time.DayOfWeek.SATURDAY) || day.equals(java.time.DayOfWeek.SUNDAY)) {
             return true;
         }
 

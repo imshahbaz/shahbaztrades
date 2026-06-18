@@ -98,10 +98,8 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
                     }
                 }
             }
-        } else if (message instanceof TextMessage textMessage) {
-            if ("pong".equals(textMessage.getPayload())) {
-                log.trace("Received keep-alive pong");
-            }
+        } else if (message instanceof TextMessage textMessage && "pong".equals(textMessage.getPayload())) {
+            log.trace("Received keep-alive pong");
         }
     }
 

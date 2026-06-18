@@ -5,11 +5,15 @@ import com.app.shahbaztrades.model.dto.scheduler.CronTaskDto;
 import com.app.shahbaztrades.model.dto.scheduler.ScheduledTaskDto;
 import com.app.shahbaztrades.model.dto.scheduler.SchedulerCallBackDto;
 import com.app.shahbaztrades.model.enums.SchedulerTaskType;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.redisson.executor.CronExpression;
 
 import java.net.URI;
 import java.time.Duration;
 import java.util.Set;
+
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 
 public class SchedulerValidator {
     private static final Set<String> allowedHttpMethods = Set.of("GET", "POST", "PUT", "DELETE", "PATCH");
