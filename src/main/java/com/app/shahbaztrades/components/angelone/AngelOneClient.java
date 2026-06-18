@@ -25,7 +25,7 @@ import java.util.Map;
 @Component
 public class AngelOneClient {
 
-    private static final String url = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json";
+    private static final String URL = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json";
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
     private final RestClient websocketRestClient;
@@ -45,7 +45,7 @@ public class AngelOneClient {
     public List<Margin> getTokens(Map<String, Margin> cachedMargin) {
         List<Margin> margins = new ArrayList<>();
         restClient.get()
-                .uri(url)
+                .uri(URL)
                 .exchange((request, response) -> handleResponse(response, cachedMargin, margins));
 
         return margins;

@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 @Component
 public class ChartinkClient {
 
-    private static final String tokenKey = "XSRF-TOKEN";
+    private static final String TOKEN_KEY = "XSRF-TOKEN";
     private static final String BASE_URL = "https://chartink.com";
     private static final String DEFAULT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     private final RestClient restClient;
@@ -47,7 +47,7 @@ public class ChartinkClient {
             return null;
         }
 
-        String rawCookie = res.cookie(tokenKey);
+        String rawCookie = res.cookie(TOKEN_KEY);
         if (rawCookie == null) {
             return null;
         }
