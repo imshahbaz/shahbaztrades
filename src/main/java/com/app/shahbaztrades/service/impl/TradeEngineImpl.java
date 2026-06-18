@@ -166,6 +166,9 @@ public class TradeEngineImpl implements TradeEngine {
                 var target = signal.getMargins().getFirst();
                 return processTargetMargin(target, orderAmount);
             }
+        } catch (InterruptedException e) {
+            log.error("Interrupted processing signal", e);
+            Thread.currentThread().interrupt();
         } catch (Exception e) {
             log.error("Error processing signal", e);
         }

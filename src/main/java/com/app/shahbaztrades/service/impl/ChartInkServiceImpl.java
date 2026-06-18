@@ -26,7 +26,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -89,7 +88,7 @@ public class ChartInkServiceImpl implements ChartInkService {
                 })
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparingDouble(StockMarginDto::getMargin).reversed())
-                .collect(Collectors.toList());
+                .toList();
 
         stringRedisTemplate.opsForValue().set(redisKey, HelperUtil.GSON.toJson(result), DateUtil.getNseCacheExpiryTime());
         return result;
@@ -115,7 +114,7 @@ public class ChartInkServiceImpl implements ChartInkService {
                 .filter(dto -> dto.getMarketTime().toLocalDate().isEqual(today))
                 .map(this::enrichWithMargin)
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -123,7 +122,7 @@ public class ChartInkServiceImpl implements ChartInkService {
         return fetchBacktestData(strategyName).stream()
                 .map(this::enrichWithMargin)
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private ChartInkBacktestMarginDto enrichWithMargin(ChartInkBacktestDto dto) {
@@ -133,7 +132,7 @@ public class ChartInkServiceImpl implements ChartInkService {
                 .map(symbol -> marginService.getMarginCache().get(symbol))
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparingDouble(Margin::getMargin).reversed())
-                .collect(Collectors.toList());
+                .toList();
 
         if (margins.isEmpty()) return null;
 

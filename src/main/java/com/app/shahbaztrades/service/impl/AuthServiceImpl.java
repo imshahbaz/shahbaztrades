@@ -63,7 +63,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Void>> Logout() {
+    public ResponseEntity<ApiResponse<Void>> logout() {
         var cookie = HelperUtil.createAuthCookie("", -1, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie)

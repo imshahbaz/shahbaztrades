@@ -34,9 +34,9 @@ public class OrderDto {
     String date;
 
     public Order toEntity(Margin margin) {
-        LocalDate date;
+        LocalDate parsedDate;
         try {
-            date = LocalDate.parse(this.date, DateTimeFormatter.ISO_LOCAL_DATE);
+            parsedDate = LocalDate.parse(this.date, DateTimeFormatter.ISO_LOCAL_DATE);
         } catch (Exception e) {
             throw new BadRequestException("Invalid date format");
         }
@@ -46,7 +46,7 @@ public class OrderDto {
                 .userId(this.userId)
                 .symbol(this.symbol)
                 .quantity(this.quantity)
-                .date(date.atStartOfDay(DateUtil.IST_ZONE).toInstant())
+                .date(parsedDate.atStartOfDay(DateUtil.IST_ZONE).toInstant())
                 .margin(margin).build();
     }
 }

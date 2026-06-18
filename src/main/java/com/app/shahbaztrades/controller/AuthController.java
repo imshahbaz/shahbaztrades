@@ -26,8 +26,8 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> Logout() {
-        return authService.Logout();
+    public ResponseEntity<ApiResponse<Void>> logout() {
+        return authService.logout();
     }
 
     @GetMapping("/me")

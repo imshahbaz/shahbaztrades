@@ -21,7 +21,11 @@ public class ScheduledTaskDto implements Serializable {
 
     private String taskId;
 
-    private final SchedulerTaskType type = SchedulerTaskType.TASK;
+    private static final SchedulerTaskType TYPE = SchedulerTaskType.TASK;
+
+    public SchedulerTaskType getType() {
+        return TYPE;
+    }
 
     @Valid
     private final SchedulerCallBackDto callBack;

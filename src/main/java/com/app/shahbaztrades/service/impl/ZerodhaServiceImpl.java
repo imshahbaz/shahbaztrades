@@ -178,6 +178,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
                         tryAutoLogin(user);
                     } catch (InterruptedException e) {
                         log.info("Auto login interrupted {}", user.getUserId(), e);
+                        Thread.currentThread().interrupt();
                     } catch (Exception e) {
                         log.info("Auto login failed {} {}", user.getUserId(), e.getMessage());
                     }
