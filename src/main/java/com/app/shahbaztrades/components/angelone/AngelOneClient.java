@@ -79,7 +79,7 @@ public class AngelOneClient {
     public AngelOneLoginResponse.LoginData getWebsocketLogin(MongoEnvConfig.AngelOneConfig config) {
         String otp = TotpUtil.generateTOTP(config.getSeed());
         if (otp.isEmpty()) {
-            throw new RuntimeException("Failed to generate TOTP");
+            throw new IllegalStateException("Failed to generate TOTP");
         }
 
         AngelOneLoginResponse response = websocketRestClient.post()
@@ -103,7 +103,7 @@ public class AngelOneClient {
         if (response == null || !response.isStatus()) {
             String msg = (response != null) ? response.getMessage() : "No response";
             log.error("AngelOne login rejected: {}", msg);
-            throw new RuntimeException("Broker auth failed: " + msg);
+            throw new IllegalStateException("Broker auth failed: " + msg);
         }
 
         return response.getData();

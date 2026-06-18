@@ -19,6 +19,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -203,6 +204,6 @@ public class ChartInkServiceImpl implements ChartInkService {
 
     @FunctionalInterface
     private interface ChartinkAction<T> {
-        T apply() throws Exception;
+        T apply() throws IOException;
     }
 }

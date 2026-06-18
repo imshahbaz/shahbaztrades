@@ -29,7 +29,7 @@ public class GoogleAuthUtils {
 
     public GoogleUser validateIdToken(String idTokenString) {
         if (idTokenString == null || idTokenString.isEmpty()) {
-            throw new RuntimeException("Empty ID token");
+            throw new IllegalArgumentException("Empty ID token");
         }
 
         try {
@@ -79,7 +79,7 @@ public class GoogleAuthUtils {
 
         Map<String, Object> response = HelperUtil.REST_TEMPLATE.postForObject(url, params, Map.class);
         if (response == null || !response.containsKey("access_token")) {
-            throw new RuntimeException("Failed to exchange code for access token");
+            throw new IllegalStateException("Failed to exchange code for access token");
         }
         return (String) response.get("access_token");
     }

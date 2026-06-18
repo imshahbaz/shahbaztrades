@@ -52,7 +52,7 @@ public class ZerodhaOrderClient {
         OrderResponse orderResponse = kc.placeOrder(orderParams, getVariety());
 
         if (orderResponse == null || orderResponse.orderId == null) {
-            throw new Exception("Order placement failed: No Order ID returned");
+            throw new IllegalStateException("Order placement failed: No Order ID returned");
         }
 
         return orderResponse.orderId;
@@ -63,7 +63,7 @@ public class ZerodhaOrderClient {
         List<Order> history = kc.getOrderHistory(orderId);
 
         if (CollectionUtils.isEmpty(history)) {
-            throw new Exception("No history found for order id " + orderId);
+            throw new IllegalArgumentException("No history found for order id " + orderId);
         }
 
         return history.getLast();
@@ -81,14 +81,14 @@ public class ZerodhaOrderClient {
             Order orderResponse = kc.cancelOrder(orderId, getVariety(), null);
 
             if (orderResponse == null) {
-                throw new Exception("Failed to cancel order " + orderId + ": No response from server");
+                throw new IllegalStateException("Failed to cancel order " + orderId + ": No response from server");
             }
 
             return orderResponse;
         } catch (Exception e) {
-            throw new Exception(String.format("failed to cancel order %s: %s", orderId, e.getMessage()), e);
+            throw new IllegalStateException(String.format("failed to cancel order %s: %s", orderId, e.getMessage()), e);
         } catch (KiteException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
         }
     }
 
