@@ -62,30 +62,36 @@ public class TradeEngineImpl implements TradeEngine {
         Set<String> processedStrategies = new HashSet<>();
 
         for (var order : orders) {
-            String strategyName = order.getStrategyName();
-            var strategy = strategyService.getCachedStrategies().get(strategyName);
-
-            if (strategy == null) {
-                log.error("Strategy configuration not found for {}", strategyName);
-                continue;
-            }
-
-            var list = strategyOrders.get(strategyName);
-            if (list == null) {
-                list = new CopyOnWriteArrayList<>();
-                list.add(order);
-            } else list.add(order);
-
-            strategyOrders.set(strategyName, list, DateUtil.getDurationUntilMarketClose());
-
-            if (processedStrategies.contains(strategyName)) {
-                continue;
-            }
-
-            processedStrategies.add(strategyName);
-            HelperUtil.EXECUTOR.execute(() -> startManualPoller(strategy));
+            processStrategyOrder(order, processedStrategies);
         }
 
+    }
+
+    private void processStrategyOrder(StrategyOrder order, Set<String> processedStrategies) {
+        String strategyName = order.getStrategyName();
+        var strategy = strategyService.getCachedStrategies().get(strategyName);
+
+        if (strategy == null) {
+            log.error("Strategy configuration not found for {}", strategyName);
+            return;
+        }
+
+        var list = strategyOrders.get(strategyName);
+        if (list == null) {
+            list = new CopyOnWriteArrayList<>();
+            list.add(order);
+        } else {
+            list.add(order);
+        }
+
+        strategyOrders.set(strategyName, list, DateUtil.getDurationUntilMarketClose());
+
+        if (processedStrategies.contains(strategyName)) {
+            return;
+        }
+
+        processedStrategies.add(strategyName);
+        HelperUtil.EXECUTOR.execute(() -> startManualPoller(strategy));
     }
 
     public void startManualPoller(StrategyDto strategy) {
@@ -128,16 +134,20 @@ public class TradeEngineImpl implements TradeEngine {
         }
 
         for (var order : list) {
-            Boolean active = activeOrders.get(order.getId());
-            if (active != null && active)
-                continue;
-
-            var targetStock = findTargetStock(event.signals(), order.getAmount());
-            if (targetStock == null)
-                continue;
-
-            HelperUtil.EXECUTOR.execute(() -> punchSingleTrade(targetStock.margin(), targetStock.qty(), order.getUserId(), order));
+            processSignalForOrder(order, event.signals());
         }
+    }
+
+    private void processSignalForOrder(StrategyOrder order, List<ChartInkBacktestMarginDto> signals) {
+        Boolean active = activeOrders.get(order.getId());
+        if (active != null && active)
+            return;
+
+        var targetStock = findTargetStock(signals, order.getAmount());
+        if (targetStock == null)
+            return;
+
+        HelperUtil.EXECUTOR.execute(() -> punchSingleTrade(targetStock.margin(), targetStock.qty(), order.getUserId(), order));
     }
 
     private TargetStockResult findTargetStock(List<ChartInkBacktestMarginDto> signals, float orderAmount) {
