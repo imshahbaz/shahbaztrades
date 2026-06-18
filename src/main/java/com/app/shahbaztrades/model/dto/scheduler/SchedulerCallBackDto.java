@@ -15,5 +15,6 @@ public record SchedulerCallBackDto(@NotBlank String url, @NotBlank String httpMe
 
     @JsonCreator
     public SchedulerCallBackDto {
+        // Required for Jackson deserialization
     }
 }

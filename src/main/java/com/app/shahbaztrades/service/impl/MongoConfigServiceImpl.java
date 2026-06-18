@@ -26,7 +26,11 @@ public class MongoConfigServiceImpl implements MongoConfigService {
 
     @Getter
     @Setter
-    private String angelOneJwtToken, angelOneFeedToken;
+    private String angelOneJwtToken;
+
+    @Getter
+    @Setter
+    private String angelOneFeedToken;
 
     @PostConstruct
     public void init() {

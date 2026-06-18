@@ -82,7 +82,7 @@ public class ChartInkServiceImpl implements ChartInkService {
                     return m == null ? null : StockMarginDto.builder()
                             .name(stock.getName())
                             .symbol(stock.getNsecode())
-                            .margin(m.getMargin())
+                            .margin(m.getRequiredMargin())
                             .close(stock.getClose())
                             .build();
                 })
@@ -131,7 +131,7 @@ public class ChartInkServiceImpl implements ChartInkService {
         List<Margin> margins = dto.getStocks().stream()
                 .map(symbol -> marginService.getMarginCache().get(symbol))
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparingDouble(Margin::getMargin).reversed())
+                .sorted(Comparator.comparingDouble(Margin::getRequiredMargin).reversed())
                 .toList();
 
         if (margins.isEmpty()) return null;

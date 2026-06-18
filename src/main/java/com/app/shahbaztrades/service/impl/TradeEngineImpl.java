@@ -190,7 +190,7 @@ public class TradeEngineImpl implements TradeEngine {
             }
         }
 
-        int quantity = (int) (orderAmount / target.getMargin());
+        int quantity = (int) (orderAmount / target.getRequiredMargin());
         if (quantity > 0) {
             return new TargetStockResult(target, quantity);
         }

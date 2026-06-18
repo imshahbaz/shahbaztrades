@@ -49,8 +49,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public ResponseEntity<ApiResponse<SignUpResponse>> signUp(AuthRequest request) {
-        //TODO validation
-
         var dto = request.toUserDto();
         var cacheConfig = CacheUtils.getKeyAndExpiry(dto.getEmail(), CacheType.SIGNUP);
         stringRedisTemplate.opsForValue().set(cacheConfig.key(), HelperUtil.GSON.toJson(dto), cacheConfig.expiry());

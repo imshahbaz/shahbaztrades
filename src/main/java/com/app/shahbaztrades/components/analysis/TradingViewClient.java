@@ -15,10 +15,10 @@ import java.net.URI;
 
 public class TradingViewClient {
 
-    public static String newsEndpoint = "https://news-mediator.tradingview.com/public/news-flow/v2/news";
+    public static final String NEWS_ENDPOINT = "https://news-mediator.tradingview.com/public/news-flow/v2/news";
 
     public static TradingViewNewsResponse getStockNews(String symbol) {
-        URI uri = UriComponentsBuilder.fromUriString(newsEndpoint)
+        URI uri = UriComponentsBuilder.fromUriString(NEWS_ENDPOINT)
                 .queryParam("client", "chart").queryParam("user_prostatus", "non_pro")
                 .queryParam("filter", "lang:en").queryParam("filter", "symbol:NSE:" + symbol)
                 .build().toUri();

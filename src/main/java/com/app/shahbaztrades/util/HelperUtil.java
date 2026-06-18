@@ -13,10 +13,10 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.HexFormat;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 public class HelperUtil {
     public static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
-    public static final Random RANDOM = new Random();
+    public static final SecureRandom RANDOM = new SecureRandom();
     public static final Gson GSON = new Gson();
     public static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
     public static final RestTemplate REST_TEMPLATE = new RestTemplate();

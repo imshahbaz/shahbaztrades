@@ -70,7 +70,10 @@ public class Cache<K, V> {
                 .data(value)
                 .expiryTime(expiryTime)
                 .build());
-        expiryQueue.offer(new ExpiryNode<>(key, expiryTime));
+        boolean offered = expiryQueue.offer(new ExpiryNode<>(key, expiryTime));
+        if (!offered) {
+            log.warn("Failed to add expiry node for key {}", key);
+        }
     }
 
     public Set<K> getActiveKeys() {

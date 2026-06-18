@@ -8,6 +8,7 @@ class TradeAppTests {
 
     @Test
     void contextLoads() {
+        // Test context loads successfully
     }
 
 }
