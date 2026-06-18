@@ -41,7 +41,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public User createUser(UserDto userDto) {
-        var user = findByUserIdOrEmailOrMobile(userDto.getUserId(), userDto.getEmail(), userDto.getMobile());
+        var user = this.findByUserIdOrEmailOrMobile(userDto.getUserId(), userDto.getEmail(), userDto.getMobile());
         if (user != null) {
             throw new ResourceAlreadyExistsException("User already exists!");
         }
