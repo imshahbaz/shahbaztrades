@@ -37,6 +37,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
+    private static final String ENV_PRODUCTION = "production";
+
     private final StringRedisTemplate stringRedisTemplate;
     private final OtpProviderFactory otpProviderFactory;
     private final Environment environment;
@@ -62,7 +64,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public ResponseEntity<ApiResponse<Void>> Logout() {
-        var cookie = HelperUtil.createAuthCookie("", -1, Objects.equals(environment.getProperty("ENV"), "production"));
+        var cookie = HelperUtil.createAuthCookie("", -1, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie)
                 .body(ApiResponse.ok(null, "Logged out successfully"));
@@ -100,7 +102,7 @@ public class AuthServiceImpl implements AuthService {
 
             var user = userService.findOrCreateGoogleUser(gUser);
             String tokenStr = jwtService.generateToken(user.toDto());
-            String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), "production"));
+            String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
             return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie)
                     .body(ApiResponse.ok(tokenStr, "Google Token"));
         }
@@ -184,7 +186,7 @@ public class AuthServiceImpl implements AuthService {
 
         UserDto userDto = HelperUtil.GSON.fromJson(redisUser, UserDto.class);
         String tokenStr = jwtService.generateToken(userDto);
-        String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), "production"));
+        String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
 
         stringRedisTemplate.opsForValue().set("auth_" + userDto.getUserId(), HelperUtil.GSON.toJson(userDto), Duration.ofHours(1));
         stringRedisTemplate.delete(cacheKey);
