@@ -37,13 +37,11 @@ public class SecurityInterceptor implements HandlerInterceptor {
 
         UserDto userDto = null;
         for (Cookie c : cookies) {
-            if ("auth_token".equals(c.getName())) {
-                if (StringUtils.isNotEmpty(c.getValue())) {
-                    var claims = jwtService.validateToken(c.getValue());
-                    userDto = claims.getUser();
-                    request.setAttribute("user", claims.getUser());
-                    break;
-                }
+            if ("auth_token".equals(c.getName()) && StringUtils.isNotEmpty(c.getValue())) {
+                var claims = jwtService.validateToken(c.getValue());
+                userDto = claims.getUser();
+                request.setAttribute("user", claims.getUser());
+                break;
             }
         }
 
@@ -51,10 +49,8 @@ public class SecurityInterceptor implements HandlerInterceptor {
             throw new UnauthorizedException("Unauthorized");
         }
 
-        if (handlerMethod.hasMethodAnnotation(AdminOnly.class)) {
-            if (!userDto.getRole().equals(UserRole.ADMIN)) {
-                throw new ForbiddenException("Forbidden: Admin access required");
-            }
+        if (handlerMethod.hasMethodAnnotation(AdminOnly.class) && !userDto.getRole().equals(UserRole.ADMIN)) {
+            throw new ForbiddenException("Forbidden: Admin access required");
         }
 
         return true;

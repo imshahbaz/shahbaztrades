@@ -162,11 +162,9 @@ public class TradeEngineImpl implements TradeEngine {
     private TargetStockResult processSignal(ChartInkBacktestMarginDto signal, float orderAmount) {
         try {
             var now = DateUtil.getCurrentDateTime();
-            if (now.isAfter(signal.getMarketTime().plusMinutes(20)) && now.isBefore(signal.getMarketTime().plusMinutes(23))) {
-                if (!CollectionUtils.isEmpty(signal.getMargins())) {
-                    var target = signal.getMargins().getFirst();
-                    return processTargetMargin(target, orderAmount);
-                }
+            if (now.isAfter(signal.getMarketTime().plusMinutes(20)) && now.isBefore(signal.getMarketTime().plusMinutes(23)) && !CollectionUtils.isEmpty(signal.getMargins())) {
+                var target = signal.getMargins().getFirst();
+                return processTargetMargin(target, orderAmount);
             }
         } catch (Exception e) {
             log.error("Error processing signal", e);

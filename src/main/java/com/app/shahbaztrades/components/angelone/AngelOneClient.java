@@ -75,12 +75,10 @@ public class AngelOneClient {
 
     private void processInstrument(JsonParser parser, Map<String, Margin> cachedMargin, List<Margin> margins) throws IOException {
         MinimalInstrument inst = objectMapper.readValue(parser, MinimalInstrument.class);
-        if ("NSE".equals(inst.exchSeg()) && inst.symbol().endsWith("-EQ")) {
-            Margin margin = cachedMargin.get(inst.name());
-            if (margin != null) {
-                margin.setToken(inst.token());
-                margins.add(margin);
-            }
+        Margin margin;
+        if ("NSE".equals(inst.exchSeg()) && inst.symbol().endsWith("-EQ") && (margin = cachedMargin.get(inst.name())) != null) {
+            margin.setToken(inst.token());
+            margins.add(margin);
         }
     }
 
