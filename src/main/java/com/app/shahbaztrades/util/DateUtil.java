@@ -1,8 +1,13 @@
 package com.app.shahbaztrades.util;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 
 public class DateUtil {
 

@@ -1,8 +1,11 @@
 package com.app.shahbaztrades.util;
 
 import com.app.shahbaztrades.exceptions.UnauthorizedException;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class Constants {
     public static final String ZERODHA_AUTO_LOGIN_KEY = "ZERODHA_AUTO_LOGIN:";
     public static final String SESSION_MANAGER_SOURCE = "session-manager";

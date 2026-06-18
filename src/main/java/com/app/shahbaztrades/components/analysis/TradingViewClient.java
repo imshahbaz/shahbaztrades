@@ -2,12 +2,16 @@ package com.app.shahbaztrades.components.analysis;
 
 import com.app.shahbaztrades.model.dto.analysis.TradingViewNewsResponse;
 import com.app.shahbaztrades.util.HelperUtil;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 
 public class TradingViewClient {
 

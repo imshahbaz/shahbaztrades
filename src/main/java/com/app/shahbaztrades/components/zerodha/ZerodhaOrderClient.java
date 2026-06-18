@@ -7,9 +7,13 @@ import com.zerodhatech.kiteconnect.utils.Constants;
 import com.zerodhatech.models.Order;
 import com.zerodhatech.models.OrderParams;
 import com.zerodhatech.models.OrderResponse;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.springframework.util.CollectionUtils;
 
 import java.util.List;
+
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 
 public class ZerodhaOrderClient {
 

@@ -2,6 +2,8 @@ package com.app.shahbaztrades.util;
 
 import com.app.shahbaztrades.model.dto.scheduler.SchedulerCallBackDto;
 import com.google.gson.Gson;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.util.CollectionUtils;
@@ -19,6 +21,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 
 public class HelperUtil {
     public static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
