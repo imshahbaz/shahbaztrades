@@ -90,7 +90,7 @@ public class MarginServiceImpl implements MarginService {
                 toSave.add(Margin.builder()
                         .symbol(raw.tradingSymbol)
                         .name(raw.tradingSymbol)
-                        .margin(raw.leverage)
+                        .requiredMargin(raw.leverage)
                         .build());
             }
         }
