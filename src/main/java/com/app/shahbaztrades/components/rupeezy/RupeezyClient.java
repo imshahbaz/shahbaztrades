@@ -26,8 +26,8 @@ public interface RupeezyClient {
     RupeezyOrderResponseDto cancelOrder(@PathVariable String orderId, @RequestHeader("x-api-key") String apiKey,
                                         @RequestHeader("Authorization") String authorization);
 
-    @GetMapping("/trading/orders/{orderId}")
-    RupeezyOrderHistory getOrder(@PathVariable String orderId, @RequestHeader("x-api-key") String apiKey,
+    @GetMapping("/trading/orders")
+    RupeezyOrderHistory getOrder(@RequestHeader("x-api-key") String apiKey,
                                  @RequestHeader("Authorization") String authorization);
 
     @GetMapping("/user/funds")

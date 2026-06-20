@@ -6,6 +6,7 @@ import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.dto.order.TradeOrderResponse;
 import com.app.shahbaztrades.model.dto.rupeezy.RupeezyOrderDto;
+import com.app.shahbaztrades.model.dto.rupeezy.RupeezyOrderHistory;
 import com.app.shahbaztrades.model.dto.rupeezy.RupeezyOrderResponseDto;
 import com.app.shahbaztrades.model.dto.rupeezy.RupeezyTokenCache;
 import com.app.shahbaztrades.model.enums.BrokerType;
@@ -50,7 +51,8 @@ public class RupeezyOrderRouter implements OrderRoutingStrategy {
                 .ticker(ExchangeType.NSE.name() + ":" + request.getSymbol())
                 .transactionType(Constants.TRANSACTION_TYPE_SELL)
                 .product(Constants.PRODUCT_MTF)
-                .quantity(request.getQuantity()).price(request.getPrice() == null ? 0 : request.getPrice())
+                .quantity(request.getQuantity())
+                .price(request.getPrice() == null ? 0 : request.getPrice())
                 .triggerPrice(request.getTriggerPrice() == null ? 0 : request.getTriggerPrice())
                 .variety(RupeezyOrderType.SL.getType())
                 .build();
@@ -85,7 +87,29 @@ public class RupeezyOrderRouter implements OrderRoutingStrategy {
 
     @Override
     public TradeOrderResponse getOrderDetails(Long userId, String orderId) {
-        return null;
+        var cache = getTokenCache(userId);
+        RupeezyOrderHistory res;
+        try {
+            res = rupeezyClient.getOrder(cache.getApiSecret(), RupeezyClient.BEARER + cache.getAccessToken());
+        } catch (Exception e) {
+            throw new NotFoundException("Can't get order details");
+        }
+
+        if (res == null || !res.isSuccess()) {
+            throw new NotFoundException("Can't get order details");
+        }
+
+        var orderData = res.getOrder(orderId);
+        if (orderData == null) {
+            throw new NotFoundException("Order not found");
+        }
+
+        return TradeOrderResponse.builder()
+                .orderId(orderData.getOrderId())
+                .status(orderData.getStatus())
+                .averagePrice(orderData.getAveragePrice())
+                .pendingQuantity(orderData.getPendingQuantity())
+                .build();
     }
 
     private RupeezyTokenCache getTokenCache(Long userId) {
