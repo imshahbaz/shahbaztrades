@@ -32,6 +32,7 @@ public class User {
     ZerodhaConfig zerodhaConfig;
     MstockConfig mstockConfig;
     String fcmToken;
+    RupeezyConfig rupeezyConfig;
 
     public UserDto toDto() {
         return UserDto.builder()
@@ -73,6 +74,16 @@ public class User {
         String apiKey;
         String username;
         String password;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class RupeezyConfig {
+
+        String apiSecret;
+        String appId;
     }
 
 }

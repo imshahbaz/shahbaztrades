@@ -19,18 +19,15 @@ public class CronTaskDto implements Serializable {
     private static final long serialVersionUID = 3L;
 
     private static final SchedulerTaskType TYPE = SchedulerTaskType.CRON;
+    @NotBlank
+    private final String cronId;
+    @Valid
+    private final SchedulerCallBackDto callBack;
+    @NotBlank
+    private final String cronExpression;
 
     public SchedulerTaskType getType() {
         return TYPE;
     }
-
-    @NotBlank
-    private final String cronId;
-
-    @Valid
-    private final SchedulerCallBackDto callBack;
-
-    @NotBlank
-    private final String cronExpression;
 
 }

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
-public record ZerodhaLoginDto(
+public record BrokerLoginDto(
         @NotBlank
         @JsonProperty("request_token")
         String requestToken,

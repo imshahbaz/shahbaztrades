@@ -1,6 +1,7 @@
 package com.app.shahbaztrades.model.entity;
 
 import com.app.shahbaztrades.model.dto.order.OrderDto;
+import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.util.DateUtil;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -37,13 +38,16 @@ public class Order {
 
     Margin margin;
 
+    BrokerType broker;
+
     public OrderDto toDto() {
         return OrderDto.builder()
-                .id(id)
-                .userId(userId)
-                .symbol(symbol)
-                .quantity(quantity)
-                .date(DateTimeFormatter.ISO_LOCAL_DATE.withZone(DateUtil.IST_ZONE).format(date))
+                .id(this.id)
+                .userId(this.userId)
+                .symbol(this.symbol)
+                .quantity(this.quantity)
+                .date(DateTimeFormatter.ISO_LOCAL_DATE.withZone(DateUtil.IST_ZONE).format(this.date))
+                .broker(this.broker)
                 .build();
     }
 
@@ -55,6 +59,6 @@ public class Order {
     public static class ExecutionRecord {
         String brokerOrderId;
         String orderStatus;
-        float averagePrice;
+        double averagePrice;
     }
 }

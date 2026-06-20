@@ -1,6 +1,7 @@
 package com.app.shahbaztrades.model.entity;
 
 import com.app.shahbaztrades.model.dto.order.StrategyOrderDto;
+import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.util.DateUtil;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -31,13 +32,16 @@ public class StrategyOrder {
 
     float amount;
 
+    BrokerType broker;
+
     public StrategyOrderDto toDto() {
         return StrategyOrderDto.builder()
-                .id(id)
-                .userId(userId)
-                .strategyName(strategyName)
-                .date(DateTimeFormatter.ISO_LOCAL_DATE.withZone(DateUtil.IST_ZONE).format(date))
-                .amount(amount)
+                .id(this.id)
+                .userId(this.userId)
+                .strategyName(this.strategyName)
+                .date(DateTimeFormatter.ISO_LOCAL_DATE.withZone(DateUtil.IST_ZONE).format(this.date))
+                .amount(this.amount)
+                .broker(this.broker)
                 .build();
     }
 

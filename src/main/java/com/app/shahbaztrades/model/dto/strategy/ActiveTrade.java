@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.model.dto.strategy;
 
+import com.app.shahbaztrades.model.enums.BrokerType;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Data;
@@ -21,4 +22,5 @@ public class ActiveTrade {
     String entryOrderId;
     String exitOrderId;
     long timestamp;
+    BrokerType broker;
 }

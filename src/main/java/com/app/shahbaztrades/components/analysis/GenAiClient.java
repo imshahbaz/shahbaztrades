@@ -16,9 +16,6 @@ import java.util.stream.Collectors;
 public class GenAiClient {
 
     private static final String MODEL_FLASH_25 = "gemini-2.5-flash";
-
-    private final Map<String, Client> clientCache = new ConcurrentHashMap<>();
-
     private static final String SYSTEM_INSTRUCTION = """
             You are a professional NSE technical analyst and quant trader.
             
@@ -51,6 +48,7 @@ public class GenAiClient {
             No explanation outside JSON.
             No markdown.
             No extra text.""";
+    private final Map<String, Client> clientCache = new ConcurrentHashMap<>();
 
     private Schema createResponseSchema() {
         return Schema.builder()

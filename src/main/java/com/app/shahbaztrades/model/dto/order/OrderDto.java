@@ -3,9 +3,11 @@ package com.app.shahbaztrades.model.dto.order;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.Order;
+import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.util.DateUtil;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -33,6 +35,9 @@ public class OrderDto {
     @NotBlank
     String date;
 
+    @NotNull
+    BrokerType broker;
+
     public Order toEntity(Margin margin) {
         LocalDate parsedDate;
         try {
@@ -47,6 +52,8 @@ public class OrderDto {
                 .symbol(this.symbol)
                 .quantity(this.quantity)
                 .date(parsedDate.atStartOfDay(DateUtil.IST_ZONE).toInstant())
-                .margin(margin).build();
+                .margin(margin)
+                .broker(this.broker)
+                .build();
     }
 }

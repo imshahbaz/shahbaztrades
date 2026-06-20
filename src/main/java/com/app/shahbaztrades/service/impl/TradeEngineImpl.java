@@ -1,10 +1,11 @@
 package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
-import com.app.shahbaztrades.components.zerodha.ZerodhaOrderClient;
+import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestMarginDto;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkSignalEvent;
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
+import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.dto.strategy.ActiveTrade;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
 import com.app.shahbaztrades.model.dto.strategy.TargetStockResult;
@@ -16,8 +17,6 @@ import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.Cache;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
-import com.zerodhatech.kiteconnect.KiteConnect;
-import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +48,7 @@ public class TradeEngineImpl implements TradeEngine {
     private final ApplicationEventPublisher eventPublisher;
     private final AngelOneService angelOneService;
     private final TradeWatchdog tradeWatchdog;
-    private final ZerodhaService zerodhaService;
+    private final OrderRouterFactory orderRouterFactory;
 
     @Override
     public void continuousTrade() {
@@ -200,38 +199,27 @@ public class TradeEngineImpl implements TradeEngine {
     private void punchSingleTrade(Margin targetStock, int qty, long userId, StrategyOrder order) {
         log.info("Initiating trade for User: {} | Symbol: {} | Qty: {}", userId, targetStock.getSymbol(), qty);
 
-        var kc = getKiteConnect(userId);
-        if (kc == null) {
-            return;
-        }
-
         try {
-            var orderResp = ZerodhaOrderClient.placeMTFOrder(
-                    kc,
-                    targetStock.getSymbol(),
-                    qty,
-                    null,
-                    Constants.TRANSACTION_TYPE_BUY,
-                    Constants.ORDER_TYPE_MARKET
-            );
+            var orderRouter = orderRouterFactory.getRouter(order.getBroker());
+
+            var req = TradeOrderRequest.builder().symbol(targetStock.getSymbol()).quantity(qty)
+                    .transactionType(Constants.TRANSACTION_TYPE_BUY).orderType(Constants.ORDER_TYPE_MARKET).build();
+
+            var orderResp = orderRouter.placeMTFOrder(order.getUserId(), req);
 
             HelperUtil.pollWait(1000);
 
-            var orderDetails = ZerodhaOrderClient.getOrderDetails(kc, orderResp.orderId);
-            double entryPrice = Double.parseDouble(orderDetails.averagePrice);
+            var orderDetails = orderRouter.getOrderDetails(order.getUserId(), orderResp.getOrderId());
+            double entryPrice = orderDetails.getAveragePrice();
 
             double targetPrice = HelperUtil.fixToTick(entryPrice * 1.004);
 
             log.info("Entry Executed at: {} | Target Set at: {}", entryPrice, targetPrice);
 
-            var exitResp = ZerodhaOrderClient.placeMTFOrder(
-                    kc,
-                    targetStock.getSymbol(),
-                    qty,
-                    targetPrice,
-                    Constants.TRANSACTION_TYPE_SELL,
-                    Constants.ORDER_TYPE_LIMIT
-            );
+            req = TradeOrderRequest.builder().symbol(targetStock.getSymbol()).quantity(qty).price(targetPrice)
+                    .transactionType(Constants.TRANSACTION_TYPE_SELL).orderType(Constants.ORDER_TYPE_LIMIT).build();
+
+            var exitResp = orderRouter.placeMTFOrder(order.getUserId(), req);
 
             tradeWatchdog.watch(ActiveTrade.builder()
                     .userId(userId)
@@ -241,7 +229,8 @@ public class TradeEngineImpl implements TradeEngine {
                     .quantity(qty)
                     .entryPrice(entryPrice)
                     .targetPrice(targetPrice)
-                    .exitOrderId(exitResp.orderId)
+                    .exitOrderId(exitResp.getOrderId())
+                    .broker(order.getBroker())
                     .build());
 
             eventPublisher.publishEvent(new NotificationRequest(
@@ -253,21 +242,17 @@ public class TradeEngineImpl implements TradeEngine {
 
             activeOrders.set(order.getId(), Boolean.TRUE, DateUtil.getDurationUntilMarketClose());
 
-        } catch (KiteException | Exception e) {
+        } catch (Exception e) {
             log.error("Error in punchSingleTrade for {}", targetStock.getSymbol(), e);
         }
     }
 
     @EventListener
     @Async("taskExecutor")
-    public void tradeCompletionListener(TradeCompletionEvent event) throws KiteException, Exception {
-        var kc = getKiteConnect(event.userId());
-        if (kc == null) {
-            return;
-        }
-
-        var det = ZerodhaOrderClient.getOrderDetails(kc, event.trade().getExitOrderId());
-        if (Integer.parseInt(det.pendingQuantity) == 0) {
+    public void tradeCompletionListener(TradeCompletionEvent event) throws Exception {
+        var orderRouter = orderRouterFactory.getRouter(event.trade().getBroker());
+        var det = orderRouter.getOrderDetails(event.userId(), event.trade().getExitOrderId());
+        if (det.getPendingQuantity() == 0) {
             log.info("Exit order filled for {}", event.trade().getSymbol());
             eventPublisher.publishEvent(new NotificationRequest(
                     event.userId(),
@@ -277,15 +262,6 @@ public class TradeEngineImpl implements TradeEngine {
             ));
 
             activeOrders.remove(event.trade().getStrategyOrderId());
-        }
-    }
-
-    private KiteConnect getKiteConnect(long userId) {
-        try {
-            return zerodhaService.getKiteClient(userId);
-        } catch (Exception e) {
-            log.error("Error connecting to Kite Client for user {}", userId, e);
-            return null;
         }
     }
 

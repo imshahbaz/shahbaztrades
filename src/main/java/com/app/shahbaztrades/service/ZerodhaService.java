@@ -3,7 +3,7 @@ package com.app.shahbaztrades.service;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginResponseDTO;
-import com.app.shahbaztrades.model.dto.zerodha.ZerodhaLoginDto;
+import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.util.Cache;
 import com.zerodhatech.kiteconnect.KiteConnect;
@@ -23,7 +23,7 @@ public interface ZerodhaService {
 
     KiteConnect getKiteClient(Long userId);
 
-    ResponseEntity<ApiResponse<Void>> login(ZerodhaLoginDto request);
+    ResponseEntity<ApiResponse<Void>> login(BrokerLoginDto request);
 
     ResponseEntity<ApiResponse<String>> getAuth(UserDto userDto);
 
