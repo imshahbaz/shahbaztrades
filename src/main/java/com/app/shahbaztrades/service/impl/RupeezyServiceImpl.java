@@ -66,7 +66,7 @@ public class RupeezyServiceImpl implements RupeezyService {
         }
 
         var cache = getTokenCache(user.getUserId());
-        if (cache==null) {
+        if (cache == null) {
             return ResponseEntity.ok(ApiResponse.<String>builder()
                     .success(Boolean.FALSE)
                     .data(config.getAppId())
@@ -113,10 +113,11 @@ public class RupeezyServiceImpl implements RupeezyService {
         if (cache == null) {
             var cacheString = stringRedisTemplate.opsForValue().get(RUPEEZY_TOKEN_KEY + userId);
             if (!StringUtils.isEmpty(cacheString)) {
-                return HelperUtil.GSON.fromJson(cacheString, RupeezyTokenCache.class);
+                cache = HelperUtil.GSON.fromJson(cacheString, RupeezyTokenCache.class);
+                rupeezyTokenCache.set(userId, cache, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
             }
         }
-        return null;
+        return cache;
     }
 
     private User getUser(Long userId) {
