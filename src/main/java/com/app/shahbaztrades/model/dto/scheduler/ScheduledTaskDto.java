@@ -18,20 +18,16 @@ public class ScheduledTaskDto implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 3L;
-
-    private String taskId;
-
     private static final SchedulerTaskType TYPE = SchedulerTaskType.TASK;
+    @Valid
+    private final SchedulerCallBackDto callBack;
+    @Min(1)
+    private final long executionTime;
+    private String taskId;
 
     public SchedulerTaskType getType() {
         return TYPE;
     }
-
-    @Valid
-    private final SchedulerCallBackDto callBack;
-
-    @Min(1)
-    private final long executionTime;
 
     public void generateTaskId() {
         this.taskId = UUID.randomUUID() + "-" + System.currentTimeMillis();

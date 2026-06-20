@@ -83,7 +83,6 @@ public class AngelOneClient {
     }
 
 
-
     public AngelOneLoginResponse.LoginData getWebsocketLogin(MongoEnvConfig.AngelOneConfig config) {
         String otp = TotpUtil.generateTOTP(config.getSeed());
         if (otp.isEmpty()) {

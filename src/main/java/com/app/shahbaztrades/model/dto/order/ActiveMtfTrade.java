@@ -15,6 +15,6 @@ public class ActiveMtfTrade {
     double ltp;
     @Builder.Default
     double prevLtp = 0;
-    float peakPrice;
+    double peakPrice;
     Order order;
 }

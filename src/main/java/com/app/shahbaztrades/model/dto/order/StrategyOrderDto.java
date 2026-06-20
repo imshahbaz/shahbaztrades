@@ -2,15 +2,16 @@ package com.app.shahbaztrades.model.dto.order;
 
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.model.entity.StrategyOrder;
+import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.util.DateUtil;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-
 
 @Data
 @Builder
@@ -32,6 +33,9 @@ public class StrategyOrderDto {
     @Min(1)
     float amount;
 
+    @NotNull
+    BrokerType broker;
+
     public StrategyOrder toEntity() {
         LocalDate parsedDate;
         try {
@@ -41,11 +45,12 @@ public class StrategyOrderDto {
         }
 
         return StrategyOrder.builder()
-                .id(id)
-                .userId(userId)
-                .strategyName(strategyName)
+                .id(this.id)
+                .userId(this.userId)
+                .strategyName(this.strategyName)
                 .date(parsedDate.atStartOfDay(DateUtil.IST_ZONE).toInstant())
-                .amount(amount)
+                .amount(this.amount)
+                .broker(this.broker)
                 .build();
     }
 

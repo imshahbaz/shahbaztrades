@@ -8,6 +8,10 @@ import dev.samstevens.totp.time.TimeProvider;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 
 public class TotpUtil {
@@ -26,6 +30,28 @@ public class TotpUtil {
             return codeGenerator.generate(secret, currentBucket);
         } catch (Exception e) {
             return "";
+        }
+    }
+
+    public static String generateChecksum(String applicationId, String authToken, String apiKey) {
+        try {
+            String combinedString = applicationId + authToken + apiKey;
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(combinedString.getBytes(StandardCharsets.UTF_8));
+
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hashBytes) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+
+            return hexString.toString();
+
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 algorithm implementation missing from runtime kernel context", e);
         }
     }
 
