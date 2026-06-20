@@ -295,7 +295,15 @@ public class OrderServiceImpl implements OrderService {
 
             var pendingQty = orderDetails.getPendingQuantity();
             if (pendingQty > 0) {
-                orderRouter.convertSLToMarket(order.getUserId(), order.getExit().getBrokerOrderId(), pendingQty);
+                var req = TradeOrderRequest.builder()
+                        .orderId(order.getExit().getBrokerOrderId())
+                        .symbol(order.getSymbol())
+                        .quantity(pendingQty)
+                        .transactionType(Constants.TRANSACTION_TYPE_SELL)
+                        .orderType(Constants.ORDER_TYPE_MARKET)
+                        .build();
+
+                orderRouter.convertSLToMarket(order.getUserId(), req);
                 log.info("MTF SL order converted to market for user {} symbol {}", order.getUserId(), order.getSymbol());
             }
             return -1;

@@ -7,11 +7,13 @@ import com.app.shahbaztrades.exceptions.UnauthorizedException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.rupeezy.RupeezySessionRequest;
+import com.app.shahbaztrades.model.dto.rupeezy.RupeezyTokenCache;
 import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.service.RupeezyService;
 import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.util.DateUtil;
+import com.app.shahbaztrades.util.HelperUtil;
 import com.app.shahbaztrades.validator.BrokerConfigValidator;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -47,7 +49,10 @@ public class RupeezyServiceImpl implements RupeezyService {
             throw new NotFoundException("Access token not found");
         }
 
-        stringRedisTemplate.opsForValue().set(RUPEEZY_TOKEN_KEY + request.userId(), res.getData().getAccessToken(), Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
+        var cache = RupeezyTokenCache.builder().apiSecret(user.getRupeezyConfig().getApiSecret())
+                .accessToken(res.getData().getAccessToken()).build();
+        rupeezyTokenCache.set(user.getUserId(), cache, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
+        stringRedisTemplate.opsForValue().set(RUPEEZY_TOKEN_KEY + request.userId(), HelperUtil.GSON.toJson(cache), Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
         return ResponseEntity.ok(ApiResponse.ok(null, "Flow invocation success"));
     }
 
@@ -60,8 +65,8 @@ public class RupeezyServiceImpl implements RupeezyService {
             throw new NotFoundException("E001");
         }
 
-        var accessToken = stringRedisTemplate.opsForValue().get(RUPEEZY_TOKEN_KEY + userDto.getUserId());
-        if (StringUtils.isEmpty(accessToken)) {
+        var cache = getTokenCache(user.getUserId());
+        if (cache==null) {
             return ResponseEntity.ok(ApiResponse.<String>builder()
                     .success(Boolean.FALSE)
                     .data(config.getAppId())
@@ -70,7 +75,7 @@ public class RupeezyServiceImpl implements RupeezyService {
         }
 
         try {
-            var res = rupeezyClient.getUserFunds(config.getApiSecret(), RupeezyClient.BEARER + accessToken);
+            var res = rupeezyClient.getUserFunds(config.getApiSecret(), RupeezyClient.BEARER + cache.getAccessToken());
             if (res.isEmpty() || res.get("nse") == null) {
                 throw new UnauthorizedException("Access token expired");
             }
@@ -100,6 +105,18 @@ public class RupeezyServiceImpl implements RupeezyService {
         }
 
         return ResponseEntity.ok(ApiResponse.ok(userDto.getUserId(), "Rupeezy configuration updated successfully"));
+    }
+
+    @Override
+    public RupeezyTokenCache getTokenCache(long userId) {
+        var cache = rupeezyTokenCache.get(userId);
+        if (cache == null) {
+            var cacheString = stringRedisTemplate.opsForValue().get(RUPEEZY_TOKEN_KEY + userId);
+            if (!StringUtils.isEmpty(cacheString)) {
+                return HelperUtil.GSON.fromJson(cacheString, RupeezyTokenCache.class);
+            }
+        }
+        return null;
     }
 
     private User getUser(Long userId) {

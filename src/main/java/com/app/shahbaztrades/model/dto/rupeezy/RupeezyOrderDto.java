@@ -24,10 +24,10 @@ public class RupeezyOrderDto {
 
     private int quantity;
 
-    private float price;
+    private double price;
 
     @JsonProperty("trigger_price")
-    private Float triggerPrice;
+    private double triggerPrice;
 
     @JsonProperty("disclosed_quantity")
     private int disclosedQuantity;

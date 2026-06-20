@@ -119,16 +119,16 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
     }
 
     @Override
-    public void convertSLToMarket(Long userId, String orderId, int quantity) throws Exception {
+    public void convertSLToMarket(Long userId, TradeOrderRequest request) throws Exception {
         var kc = zerodhaService.getKiteClient(userId);
         OrderParams params = new OrderParams();
         params.orderType = Constants.ORDER_TYPE_MARKET;
-        params.quantity = quantity;
+        params.quantity = request.getQuantity();
         params.price = null;
         params.triggerPrice = null;
         params.marketProtection = -1;
         try {
-            kc.modifyOrder(orderId, params, getVariety());
+            kc.modifyOrder(request.getOrderId(), params, getVariety());
         } catch (KiteException e) {
             throw new IllegalStateException(e);
         }

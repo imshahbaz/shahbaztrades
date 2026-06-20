@@ -16,7 +16,7 @@ public interface OrderRoutingStrategy {
 
     void cancelOrder(Long userId, String orderId) throws Exception;
 
-    void convertSLToMarket(Long userId, String orderId, int quantity) throws Exception;
+    void convertSLToMarket(Long userId, TradeOrderRequest request) throws Exception;
 
     TradeOrderResponse getOrderDetails(Long userId, String orderId) throws Exception;
 }
