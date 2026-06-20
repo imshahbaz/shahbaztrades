@@ -149,7 +149,8 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         }
 
         var detail = history.getLast();
-        return TradeOrderResponse.builder().orderId(detail.orderId)
+        return TradeOrderResponse.builder()
+                .orderId(detail.orderId)
                 .status(detail.status)
                 .averagePrice(NumberUtils.isCreatable(detail.averagePrice) ? Double.parseDouble(detail.averagePrice) : 0)
                 .pendingQuantity(NumberUtils.isCreatable(detail.pendingQuantity) ? Integer.parseInt(detail.pendingQuantity) : 0)
