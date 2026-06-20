@@ -9,14 +9,14 @@ import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginRequestDTO;
 import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginResponseDTO;
-import com.app.shahbaztrades.model.dto.zerodha.ZerodhaLoginDto;
+import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.service.ZerodhaService;
 import com.app.shahbaztrades.util.Constants;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
-import com.app.shahbaztrades.validator.ZerodhaValidator;
+import com.app.shahbaztrades.validator.BrokerConfigValidator;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import lombok.RequiredArgsConstructor;
@@ -51,7 +51,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
 
         User user = getUser(userId);
 
-        if (!ZerodhaValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
+        if (!BrokerConfigValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
             throw new NotFoundException("Zerodha API configuration is missing for this user");
         }
 
@@ -66,7 +66,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
 
         User user = getUser(userId);
 
-        if (!ZerodhaValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
+        if (!BrokerConfigValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
             throw new BadRequestException("Zerodha config not found");
         }
 
@@ -93,7 +93,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
             return cachedClient;
         }
 
-        String accessToken = stringRedisTemplate.opsForValue().get("zerodha_token_" + userId);
+        String accessToken = stringRedisTemplate.opsForValue().get(ZERODHA_TOKEN_KEY + userId);
         if (StringUtils.isEmpty(accessToken)) {
             throw new NotFoundException("Access token not found in redis for user " + userId);
         }
@@ -106,7 +106,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Void>> login(ZerodhaLoginDto request) {
+    public ResponseEntity<ApiResponse<Void>> login(BrokerLoginDto request) {
         var token = generateAccessToken(request.requestToken(), request.userId());
         stringRedisTemplate.opsForValue().set(ZERODHA_TOKEN_KEY + request.userId(), token, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
         kiteClientCache.remove(request.userId());
@@ -117,7 +117,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     public ResponseEntity<ApiResponse<String>> getAuth(UserDto userDto) {
         var user = getUser(userDto.getUserId());
 
-        if (!ZerodhaValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
+        if (!BrokerConfigValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
             throw new NotFoundException("E001");
         }
 
@@ -144,7 +144,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
 
     @Override
     public ResponseEntity<ApiResponse<Long>> setConfig(User.ZerodhaConfig config, UserDto userDto) {
-        if (config == null || StringUtils.isEmpty(config.getApiSecret()) || StringUtils.isEmpty(config.getApiKey())) {
+        if (!BrokerConfigValidator.validateZerodhaConfig(config)) {
             throw new BadRequestException("Invalid request");
         }
 
@@ -189,7 +189,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
 
     @Override
     public void autoConnectZerodhaSession(User user) {
-        if (user.getZerodhaConfig() != null && user.getZerodhaConfig().isTotpEnabled() && ZerodhaValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
+        if (user.getZerodhaConfig() != null && user.getZerodhaConfig().isTotpEnabled() && BrokerConfigValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
             var res = sessionManagerClient.autoLogin(ZerodhaLoginRequestDTO.mapDto(user.getUserId(), user.getZerodhaConfig()), SessionManagerClient.SOURCE);
             if (res.isPending() && res.message().equals("Token generation already in progress")) {
                 throw new ResourceAlreadyExistsException("Request already exists");
@@ -212,7 +212,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
                 return;
             }
 
-            login(new ZerodhaLoginDto(request.requestToken(), request.userid()));
+            login(new BrokerLoginDto(request.requestToken(), request.userid()));
         } catch (Exception e) {
             log.error("Session Manager callback exception {}", request.requestToken(), e);
         } finally {

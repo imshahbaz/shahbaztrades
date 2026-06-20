@@ -1,28 +1,25 @@
 package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
-import com.app.shahbaztrades.components.zerodha.ZerodhaOrderClient;
+import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
 import com.app.shahbaztrades.model.dto.order.ActiveMtfTrade;
 import com.app.shahbaztrades.model.dto.order.OrderDto;
+import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.repo.OrderRepo;
 import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.OrderService;
-import com.app.shahbaztrades.service.ZerodhaService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
-import com.zerodhatech.kiteconnect.KiteConnect;
-import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -40,7 +37,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -51,10 +48,10 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepo orderRepo;
     private final MongoTemplate mongoTemplate;
     private final MarginService marginService;
-    private final ZerodhaService zerodhaService;
     private final AngelOneService angelOneService;
     private final ApplicationEventPublisher eventPublisher;
     private final TradeWatchdog tradeWatchdog;
+    private final OrderRouterFactory orderRouterFactory;
 
     @Override
     public OrderDto getById(String id) {
@@ -137,18 +134,20 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Async("taskExecutor")
     public void initiateMtfOrders() {
-        processTodayOrders("Initiate MTF", (kc, order) -> {
+        processTodayOrders("Initiate MTF", (order) -> {
             if (order.getEntry() != null && StringUtils.isNotBlank(order.getEntry().getBrokerOrderId())) {
                 log.warn("MTF order exists for user {} symbol {}", order.getUserId(), order.getSymbol());
                 return null;
             }
 
             try {
-                var res = ZerodhaOrderClient.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), null,
-                        Constants.TRANSACTION_TYPE_BUY, Constants.ORDER_TYPE_MARKET);
-                order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.orderId).build());
+                var orderRouter = orderRouterFactory.getRouter(order.getBroker());
+                var req = TradeOrderRequest.builder().symbol(order.getSymbol()).quantity(order.getQuantity())
+                        .transactionType(Constants.TRANSACTION_TYPE_BUY).orderType(Constants.ORDER_TYPE_MARKET).build();
+                var res = orderRouter.placeMTFOrder(order.getUserId(), req);
+                order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.getOrderId()).build());
                 log.info("MTF order placed for user {} symbol {} at init", order.getUserId(), order.getSymbol());
-            } catch (KiteException | Exception e) {
+            } catch (Exception e) {
                 log.error("Failed to place MTF order for user {} symbol {} error {} at init", order.getUserId(), order.getSymbol(), e.getMessage());
             }
             return null;
@@ -157,18 +156,19 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public void updateMtfOrderStatus() {
-        processTodayOrders("Update MTF Status", ((kc, order) -> {
+        processTodayOrders("Update MTF Status", ((order) -> {
             if (order.getEntry() == null || StringUtils.isEmpty(order.getEntry().getBrokerOrderId())) {
                 log.info("Mtf order not found for userId {} symbol {} skipping status update", order.getUserId(), order.getSymbol());
                 throw new NotFoundException("Mtf order not found");
             }
 
             try {
-                var orderDetails = ZerodhaOrderClient.getOrderDetails(kc, order.getEntry().getBrokerOrderId());
-                order.getEntry().setOrderStatus(orderDetails.status);
-                order.getEntry().setAveragePrice(NumberUtils.isCreatable(orderDetails.averagePrice) ? Float.parseFloat(orderDetails.averagePrice) : 0);
+                var orderRouter = orderRouterFactory.getRouter(order.getBroker());
+                var orderDetails = orderRouter.getOrderDetails(order.getUserId(), order.getEntry().getBrokerOrderId());
+                order.getEntry().setOrderStatus(orderDetails.getStatus());
+                order.getEntry().setAveragePrice(orderDetails.getAveragePrice());
                 log.info("MTF status updated for user {} symbol {} at update", order.getUserId(), order.getSymbol());
-            } catch (Exception | KiteException e) {
+            } catch (Exception e) {
                 log.error("Failed to update MTF status for user {} symbol {} error {} at update", order.getUserId(), order.getSymbol(), e.getMessage());
                 throw new BadRequestException("Invalid MTF order or kite exception " + e.getMessage());
             }
@@ -201,7 +201,7 @@ public class OrderServiceImpl implements OrderService {
         });
     }
 
-    private void processTodayOrders(String type, BiFunction<KiteConnect, Order, Void> processor) {
+    private void processTodayOrders(String type, Function<Order, Void> processor) {
         var orders = getTodayOrders();
         if (CollectionUtils.isEmpty(orders)) {
             log.info("No Orders found for today for {}", type);
@@ -213,9 +213,8 @@ public class OrderServiceImpl implements OrderService {
 
         userOrderMap.forEach((userId, userOrders) -> HelperUtil.EXECUTOR.execute(() -> {
             try {
-                KiteConnect kc = zerodhaService.getKiteClient(userId);
                 for (Order order : userOrders) {
-                    processor.apply(kc, order);
+                    processor.apply(order);
                     saveOrderProgress(order);
                 }
             } catch (Exception e) {
@@ -232,23 +231,15 @@ public class OrderServiceImpl implements OrderService {
         mongoTemplate.updateFirst(query, update, Order.class);
     }
 
-    private short processOrder(Order order, double ltp, float peakPrice) {
+    private short processOrder(Order order, double ltp, double peakPrice) {
         if (order.getEntry() == null || order.getEntry().getAveragePrice() == 0) {
             return -1;
         }
 
-        KiteConnect kc;
-        try {
-            kc = zerodhaService.getKiteClient(order.getUserId());
-        } catch (Exception e) {
-            log.error("Failed to get kite connection for {}", order.getUserId(), e);
-            return -1;
-        }
-
-        return addStopLoss(order, ltp, order.getEntry().getAveragePrice(), kc, peakPrice);
+        return addStopLoss(order, ltp, order.getEntry().getAveragePrice(), peakPrice);
     }
 
-    private short addStopLoss(Order order, double ltp, float buyPrice, KiteConnect kc, float peakPrice) {
+    private short addStopLoss(Order order, double ltp, double buyPrice, double peakPrice) {
         boolean reachedProfitThreshold = ltp > buyPrice * 1.004;
         boolean droppedFromPeak = ltp <= peakPrice * 0.994;
         boolean marketClosing = DateUtil.isPastClosingGrace();
@@ -257,67 +248,83 @@ public class OrderServiceImpl implements OrderService {
         boolean hasNoExitOrder = (exitRecord == null || StringUtils.isEmpty(exitRecord.getBrokerOrderId()));
 
         if (reachedProfitThreshold && (droppedFromPeak || marketClosing)) {
-            return handleSquareOff(order, kc, hasNoExitOrder);
+            return handleSquareOff(order, hasNoExitOrder);
         }
 
         if (hasNoExitOrder && ltp >= buyPrice * 1.006) {
-            return placeStopLossOrder(order, buyPrice, kc);
+            return placeStopLossOrder(order, buyPrice);
         }
 
         return 0;
     }
 
-    private short handleSquareOff(Order order, KiteConnect kc, boolean hasNoExitOrder) {
+    private short handleSquareOff(Order order, boolean hasNoExitOrder) {
         log.info("Symbol: {}. Stock price dropped more than 0.6% or Market is closing (3:25 PM). Squaring off...", order.getSymbol());
         if (hasNoExitOrder) {
-            return placeMarketSellOrder(order, kc);
+            return placeMarketSellOrder(order);
         } else {
-            return convertPendingExitToMarket(order, kc);
+            return convertPendingExitToMarket(order);
         }
     }
 
-    private short placeMarketSellOrder(Order order, KiteConnect kc) {
+    private short placeMarketSellOrder(Order order) {
         try {
-            ZerodhaOrderClient.placeMTFOrder(kc, order.getSymbol(), order.getQuantity(), null, Constants.TRANSACTION_TYPE_SELL, Constants.ORDER_TYPE_MARKET);
+            var orderRouter = orderRouterFactory.getRouter(order.getBroker());
+            var req = TradeOrderRequest.builder().symbol(order.getSymbol()).quantity(order.getQuantity())
+                    .transactionType(Constants.TRANSACTION_TYPE_SELL).orderType(Constants.ORDER_TYPE_MARKET).build();
+            orderRouter.placeMTFOrder(order.getUserId(), req);
             log.info("Successfully placed MTF sell order for user {} symbol {}", order.getUserId(), order.getSymbol());
             return -1;
-        } catch (Exception | KiteException e) {
+        } catch (Exception e) {
             log.error("Failed to square off for {}", order.getSymbol(), e);
             return 0;
         }
     }
 
-    private short convertPendingExitToMarket(Order order, KiteConnect kc) {
+    private short convertPendingExitToMarket(Order order) {
         try {
-            var orderDetails = ZerodhaOrderClient.getOrderDetails(kc, order.getExit().getBrokerOrderId());
+            var orderRouter = orderRouterFactory.getRouter(order.getBroker());
+            var orderDetails = orderRouter.getOrderDetails(order.getUserId(), order.getExit().getBrokerOrderId());
             if (orderDetails == null) return 0;
 
-            if (Objects.equals(orderDetails.status, Constants.ORDER_COMPLETE) || Objects.equals(orderDetails.status, Constants.ORDER_REJECTED)) {
-                log.info("Order has been completed/rejected for user {} symbol {} order status {}", order.getUserId(), order.getSymbol(), orderDetails.status);
+            if (Objects.equals(orderDetails.getStatus(), Constants.ORDER_COMPLETE) || Objects.equals(orderDetails.getStatus(), Constants.ORDER_REJECTED) ||
+                    Objects.equals(orderDetails.getStatus(), "EXECUTED")) {
+                log.info("Order has been completed/rejected for user {} symbol {} order status {}", order.getUserId(), order.getSymbol(), orderDetails.getStatus());
                 return -1;
             }
 
-            var pendingQty = NumberUtils.isCreatable(orderDetails.pendingQuantity) ? Integer.parseInt(orderDetails.pendingQuantity) : 0;
+            var pendingQty = orderDetails.getPendingQuantity();
             if (pendingQty > 0) {
-                ZerodhaOrderClient.convertSLToMarket(kc, order.getExit().getBrokerOrderId(), pendingQty);
+                var req = TradeOrderRequest.builder()
+                        .orderId(order.getExit().getBrokerOrderId())
+                        .symbol(order.getSymbol())
+                        .quantity(pendingQty)
+                        .transactionType(Constants.TRANSACTION_TYPE_SELL)
+                        .orderType(Constants.ORDER_TYPE_MARKET)
+                        .build();
+
+                orderRouter.convertSLToMarket(order.getUserId(), req);
                 log.info("MTF SL order converted to market for user {} symbol {}", order.getUserId(), order.getSymbol());
             }
             return -1;
-        } catch (Exception | KiteException e) {
+        } catch (Exception e) {
             log.error("Failed to convert order for user {} symbol {} error {}", order.getUserId(), order.getSymbol(), e.getMessage());
             return 0;
         }
     }
 
-    private short placeStopLossOrder(Order order, float buyPrice, KiteConnect kc) {
+    private short placeStopLossOrder(Order order, double buyPrice) {
         var sl = HelperUtil.fixToTick(buyPrice * 1.004);
         try {
-            var orderId = ZerodhaOrderClient.placeMTFStopLossOrder(kc, order.getSymbol(), order.getQuantity(), sl, sl);
-            order.setExit(Order.ExecutionRecord.builder().brokerOrderId(orderId).averagePrice((float) sl).build());
+            var orderRouter = orderRouterFactory.getRouter(order.getBroker());
+            var req = TradeOrderRequest.builder().symbol(order.getSymbol()).quantity(order.getQuantity())
+                    .price(sl).triggerPrice(sl).build();
+            var res = orderRouter.placeMTFStopLossOrder(order.getUserId(), req);
+            order.setExit(Order.ExecutionRecord.builder().brokerOrderId(res.getOrderId()).averagePrice((float) sl).build());
             eventPublisher.publishEvent(order);
             log.info("Successfully placed MTF SL order for user {} symbol {}", order.getUserId(), order.getSymbol());
             return 1;
-        } catch (Exception | KiteException e) {
+        } catch (Exception e) {
             log.error("Failed to place stop loss order for user {} symbol {} error {}", order.getUserId(), order.getSymbol(), e.getMessage());
             return 0;
         }
