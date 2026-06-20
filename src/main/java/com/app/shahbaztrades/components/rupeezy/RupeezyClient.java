@@ -30,6 +30,6 @@ public interface RupeezyClient {
     RupeezyOrderHistory getOrder(@PathVariable String orderId, @RequestHeader("x-api-key") String apiKey,
                                  @RequestHeader("Authorization") String authorization);
 
-    @GetMapping("")
+    @GetMapping("/user/funds")
     Map<String, Object> getUserFunds(@RequestHeader("x-api-key") String apiKey, @RequestHeader("Authorization") String authorization);
 }
