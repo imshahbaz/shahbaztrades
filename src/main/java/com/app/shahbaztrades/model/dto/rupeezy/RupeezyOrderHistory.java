@@ -3,6 +3,7 @@ package com.app.shahbaztrades.model.dto.rupeezy;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 
@@ -13,7 +14,7 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RupeezyOrderHistory extends RupeezyBaseResponse {
 
-    List<OrderData> data;
+    List<OrderData> orders;
 
     @Data
     @Builder
@@ -24,14 +25,32 @@ public class RupeezyOrderHistory extends RupeezyBaseResponse {
         @JsonProperty("order_id")
         String orderId;
 
+        String status;
+
         String ticker;
 
-        String status;
+        String symbol;
 
         @JsonProperty("total_quantity")
         int totalQuantity;
 
         @JsonProperty("pending_quantity")
         int pendingQuantity;
+
+        @JsonProperty("traded_price")
+        double averagePrice;
     }
+
+    public OrderData getOrder(String orderId) {
+        if (CollectionUtils.isEmpty(orders)) {
+            return null;
+        }
+        for (OrderData order : orders) {
+            if (order.getOrderId().equals(orderId)) {
+                return order;
+            }
+        }
+        return null;
+    }
+
 }

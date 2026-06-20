@@ -3,6 +3,7 @@ package com.app.shahbaztrades.service.impl;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
+import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.Constants;
 import com.app.shahbaztrades.util.HelperUtil;
@@ -40,7 +41,12 @@ public class SessionManagerServiceImpl implements SessionManagerService {
                 return res;
             }
 
-            orders.forEach(order -> res.add(order.getUserId()));
+            orders.forEach(order -> {
+                if (order.getBroker().equals(BrokerType.ZERODHA)) {
+                    res.add(order.getUserId());
+                }
+            });
+
             return res;
         }, HelperUtil.EXECUTOR);
 
@@ -51,7 +57,12 @@ public class SessionManagerServiceImpl implements SessionManagerService {
                 return res;
             }
 
-            orders.forEach(order -> res.add(order.getUserId()));
+            orders.forEach(order -> {
+                if (order.getBroker().equals(BrokerType.ZERODHA)) {
+                    res.add(order.getUserId());
+                }
+            });
+
             return res;
         }, HelperUtil.EXECUTOR);
 
