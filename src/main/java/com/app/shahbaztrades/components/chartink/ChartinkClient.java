@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.components.chartink;
 
+import com.app.shahbaztrades.util.Constants;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.springframework.http.MediaType;
@@ -20,7 +21,6 @@ public class ChartinkClient {
 
     private static final String TOKEN_KEY = "XSRF-TOKEN";
     private static final String BASE_URL = "https://chartink.com";
-    private static final String DEFAULT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     private final RestClient restClient;
     private volatile String cookieHeaderValue = "";
 
@@ -40,7 +40,7 @@ public class ChartinkClient {
         Connection.Response res;
         try {
             res = Jsoup.connect(BASE_URL)
-                    .userAgent(DEFAULT_UA)
+                    .userAgent(Constants.DEFAULT_UA)
                     .method(Connection.Method.GET)
                     .execute();
         } catch (IOException e) {
@@ -75,7 +75,7 @@ public class ChartinkClient {
                 .uri(endpoint)
                 .header("X-XSRF-TOKEN", token)
                 .header("Cookie", cookieHeaderValue)
-                .header("User-Agent", DEFAULT_UA)
+                .header("User-Agent", Constants.DEFAULT_UA)
                 .header("Referer", BASE_URL + "/")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(formData)
