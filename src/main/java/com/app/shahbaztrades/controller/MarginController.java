@@ -1,7 +1,6 @@
 package com.app.shahbaztrades.controller;
 
 import com.app.shahbaztrades.config.security.PublicEndpoint;
-import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.service.MarginService;
@@ -12,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.InputStream;
+import java.io.IOException;
 import java.util.Collection;
 
 @RestController
@@ -43,13 +42,10 @@ public class MarginController {
 
     @PublicEndpoint
     @PostMapping(value = "/json", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<Void>> syncMtf(@RequestParam("file") MultipartFile file) {
-        try (InputStream inputStream = file.getInputStream()) {
-            marginService.syncMTF(inputStream);
-            return ResponseEntity.ok(ApiResponse.ok(null, "MTF data synced successfully"));
-        } catch (Exception e) {
-            throw new BadRequestException(e.getMessage());
-        }
+    public ResponseEntity<ApiResponse<Void>> syncMtf(@RequestParam("file") MultipartFile file) throws IOException {
+        byte[] bytes = file.getBytes();
+        marginService.syncMTF(bytes);
+        return ResponseEntity.ok(ApiResponse.ok(null, "MTF data synced successfully"));
     }
 
     @PublicEndpoint
