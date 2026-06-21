@@ -2,6 +2,7 @@ package com.app.shahbaztrades.model.entity;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.FieldNameConstants;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 import org.springframework.data.mongodb.core.mapping.MongoId;
@@ -10,6 +11,7 @@ import org.springframework.data.mongodb.core.mapping.MongoId;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@FieldNameConstants
 @Document(collection = "margin")
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Margin {
@@ -23,4 +25,6 @@ public class Margin {
     float requiredMargin;
 
     String token;
+
+    float rupeezyMargin;
 }

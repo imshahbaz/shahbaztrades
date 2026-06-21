@@ -1,12 +1,15 @@
 package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.angelone.AngelOneClient;
+import com.app.shahbaztrades.components.rupeezy.RupeezyWebClient;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.repo.MarginRepo;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.MongoConfigService;
+import com.app.shahbaztrades.util.Constants;
+import com.app.shahbaztrades.util.HelperUtil;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.MappingIterator;
@@ -17,16 +20,21 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.io.InputStream;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -34,12 +42,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MarginServiceImpl implements MarginService {
 
+    private Map<String, Margin> cachedMargins = new ConcurrentHashMap<>();
+
     private final MarginRepo marginRepo;
     private final MongoConfigService mongoConfigService;
     private final JsonMapper jsonMapper;
     private final MongoTemplate mongoTemplate;
     private final AngelOneClient angelOneClient;
-    private Map<String, Margin> cachedMargins = new HashMap<>();
+    private final RupeezyWebClient rupeezyWebClient;
 
     @PostConstruct
     public void init() {
@@ -82,27 +92,36 @@ public class MarginServiceImpl implements MarginService {
         float minLeverage = mongoConfigService.getConfig().getLeverage();
         MappingIterator<RawMTF> it = jsonMapper.readerFor(RawMTF.class).readValues(file);
 
-        List<Margin> toSave = new ArrayList<>();
+        Map<String, Update> updates = new HashMap<>();
+        BulkOperations bulkOperations = mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, Margin.class);
 
         while (it.hasNext()) {
             RawMTF raw = it.next();
             if (raw.leverage >= minLeverage) {
-                toSave.add(Margin.builder()
-                        .symbol(raw.tradingSymbol)
-                        .name(raw.tradingSymbol)
-                        .requiredMargin(raw.leverage)
-                        .build());
+                Query query = new Query(Criteria.where(Margin.Fields.symbol).is(raw.tradingSymbol));
+                Update update = new Update();
+                update.set(Margin.Fields.requiredMargin, raw.leverage);
+                update.set(Margin.Fields.name, raw.tradingSymbol);
+                bulkOperations.upsert(query, update);
+                updates.put(raw.tradingSymbol, update);
             }
         }
 
-        if (!toSave.isEmpty()) {
-            marginRepo.saveAll(toSave);
-            Query query = new Query(Criteria.where("_id").nin(toSave.stream().map(Margin::getSymbol).collect(Collectors.toList())));
+        if (!updates.isEmpty()) {
+            try {
+                var html = rupeezyWebClient.getMtfStockListPage(Constants.DEFAULT_UA);
+                HelperUtil.addRupeezyMargin(updates, html);
+            } catch (Exception e) {
+                log.error("Error while updating rupeezy margins", e);
+            }
+
+            bulkOperations.execute();
+            Query query = new Query(Criteria.where(Margin.Fields.symbol).nin(updates.keySet()));
             DeleteResult result = mongoTemplate.remove(query, Margin.class);
             refreshMargins();
             log.info("{} Loaded. Cache updated. Symbols synced: {}. Deleted stale: {}",
                     "Mtf Json",
-                    toSave.size(),
+                    updates.size(),
                     result.getDeletedCount());
         }
     }

@@ -18,6 +18,8 @@ public class StockMarginDto {
 
     float margin;
 
+    float rupeezyMargin;
+
     float close;
 
     float deliveryPercent;
