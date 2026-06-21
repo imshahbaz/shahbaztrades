@@ -12,6 +12,7 @@ import com.app.shahbaztrades.model.dto.strategy.TargetStockResult;
 import com.app.shahbaztrades.model.dto.strategy.TradeCompletionEvent;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.StrategyOrder;
+import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.Cache;
@@ -116,6 +117,10 @@ public class TradeEngineImpl implements TradeEngine {
             log.info("Target match at time {} ! Fetching signals...", currentTime);
             try {
                 var signals = chartInkService.fetchTodayBacktestDataWithMargin(name);
+                if (CollectionUtils.isEmpty(signals)) {
+                    return;
+                }
+
                 log.info("Complete signals list: {}", signals);
                 eventPublisher.publishEvent(new ChartInkSignalEvent(name, signals));
             } catch (Exception e) {
@@ -133,7 +138,7 @@ public class TradeEngineImpl implements TradeEngine {
         }
 
         for (var order : list) {
-            processSignalForOrder(order, event.signals());
+            HelperUtil.EXECUTOR.execute(() -> processSignalForOrder(order, event.signals()));
         }
     }
 
@@ -142,28 +147,37 @@ public class TradeEngineImpl implements TradeEngine {
         if (active != null && active)
             return;
 
-        var targetStock = findTargetStock(signals, order.getAmount());
+        var targetStock = findTargetStock(signals, order.getAmount(), order.getBroker());
         if (targetStock == null)
             return;
 
-        HelperUtil.EXECUTOR.execute(() -> punchSingleTrade(targetStock.margin(), targetStock.qty(), order.getUserId(), order));
+        punchSingleTrade(targetStock.margin(), targetStock.qty(), order.getUserId(), order);
     }
 
-    private TargetStockResult findTargetStock(List<ChartInkBacktestMarginDto> signals, float orderAmount) {
-        for (int i = signals.size() - 1; i >= 0; i--) {
-            var signal = signals.get(i);
-            var result = processSignal(signal, orderAmount);
-            if (result != null) return result;
+    private TargetStockResult findTargetStock(List<ChartInkBacktestMarginDto> signals, float orderAmount, BrokerType brokerType) {
+        var now = DateUtil.getCurrentDateTime();
+        var latest = signals.getLast();
+        if (now.isAfter(latest.getMarketTime().plusMinutes(20)) && now.isBefore(latest.getMarketTime().plusMinutes(23)) && !CollectionUtils.isEmpty(latest.getMargins())) {
+            return processSignal(latest, orderAmount, brokerType);
         }
         return null;
     }
 
-    private TargetStockResult processSignal(ChartInkBacktestMarginDto signal, float orderAmount) {
+    private TargetStockResult processSignal(ChartInkBacktestMarginDto signal, float orderAmount, BrokerType brokerType) {
         try {
-            var now = DateUtil.getCurrentDateTime();
-            if (now.isAfter(signal.getMarketTime().plusMinutes(20)) && now.isBefore(signal.getMarketTime().plusMinutes(23)) && !CollectionUtils.isEmpty(signal.getMargins())) {
-                var target = signal.getMargins().getFirst();
-                return processTargetMargin(target, orderAmount);
+            List<Margin> targetList;
+            if (brokerType.equals(BrokerType.ZERODHA) || signal.getMargins().size() <= 1) {
+                targetList = signal.getMargins();
+            } else {
+                targetList = signal.getMargins().stream().sorted(Comparator.comparingDouble(Margin::getRupeezyMargin).reversed())
+                        .toList();
+            }
+
+            for (var margin : targetList) {
+                var target = processTargetMargin(margin, orderAmount);
+                if (target != null) {
+                    return target;
+                }
             }
         } catch (InterruptedException e) {
             log.error("Interrupted processing signal", e);
@@ -171,6 +185,7 @@ public class TradeEngineImpl implements TradeEngine {
         } catch (Exception e) {
             log.error("Error processing signal", e);
         }
+
         return null;
     }
 
@@ -193,6 +208,7 @@ public class TradeEngineImpl implements TradeEngine {
         if (quantity > 0) {
             return new TargetStockResult(target, quantity);
         }
+
         return null;
     }
 
