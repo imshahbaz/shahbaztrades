@@ -4,7 +4,6 @@ import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.entity.Margin;
 import org.springframework.http.ResponseEntity;
 
-import java.io.InputStream;
 import java.util.Collection;
 import java.util.Map;
 
@@ -18,7 +17,7 @@ public interface MarginService {
 
     ResponseEntity<ApiResponse<Margin>> getMargin(String symbol);
 
-    void syncMTF(InputStream file);
+    void syncMTF(byte[] fileBytes);
 
     void syncAngelOneToken();
 }

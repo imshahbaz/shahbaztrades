@@ -30,6 +30,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.HashMap;
@@ -88,41 +89,57 @@ public class MarginServiceImpl implements MarginService {
     @Override
     @SneakyThrows
     @Async("taskExecutor")
-    public void syncMTF(InputStream file) {
+    public void syncMTF(byte[] fileBytes) {
         float minLeverage = mongoConfigService.getConfig().getLeverage();
-        MappingIterator<RawMTF> it = jsonMapper.readerFor(RawMTF.class).readValues(file);
+        try (InputStream file = new ByteArrayInputStream(fileBytes)) {
+            MappingIterator<RawMTF> it =
+                    jsonMapper.readerFor(RawMTF.class).readValues(file);
 
-        Map<String, Update> updates = new HashMap<>();
-        BulkOperations bulkOperations = mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, Margin.class);
+            Map<String, Update> updates = new HashMap<>();
+            BulkOperations bulkOperations =
+                    mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, Margin.class);
 
-        while (it.hasNext()) {
-            RawMTF raw = it.next();
-            if (raw.leverage >= minLeverage) {
-                Query query = new Query(Criteria.where(Margin.Fields.symbol).is(raw.tradingSymbol));
-                Update update = new Update();
-                update.set(Margin.Fields.requiredMargin, raw.leverage);
-                update.set(Margin.Fields.name, raw.tradingSymbol);
-                bulkOperations.upsert(query, update);
-                updates.put(raw.tradingSymbol, update);
+            while (it.hasNext()) {
+                RawMTF raw = it.next();
+
+                if (raw.leverage >= minLeverage) {
+                    Query query = new Query(
+                            Criteria.where(Margin.Fields.symbol).is(raw.tradingSymbol)
+                    );
+
+                    Update update = new Update();
+                    update.set(Margin.Fields.requiredMargin, raw.leverage);
+                    update.set(Margin.Fields.name, raw.tradingSymbol);
+
+                    bulkOperations.upsert(query, update);
+                    updates.put(raw.tradingSymbol, update);
+                }
             }
-        }
 
-        if (!updates.isEmpty()) {
-            try {
-                var html = rupeezyWebClient.getMtfStockListPage(Constants.DEFAULT_UA);
-                HelperUtil.addRupeezyMargin(updates, html);
-            } catch (Exception e) {
-                log.error("Error while updating rupeezy margins", e);
+            if (!updates.isEmpty()) {
+                try {
+                    String html = rupeezyWebClient.getMtfStockListPage(Constants.DEFAULT_UA);
+                    HelperUtil.addRupeezyMargin(updates, html);
+                } catch (Exception e) {
+                    log.error("Error while updating rupeezy margins", e);
+                }
+
+                bulkOperations.execute();
+
+                Query query = new Query(
+                        Criteria.where(Margin.Fields.symbol).nin(updates.keySet())
+                );
+
+                DeleteResult result = mongoTemplate.remove(query, Margin.class);
+
+                refreshMargins();
+
+                log.info("{} Loaded. Cache updated. Symbols synced: {}. Deleted stale: {}",
+                        "Mtf Json",
+                        updates.size(),
+                        result.getDeletedCount()
+                );
             }
-
-            bulkOperations.execute();
-            Query query = new Query(Criteria.where(Margin.Fields.symbol).nin(updates.keySet()));
-            DeleteResult result = mongoTemplate.remove(query, Margin.class);
-            refreshMargins();
-            log.info("{} Loaded. Cache updated. Symbols synced: {}. Deleted stale: {}",
-                    "Mtf Json",
-                    updates.size(),
-                    result.getDeletedCount());
         }
     }
 
