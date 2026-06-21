@@ -83,6 +83,7 @@ public class ChartInkServiceImpl implements ChartInkService {
                             .name(stock.getName())
                             .symbol(stock.getNsecode())
                             .margin(m.getRequiredMargin())
+                            .rupeezyMargin(m.getRupeezyMargin())
                             .close(stock.getClose())
                             .build();
                 })

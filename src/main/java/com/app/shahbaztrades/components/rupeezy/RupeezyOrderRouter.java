@@ -130,9 +130,9 @@ public class RupeezyOrderRouter implements OrderRoutingStrategy {
             case Constants.ORDER_TYPE_LIMIT -> {
                 return RupeezyOrderType.REGULAR_LIMIT.getType();
             }
-        }
 
-        throw new BadRequestException("Unknown order type: " + type);
+            default -> throw new BadRequestException("Unknown order type: " + type);
+        }
     }
 
     private TradeOrderResponse placeOrder(RupeezyOrderDto req, RupeezyTokenCache cache) {

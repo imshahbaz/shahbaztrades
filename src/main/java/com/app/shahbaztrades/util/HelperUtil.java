@@ -1,9 +1,13 @@
 package com.app.shahbaztrades.util;
 
 import com.app.shahbaztrades.model.dto.scheduler.SchedulerCallBackDto;
+import com.app.shahbaztrades.model.entity.Margin;
 import com.google.gson.Gson;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.util.CollectionUtils;
@@ -21,6 +25,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 
@@ -162,6 +167,47 @@ public class HelperUtil {
 
         HttpEntity<Object> entity = new HttpEntity<>(body, headers);
         return REST_TEMPLATE.exchange(schedulerCallBackDto.url(), method, entity, String.class);
+    }
+
+    public static void addRupeezyMargin(Map<String, Update> map, String html) {
+        Matcher matcher = Constants.RUPEEZY_MARGIN_PATTERN.matcher(html);
+
+        while (matcher.find()) {
+            String json = matcher.group()
+                    .replace("\\\"", "\"")
+                    .replace("\\u0026", "&");
+
+            String symbol = extract(json, "\"symbol\":\"", "\"");
+            if (StringUtils.isEmpty(symbol)) {
+                continue;
+            }
+
+            var update = map.get(symbol);
+            if (update == null) {
+                continue;
+            }
+
+            String leverage = extract(json, "\"margin_multiplier\":", ",");
+            String stockName = extract(json, "\"security_desc\":\"", "\"");
+            if (!StringUtils.isEmpty(stockName)) {
+                update.set(Margin.Fields.name, stockName);
+            }
+
+            if (NumberUtils.isCreatable(leverage)) {
+                update.set(Margin.Fields.rupeezyMargin, Float.parseFloat(leverage));
+            }
+        }
+    }
+
+    private static String extract(String text, String start, String end) {
+        int s = text.indexOf(start);
+        if (s == -1) return "";
+
+        s += start.length();
+        int e = text.indexOf(end, s);
+
+        if (e == -1) return text.substring(s);
+        return text.substring(s, e);
     }
 
 }
