@@ -5,6 +5,7 @@ import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.util.DateUtil;
+import com.app.shahbaztrades.validator.OrderValidator;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -42,6 +43,7 @@ public class OrderDto {
         LocalDate parsedDate;
         try {
             parsedDate = LocalDate.parse(this.date, DateTimeFormatter.ISO_LOCAL_DATE);
+            OrderValidator.validateOrderDate(parsedDate);
         } catch (Exception e) {
             throw new BadRequestException("Invalid date format");
         }
