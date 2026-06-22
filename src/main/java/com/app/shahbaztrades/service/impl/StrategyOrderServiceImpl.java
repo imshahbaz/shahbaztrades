@@ -7,6 +7,7 @@ import com.app.shahbaztrades.model.entity.StrategyOrder;
 import com.app.shahbaztrades.repo.StrategyOrderRepo;
 import com.app.shahbaztrades.service.StrategyOrderService;
 import com.app.shahbaztrades.util.DateUtil;
+import com.app.shahbaztrades.validator.OrderValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
@@ -34,9 +35,7 @@ public class StrategyOrderServiceImpl implements StrategyOrderService {
 
     @Override
     public StrategyOrderDto getOrderById(String orderId) {
-        var order = strategyOrderRepo.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("Strategy order not found"));
-        return order.toDto();
+        return getById(orderId).toDto();
     }
 
     @Override
@@ -63,6 +62,8 @@ public class StrategyOrderServiceImpl implements StrategyOrderService {
 
     @Override
     public void deleteOrder(String id) {
+        var order = getById(id);
+        OrderValidator.validateForDelete(order.getDate());
         strategyOrderRepo.deleteById(id);
     }
 
@@ -83,6 +84,11 @@ public class StrategyOrderServiceImpl implements StrategyOrderService {
                 .gte(startOfIstDay)
                 .lt(endOfIstDay));
         return mongoTemplate.find(query, StrategyOrder.class);
+    }
+
+    private StrategyOrder getById(String orderId) {
+        return strategyOrderRepo.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("Strategy order not found"));
     }
 
 }

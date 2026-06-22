@@ -16,6 +16,7 @@ import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.OrderService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
+import com.app.shahbaztrades.validator.OrderValidator;
 import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,9 +56,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderDto getById(String id) {
-        var order = orderRepo.findById(id)
-                .orElseThrow(() -> new NotFoundException("Order not found"));
-        return order.toDto();
+        return this.getOrderById(id).toDto();
     }
 
     @Override
@@ -117,6 +116,8 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public void deleteOrder(String id) {
+        var order = this.getOrderById(id);
+        OrderValidator.validateForDelete(order.getDate());
         orderRepo.deleteById(id);
     }
 
@@ -339,6 +340,11 @@ public class OrderServiceImpl implements OrderService {
             log.info("Order squared off - stopping monitoring orderId {} symbol {}", order.getId(), order.getSymbol());
             tradeWatchdog.unwatchMtfTrade(event);
         }
+    }
+
+    private Order getOrderById(String orderId) {
+        return orderRepo.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("Order not found"));
     }
 
 }
