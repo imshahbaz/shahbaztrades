@@ -6,6 +6,7 @@ import com.app.shahbaztrades.model.dto.strategy.TradeCompletionEvent;
 import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.util.Cache;
 import com.app.shahbaztrades.util.DateUtil;
+import com.app.shahbaztrades.util.HelperUtil;
 import com.google.common.util.concurrent.Striped;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -56,6 +58,18 @@ public class TradeWatchdog {
                 trade.getSymbol(), trade.getUserId(), trade.getTargetPrice());
     }
 
+    public void unwatch(ActiveTrade trade) {
+        Lock lock = tokenLocks.get(trade.getToken());
+        lock.lock();
+        try {
+            List<ActiveTrade> trades = tradeWatchCache.get(trade.getToken());
+            if (CollectionUtils.isEmpty(trades)) return;
+            trades.remove(trade);
+        } finally {
+            lock.unlock();
+        }
+    }
+
     @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.SECONDS)
     public void executePulse() {
         var activeKeys = tradeWatchCache.getActiveKeys();
@@ -72,7 +86,7 @@ public class TradeWatchdog {
         }
 
         for (String activeKey : activeKeys) {
-            processActiveKey(activeKey);
+            HelperUtil.EXECUTOR.execute(() -> processActiveKey(activeKey));
         }
     }
 
@@ -84,17 +98,11 @@ public class TradeWatchdog {
             if (ltp <= 0) return;
             List<ActiveTrade> trades = tradeWatchCache.get(activeKey);
             if (CollectionUtils.isEmpty(trades)) return;
-            trades.removeIf(trade -> {
+            trades.forEach(trade -> {
                 if (ltp >= trade.getTargetPrice()) {
                     applicationEventPublisher.publishEvent(new TradeCompletionEvent(trade.getUserId(), trade));
-                    return true;
                 }
-                return false;
             });
-
-            if (trades.isEmpty()) {
-                tradeWatchCache.remove(activeKey);
-            }
         } finally {
             lock.unlock();
         }
@@ -112,11 +120,11 @@ public class TradeWatchdog {
         }
 
         for (String activeKey : activeKeys) {
-            processMtfActiveKey(activeKey);
+            HelperUtil.EXECUTOR.execute(() -> processMtfActiveKey(activeKey));
         }
     }
 
-    private boolean handleMtfSquareOff(java.util.Set<String> activeKeys) {
+    private boolean handleMtfSquareOff(Set<String> activeKeys) {
         if (DateUtil.isSquareOffTimeReached()) {
             if (!activeKeys.isEmpty()) {
                 log.info("Market session over. Purging mtf watchdog cache.");

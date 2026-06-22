@@ -251,8 +251,8 @@ public class TradeEngineImpl implements TradeEngine {
 
             eventPublisher.publishEvent(new NotificationRequest(
                     userId,
-                    "Trade Active",
-                    String.format("Bought %s at %.2f. Target: %.2f", targetStock.getSymbol(), entryPrice, targetPrice),
+                    com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_BUY,
+                    String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_BUY, qty, targetStock.getSymbol(), entryPrice),
                     Collections.emptyMap()
             ));
 
@@ -270,14 +270,15 @@ public class TradeEngineImpl implements TradeEngine {
         var det = orderRouter.getOrderDetails(event.userId(), event.trade().getExitOrderId());
         if (det.getPendingQuantity() == 0) {
             log.info("Exit order filled for {}", event.trade().getSymbol());
+            tradeWatchdog.unwatch(event.trade());
+            activeOrders.remove(event.trade().getStrategyOrderId());
             eventPublisher.publishEvent(new NotificationRequest(
                     event.userId(),
-                    "Target Achieved!",
-                    String.format("%s | Target: %.2f", event.trade().getSymbol(), event.trade().getTargetPrice()),
+                    com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_SELL,
+                    String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_SELL, event.trade().getQuantity(),
+                            event.trade().getSymbol(), event.trade().getTargetPrice()),
                     Collections.emptyMap()
             ));
-
-            activeOrders.remove(event.trade().getStrategyOrderId());
         }
     }
 
