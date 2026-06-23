@@ -22,6 +22,8 @@ public class Constants {
     public static final String NOTIFICATION_MESSAGE_SELL_MARKET = "Your market sell order for %d shares of %s has been submitted successfully.";
     public static final String NOTIFICATION_MESSAGE_SELL_SL = "Your stop-loss sell order for %d shares of %s at ₹%.2f has been submitted successfully.";
 
+    public static final String DOT = ".";
+
     public static void validateSessionCallback(String header) {
         if (StringUtils.isEmpty(header) || !SESSION_MANAGER_SOURCE.equals(header)) {
             throw new UnauthorizedException("Unauthorized");
