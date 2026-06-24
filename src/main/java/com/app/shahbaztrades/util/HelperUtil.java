@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.util;
 
+import com.app.shahbaztrades.config.Beans;
 import com.app.shahbaztrades.model.dto.scheduler.SchedulerCallBackDto;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.google.gson.Gson;
@@ -32,7 +33,7 @@ import java.util.regex.Matcher;
 public class HelperUtil {
     public static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
     public static final SecureRandom RANDOM = new SecureRandom();
-    public static final Gson GSON = new Gson();
+    public static final Gson GSON = Beans.createGson();
     public static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
     public static final RestTemplate REST_TEMPLATE = new RestTemplate();
     public static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(5);
