@@ -22,11 +22,16 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
@@ -50,7 +55,7 @@ public class HoldingsServiceImpl implements HoldingsService {
             holdings = HelperUtil.GSON.fromJson(redisHoldings, Holdings.class);
         } else {
             holdings = findHoldingsById(userDto.getUserId());
-            stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(holdings));
+            stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(holdings), Duration.ofMinutes(15));
         }
 
         var holdingInfo = holdings.getBrokerHoldingMap().get(brokerType);
@@ -185,6 +190,57 @@ public class HoldingsServiceImpl implements HoldingsService {
         var key = HOLDING_KEY + userDto.getUserId();
         stringRedisTemplate.delete(key);
         return ResponseEntity.ok(ApiResponse.ok(true, "Holding detail deleted"));
+    }
+
+    @Override
+    @Async("taskExecutor")
+    public void updatePortfolio() {
+        var holdings = holdingsRepo.findAll();
+        if (CollectionUtils.isEmpty(holdings)) {
+            return;
+        }
+
+        Map<String, Double> ltpMap = new HashMap<>();
+        var keys = new ArrayList<String>(holdings.size());
+
+        for (var info : holdings) {
+            var zerodhaHoldings = info.getBrokerHoldingMap().get(BrokerType.ZERODHA);
+            if (CollectionUtils.isEmpty(zerodhaHoldings)) {
+                continue;
+            }
+
+            for (var det : zerodhaHoldings) {
+                var margin = marginService.getMarginCache().get(det.getSymbol());
+                if (margin == null) {
+                    continue;
+                }
+
+                det.setMargin(margin.getRequiredMargin());
+
+                Double ltp = ltpMap.get(det.getSymbol());
+                if (ltp == null) {
+                    try {
+                        ltp = angelOneService.getMarketTicker(margin.getToken()).getBody().getData().ltp();
+                    } catch (Exception e) {
+                        log.error("Error while getting ltp for symbol {}", margin.getSymbol(), e);
+                    }
+
+                    if (ltp == null || ltp <= 0) {
+                        ltpMap.put(det.getSymbol(), 0d);
+                        continue;
+                    }
+                }
+
+                if (ltp > 0) {
+                    det.setLtp(BigDecimal.valueOf(ltp));
+                    ltpMap.put(det.getSymbol(), ltp);
+                }
+            }
+            keys.add(HOLDING_KEY + info.getUserId());
+        }
+
+        holdingsRepo.saveAll(holdings);
+        stringRedisTemplate.delete(keys);
     }
 
     private Holdings findHoldingsById(long userId) {
