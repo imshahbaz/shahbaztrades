@@ -79,6 +79,8 @@ public class HoldingsServiceImpl implements HoldingsService {
         holdingInfo.getHoldingDetails().addAll(holdingDetails);
 
         holdingsRepo.save(holdings);
+        var key = HOLDING_KEY + userDto.getUserId();
+        stringRedisTemplate.delete(key);
 
         return ResponseEntity.ok(ApiResponse.ok(true, "Holdings added"));
     }
@@ -105,36 +107,45 @@ public class HoldingsServiceImpl implements HoldingsService {
 
     @Override
     public ResponseEntity<ApiResponse<Boolean>> updateHoldings(BrokerType brokerType, UserDto userDto, HoldingDto holdingDto) {
-        var detail = holdingDto.getHoldingDetails().getFirst();
+        var detail = holdingDto.getHoldingDetails().getFirst().toHoldingDetail();
         if (detail.getId() <= 0) {
             throw new BadRequestException("Invalid Request");
         }
 
-        var brokerPath = Holdings.Fields.brokerHoldingMap + Constants.DOT + brokerType.name();
-
-        var query = Query.query(
-                Criteria.where(Holdings.Fields.userId).is(userDto.getUserId())
-                        .and(brokerPath + ".symbol").is(holdingDto.getSymbol())
-        );
-
-        var update = new Update()
-                .set(
-                        brokerPath + ".holdingDetails.$[detail]",
-                        detail.toHoldingDetail()
-                );
-
-        update.filterArray(
-                Criteria.where("detail.id").is(detail.getId())
-        );
-
-        var result = mongoTemplate.updateFirst(query, update, Holdings.class);
-        if (result.getModifiedCount() > 0) {
-            var key = HOLDING_KEY + userDto.getUserId();
-            stringRedisTemplate.delete(key);
-            return ResponseEntity.ok(ApiResponse.ok(true, "Holdings updated"));
+        var holdings = findHoldingsById(userDto.getUserId());
+        var holdingInfos = holdings.getBrokerHoldingMap().get(brokerType);
+        if (CollectionUtils.isEmpty(holdingInfos)) {
+            throw new BadRequestException("Holdings not found");
         }
 
-        throw new NotFoundException("Holdings not found");
+        Holdings.HoldingDetail holdingDetail = null;
+        for (var info : holdingInfos) {
+            if (info.getSymbol().equals(holdingDto.getSymbol())) {
+                if (CollectionUtils.isEmpty(info.getHoldingDetails())) {
+                    throw new BadRequestException("Holdings not found");
+                }
+
+                for (var det : info.getHoldingDetails()) {
+                    if (det.getId() == detail.getId()) {
+                        holdingDetail = det;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (holdingDetail == null) {
+            throw new BadRequestException("Holdings not found");
+        }
+
+        holdingDetail.setPrice(detail.getPrice());
+        holdingDetail.setQuantity(detail.getQuantity());
+        holdingDetail.setBuyDate(detail.getBuyDate());
+
+        holdingsRepo.save(holdings);
+        var key = HOLDING_KEY + userDto.getUserId();
+        stringRedisTemplate.delete(key);
+        return ResponseEntity.ok(ApiResponse.ok(true, "Holdings updated"));
     }
 
     private Holdings findHoldingsById(long userId) {
