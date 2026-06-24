@@ -19,4 +19,6 @@ public interface HoldingsService {
     ResponseEntity<ApiResponse<Boolean>> deleteHoldings(BrokerType brokerType, UserDto userDto, String symbol);
 
     ResponseEntity<ApiResponse<Boolean>> updateHoldings(BrokerType brokerType, UserDto userDto, HoldingDto holdingDto);
+
+    ResponseEntity<ApiResponse<Boolean>> deleteHoldingDetail(BrokerType brokerType, UserDto userDto, String symbol, int id);
 }
