@@ -123,26 +123,19 @@ public class HoldingsServiceImpl implements HoldingsService {
             throw new BadRequestException("Holdings not found");
         }
 
-        Holdings.HoldingDetail holdingDetail = null;
-        for (var info : holdingInfos) {
-            if (info.getSymbol().equals(holdingDto.getSymbol())) {
-                if (CollectionUtils.isEmpty(info.getHoldingDetails())) {
-                    throw new BadRequestException("Holdings not found");
-                }
+        var info = holdingInfos.stream()
+                .filter(i -> i.getSymbol().equals(holdingDto.getSymbol()))
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException("Holdings not found"));
 
-                for (var det : info.getHoldingDetails()) {
-                    if (det.getId() == detail.getId()) {
-                        holdingDetail = det;
-                        break;
-                    }
-                }
-                break;
-            }
-        }
-
-        if (holdingDetail == null) {
+        if (CollectionUtils.isEmpty(info.getHoldingDetails())) {
             throw new BadRequestException("Holdings not found");
         }
+
+        var holdingDetail = info.getHoldingDetails().stream()
+                .filter(det -> det.getId() == detail.getId())
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException("Holdings not found"));
 
         holdingDetail.setPrice(detail.getPrice());
         holdingDetail.setQuantity(detail.getQuantity());
@@ -162,28 +155,18 @@ public class HoldingsServiceImpl implements HoldingsService {
             throw new BadRequestException("Holdings not found");
         }
 
-        var idxToRemove = -1;
-        for (var info : holdingInfos) {
-            if (info.getSymbol().equals(symbol)) {
-                if (CollectionUtils.isEmpty(info.getHoldingDetails())) {
-                    throw new BadRequestException("Holdings not found");
-                }
+        var info = holdingInfos.stream()
+                .filter(i -> i.getSymbol().equals(symbol))
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException("Holdings not found"));
 
-                for (int i = 0; i < info.getHoldingDetails().size(); i++) {
-                    var det = info.getHoldingDetails().get(i);
-                    if (det.getId() == id) {
-                        idxToRemove = i;
-                        break;
-                    }
-                }
+        if (CollectionUtils.isEmpty(info.getHoldingDetails())) {
+            throw new BadRequestException("Holdings not found");
+        }
 
-                if (idxToRemove < 0) {
-                    throw new BadRequestException("Holdings not found");
-                }
-
-                info.getHoldingDetails().remove(idxToRemove);
-                break;
-            }
+        boolean removed = info.getHoldingDetails().removeIf(det -> det.getId() == id);
+        if (!removed) {
+            throw new BadRequestException("Holdings not found");
         }
 
         holdingsRepo.save(holdings);
@@ -209,38 +192,49 @@ public class HoldingsServiceImpl implements HoldingsService {
                 continue;
             }
 
-            for (var det : zerodhaHoldings) {
-                var margin = marginService.getMarginCache().get(det.getSymbol());
-                if (margin == null) {
-                    continue;
-                }
-
-                det.setMargin(margin.getRequiredMargin());
-
-                Double ltp = ltpMap.get(det.getSymbol());
-                if (ltp == null) {
-                    try {
-                        ltp = angelOneService.getMarketTicker(margin.getToken()).getBody().getData().ltp();
-                    } catch (Exception e) {
-                        log.error("Error while getting ltp for symbol {}", margin.getSymbol(), e);
-                    }
-
-                    if (ltp == null || ltp <= 0) {
-                        ltpMap.put(det.getSymbol(), 0d);
-                        continue;
-                    }
-                }
-
-                if (ltp > 0) {
-                    det.setLtp(BigDecimal.valueOf(ltp));
-                    ltpMap.put(det.getSymbol(), ltp);
-                }
-            }
+            processZerodhaHoldings(zerodhaHoldings, ltpMap);
             keys.add(HOLDING_KEY + info.getUserId());
         }
 
         holdingsRepo.saveAll(holdings);
         stringRedisTemplate.delete(keys);
+    }
+
+    private void processZerodhaHoldings(List<Holdings.HoldingInfo> zerodhaHoldings, Map<String, Double> ltpMap) {
+        for (var det : zerodhaHoldings) {
+            var margin = marginService.getMarginCache().get(det.getSymbol());
+            if (margin == null) {
+                continue;
+            }
+
+            det.setMargin(margin.getRequiredMargin());
+            updateLtpForHolding(det, margin.getToken(), ltpMap);
+        }
+    }
+
+    private void updateLtpForHolding(Holdings.HoldingInfo det, String token, Map<String, Double> ltpMap) {
+        Double ltp = ltpMap.get(det.getSymbol());
+        if (ltp == null) {
+            ltp = fetchLtpFromAngelOne(det.getSymbol(), token);
+            if (ltp == null || ltp <= 0) {
+                ltpMap.put(det.getSymbol(), 0d);
+                return;
+            }
+        }
+
+        if (ltp > 0) {
+            det.setLtp(BigDecimal.valueOf(ltp));
+            ltpMap.put(det.getSymbol(), ltp);
+        }
+    }
+
+    private Double fetchLtpFromAngelOne(String symbol, String token) {
+        try {
+            return angelOneService.getMarketTicker(token).getBody().getData().ltp();
+        } catch (Exception e) {
+            log.error("Error while getting ltp for symbol {}", symbol, e);
+            return null;
+        }
     }
 
     private Holdings findHoldingsById(long userId) {
