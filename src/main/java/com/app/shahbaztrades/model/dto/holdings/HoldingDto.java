@@ -3,7 +3,6 @@ package com.app.shahbaztrades.model.dto.holdings;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.model.entity.Holdings;
 import com.app.shahbaztrades.util.DateUtil;
-import com.app.shahbaztrades.validator.OrderValidator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -28,6 +27,8 @@ public class HoldingDto {
     String symbol;
 
     float margin;
+
+    BigDecimal ltp;
 
     @Size(min = 1)
     List<@Valid HoldingDetailDto> holdingDetails;
@@ -54,7 +55,6 @@ public class HoldingDto {
             LocalDate parsedDate;
             try {
                 parsedDate = LocalDate.parse(this.buyDate, DateTimeFormatter.ISO_LOCAL_DATE);
-                OrderValidator.validateOrderDate(parsedDate);
             } catch (Exception e) {
                 throw new BadRequestException("Invalid date format");
             }

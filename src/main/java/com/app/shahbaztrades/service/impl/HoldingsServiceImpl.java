@@ -8,6 +8,7 @@ import com.app.shahbaztrades.model.dto.holdings.HoldingDto;
 import com.app.shahbaztrades.model.entity.Holdings;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.repo.HoldingsRepo;
+import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.HoldingsService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.util.Constants;
@@ -21,10 +22,16 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
@@ -37,6 +44,7 @@ public class HoldingsServiceImpl implements HoldingsService {
     private final StringRedisTemplate stringRedisTemplate;
     private final MarginService marginService;
     private final MongoTemplate mongoTemplate;
+    private final AngelOneService angelOneService;
 
     @Override
     public ResponseEntity<ApiResponse<List<HoldingDto>>> getAllHoldings(BrokerType brokerType, UserDto userDto) {
@@ -47,7 +55,7 @@ public class HoldingsServiceImpl implements HoldingsService {
             holdings = HelperUtil.GSON.fromJson(redisHoldings, Holdings.class);
         } else {
             holdings = findHoldingsById(userDto.getUserId());
-            stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(holdings));
+            stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(holdings), Duration.ofMinutes(15));
         }
 
         var holdingInfo = holdings.getBrokerHoldingMap().get(brokerType);
@@ -76,6 +84,8 @@ public class HoldingsServiceImpl implements HoldingsService {
         holdingInfo.getHoldingDetails().addAll(holdingDetails);
 
         holdingsRepo.save(holdings);
+        var key = HOLDING_KEY + userDto.getUserId();
+        stringRedisTemplate.delete(key);
 
         return ResponseEntity.ok(ApiResponse.ok(true, "Holdings added"));
     }
@@ -102,36 +112,135 @@ public class HoldingsServiceImpl implements HoldingsService {
 
     @Override
     public ResponseEntity<ApiResponse<Boolean>> updateHoldings(BrokerType brokerType, UserDto userDto, HoldingDto holdingDto) {
-        var detail = holdingDto.getHoldingDetails().getFirst();
+        var detail = holdingDto.getHoldingDetails().getFirst().toHoldingDetail();
         if (detail.getId() <= 0) {
             throw new BadRequestException("Invalid Request");
         }
 
-        var brokerPath = Holdings.Fields.brokerHoldingMap + Constants.DOT + brokerType.name();
-
-        var query = Query.query(
-                Criteria.where(Holdings.Fields.userId).is(userDto.getUserId())
-                        .and(brokerPath + ".symbol").is(holdingDto.getSymbol())
-        );
-
-        var update = new Update()
-                .set(
-                        brokerPath + ".holdingDetails.$[detail]",
-                        detail.toHoldingDetail()
-                );
-
-        update.filterArray(
-                Criteria.where("detail.id").is(detail.getId())
-        );
-
-        var result = mongoTemplate.updateFirst(query, update, Holdings.class);
-        if (result.getModifiedCount() > 0) {
-            var key = HOLDING_KEY + userDto.getUserId();
-            stringRedisTemplate.delete(key);
-            return ResponseEntity.ok(ApiResponse.ok(true, "Holdings updated"));
+        var holdings = findHoldingsById(userDto.getUserId());
+        var holdingInfos = holdings.getBrokerHoldingMap().get(brokerType);
+        if (CollectionUtils.isEmpty(holdingInfos)) {
+            throw new BadRequestException("Holdings not found");
         }
 
-        throw new NotFoundException("Holdings not found");
+        Holdings.HoldingDetail holdingDetail = null;
+        for (var info : holdingInfos) {
+            if (info.getSymbol().equals(holdingDto.getSymbol())) {
+                if (CollectionUtils.isEmpty(info.getHoldingDetails())) {
+                    throw new BadRequestException("Holdings not found");
+                }
+
+                for (var det : info.getHoldingDetails()) {
+                    if (det.getId() == detail.getId()) {
+                        holdingDetail = det;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+
+        if (holdingDetail == null) {
+            throw new BadRequestException("Holdings not found");
+        }
+
+        holdingDetail.setPrice(detail.getPrice());
+        holdingDetail.setQuantity(detail.getQuantity());
+        holdingDetail.setBuyDate(detail.getBuyDate());
+
+        holdingsRepo.save(holdings);
+        var key = HOLDING_KEY + userDto.getUserId();
+        stringRedisTemplate.delete(key);
+        return ResponseEntity.ok(ApiResponse.ok(true, "Holdings updated"));
+    }
+
+    @Override
+    public ResponseEntity<ApiResponse<Boolean>> deleteHoldingDetail(BrokerType brokerType, UserDto userDto, String symbol, int id) {
+        var holdings = findHoldingsById(userDto.getUserId());
+        var holdingInfos = holdings.getBrokerHoldingMap().get(brokerType);
+        if (CollectionUtils.isEmpty(holdingInfos)) {
+            throw new BadRequestException("Holdings not found");
+        }
+
+        var idxToRemove = -1;
+        for (var info : holdingInfos) {
+            if (info.getSymbol().equals(symbol)) {
+                if (CollectionUtils.isEmpty(info.getHoldingDetails())) {
+                    throw new BadRequestException("Holdings not found");
+                }
+
+                for (int i = 0; i < info.getHoldingDetails().size(); i++) {
+                    var det = info.getHoldingDetails().get(i);
+                    if (det.getId() == id) {
+                        idxToRemove = i;
+                        break;
+                    }
+                }
+
+                if (idxToRemove < 0) {
+                    throw new BadRequestException("Holdings not found");
+                }
+
+                info.getHoldingDetails().remove(idxToRemove);
+                break;
+            }
+        }
+
+        holdingsRepo.save(holdings);
+        var key = HOLDING_KEY + userDto.getUserId();
+        stringRedisTemplate.delete(key);
+        return ResponseEntity.ok(ApiResponse.ok(true, "Holding detail deleted"));
+    }
+
+    @Override
+    @Async("taskExecutor")
+    public void updatePortfolio() {
+        var holdings = holdingsRepo.findAll();
+        if (CollectionUtils.isEmpty(holdings)) {
+            return;
+        }
+
+        Map<String, Double> ltpMap = new HashMap<>();
+        var keys = new ArrayList<String>(holdings.size());
+
+        for (var info : holdings) {
+            var zerodhaHoldings = info.getBrokerHoldingMap().get(BrokerType.ZERODHA);
+            if (CollectionUtils.isEmpty(zerodhaHoldings)) {
+                continue;
+            }
+
+            for (var det : zerodhaHoldings) {
+                var margin = marginService.getMarginCache().get(det.getSymbol());
+                if (margin == null) {
+                    continue;
+                }
+
+                det.setMargin(margin.getRequiredMargin());
+
+                Double ltp = ltpMap.get(det.getSymbol());
+                if (ltp == null) {
+                    try {
+                        ltp = angelOneService.getMarketTicker(margin.getToken()).getBody().getData().ltp();
+                    } catch (Exception e) {
+                        log.error("Error while getting ltp for symbol {}", margin.getSymbol(), e);
+                    }
+
+                    if (ltp == null || ltp <= 0) {
+                        ltpMap.put(det.getSymbol(), 0d);
+                        continue;
+                    }
+                }
+
+                if (ltp > 0) {
+                    det.setLtp(BigDecimal.valueOf(ltp));
+                    ltpMap.put(det.getSymbol(), ltp);
+                }
+            }
+            keys.add(HOLDING_KEY + info.getUserId());
+        }
+
+        holdingsRepo.saveAll(holdings);
+        stringRedisTemplate.delete(keys);
     }
 
     private Holdings findHoldingsById(long userId) {
@@ -178,9 +287,17 @@ public class HoldingsServiceImpl implements HoldingsService {
 
         var margin = marginService.getMarginCache().get(symbol);
 
+        double ltp = 0;
+        try {
+            ltp = angelOneService.getMarketTicker(margin.getToken()).getBody().getData().ltp();
+        } catch (Exception e) {
+            log.error("Error while getting ltp for symbol {}", symbol, e);
+        }
+
         var holdingInfo = Holdings.HoldingInfo.builder()
                 .symbol(symbol)
                 .margin(margin.getRequiredMargin())
+                .ltp(BigDecimal.valueOf(ltp))
                 .build();
 
         holdingInfos.add(holdingInfo);
