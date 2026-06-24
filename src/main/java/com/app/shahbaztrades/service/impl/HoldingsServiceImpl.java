@@ -8,6 +8,7 @@ import com.app.shahbaztrades.model.dto.holdings.HoldingDto;
 import com.app.shahbaztrades.model.entity.Holdings;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.repo.HoldingsRepo;
+import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.HoldingsService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.util.Constants;
@@ -24,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
@@ -37,6 +39,7 @@ public class HoldingsServiceImpl implements HoldingsService {
     private final StringRedisTemplate stringRedisTemplate;
     private final MarginService marginService;
     private final MongoTemplate mongoTemplate;
+    private final AngelOneService angelOneService;
 
     @Override
     public ResponseEntity<ApiResponse<List<HoldingDto>>> getAllHoldings(BrokerType brokerType, UserDto userDto) {
@@ -178,9 +181,17 @@ public class HoldingsServiceImpl implements HoldingsService {
 
         var margin = marginService.getMarginCache().get(symbol);
 
+        double ltp = 0;
+        try {
+            ltp = angelOneService.getMarketTicker(margin.getToken()).getBody().getData().ltp();
+        } catch (Exception e) {
+            log.error("Error while getting ltp for symbol {}", symbol, e);
+        }
+
         var holdingInfo = Holdings.HoldingInfo.builder()
                 .symbol(symbol)
                 .margin(margin.getRequiredMargin())
+                .ltp(BigDecimal.valueOf(ltp))
                 .build();
 
         holdingInfos.add(holdingInfo);

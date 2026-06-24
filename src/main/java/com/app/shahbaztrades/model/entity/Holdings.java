@@ -43,6 +43,8 @@ public class Holdings {
 
         float margin;
 
+        BigDecimal ltp;
+
         @Builder.Default
         List<HoldingDetail> holdingDetails = new CopyOnWriteArrayList<>();
 
@@ -52,6 +54,7 @@ public class Holdings {
                     .margin(this.margin)
                     .holdingDetails(this.holdingDetails.stream()
                             .map(HoldingDetail::toHoldingDetailDto).toList())
+                    .ltp(this.ltp)
                     .build();
         }
     }
