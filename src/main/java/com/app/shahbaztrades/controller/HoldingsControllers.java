@@ -6,6 +6,7 @@ import com.app.shahbaztrades.model.dto.holdings.HoldingDto;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.service.HoldingsService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -39,5 +40,11 @@ public class HoldingsControllers {
     @PutMapping
     public ResponseEntity<ApiResponse<Boolean>> updateHoldings(@RequestParam @NotNull BrokerType brokerType, @RequestAttribute("user") UserDto userDto, @RequestBody @Valid HoldingDto holdingDto) {
         return holdingsService.updateHoldings(brokerType, userDto, holdingDto);
+    }
+
+    @DeleteMapping("detail/{symbol}/{id}")
+    public ResponseEntity<ApiResponse<Boolean>> deleteHoldingDetail(@RequestParam @NotNull BrokerType brokerType, @RequestAttribute("user") UserDto userDto,
+                                                                    @PathVariable @NotBlank String symbol, @PathVariable @Min(1) int id) {
+        return holdingsService.deleteHoldingDetail(brokerType, userDto, symbol,id);
     }
 }

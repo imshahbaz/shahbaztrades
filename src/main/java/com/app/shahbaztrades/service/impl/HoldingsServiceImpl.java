@@ -131,6 +131,7 @@ public class HoldingsServiceImpl implements HoldingsService {
                         break;
                     }
                 }
+                break;
             }
         }
 
@@ -146,6 +147,44 @@ public class HoldingsServiceImpl implements HoldingsService {
         var key = HOLDING_KEY + userDto.getUserId();
         stringRedisTemplate.delete(key);
         return ResponseEntity.ok(ApiResponse.ok(true, "Holdings updated"));
+    }
+
+    @Override
+    public ResponseEntity<ApiResponse<Boolean>> deleteHoldingDetail(BrokerType brokerType, UserDto userDto, String symbol, int id) {
+        var holdings = findHoldingsById(userDto.getUserId());
+        var holdingInfos = holdings.getBrokerHoldingMap().get(brokerType);
+        if (CollectionUtils.isEmpty(holdingInfos)) {
+            throw new BadRequestException("Holdings not found");
+        }
+
+        var idxToRemove = -1;
+        for (var info : holdingInfos) {
+            if (info.getSymbol().equals(symbol)) {
+                if (CollectionUtils.isEmpty(info.getHoldingDetails())) {
+                    throw new BadRequestException("Holdings not found");
+                }
+
+                for (int i = 0; i < info.getHoldingDetails().size(); i++) {
+                    var det = info.getHoldingDetails().get(i);
+                    if (det.getId() == id) {
+                        idxToRemove = i;
+                        break;
+                    }
+                }
+
+                if (idxToRemove < 0) {
+                    throw new BadRequestException("Holdings not found");
+                }
+
+                info.getHoldingDetails().remove(idxToRemove);
+                break;
+            }
+        }
+
+        holdingsRepo.save(holdings);
+        var key = HOLDING_KEY + userDto.getUserId();
+        stringRedisTemplate.delete(key);
+        return ResponseEntity.ok(ApiResponse.ok(true, "Holding detail deleted"));
     }
 
     private Holdings findHoldingsById(long userId) {
