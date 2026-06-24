@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.controller;
 
+import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.holdings.HoldingDto;
@@ -45,6 +46,13 @@ public class HoldingsControllers {
     @DeleteMapping("detail/{symbol}/{id}")
     public ResponseEntity<ApiResponse<Boolean>> deleteHoldingDetail(@RequestParam @NotNull BrokerType brokerType, @RequestAttribute("user") UserDto userDto,
                                                                     @PathVariable @NotBlank String symbol, @PathVariable @Min(1) int id) {
-        return holdingsService.deleteHoldingDetail(brokerType, userDto, symbol,id);
+        return holdingsService.deleteHoldingDetail(brokerType, userDto, symbol, id);
+    }
+
+    @PublicEndpoint
+    @PostMapping("/update-portfolio")
+    public ResponseEntity<ApiResponse<Boolean>> updatePortfolio() {
+        holdingsService.updatePortfolio();
+        return ResponseEntity.ok(ApiResponse.ok(Boolean.TRUE, "Portfolio update started"));
     }
 }
