@@ -234,7 +234,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
                         .build());
 
         if (response != null && response.data() != null && !CollectionUtils.isEmpty(response.data().fetched())) {
-            stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(response.data().fetched().getFirst()), Duration.ofSeconds(60));
+            stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(response.data().fetched().getFirst()), DateUtil.getLtpDuration());
             return ResponseEntity.ok(ApiResponse.ok(response.data().fetched().getFirst(), "Ltp Fetched Successfully"));
         }
 
