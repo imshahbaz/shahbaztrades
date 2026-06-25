@@ -65,8 +65,8 @@ public class DateUtil {
 
     public static boolean isMarketClosedForTrading() {
         ZonedDateTime nowInIndia = ZonedDateTime.now(IST_ZONE);
-        java.time.DayOfWeek day = nowInIndia.getDayOfWeek();
-        if (day.equals(java.time.DayOfWeek.SATURDAY) || day.equals(java.time.DayOfWeek.SUNDAY)) {
+        DayOfWeek day = nowInIndia.getDayOfWeek();
+        if (day.equals(DayOfWeek.SATURDAY) || day.equals(DayOfWeek.SUNDAY)) {
             return true;
         }
 
@@ -82,6 +82,43 @@ public class DateUtil {
 
     public static Duration getDurationUntilMarketClose() {
         return Duration.between(LocalTime.now(IST_ZONE), LocalTime.of(MARKET_CLOSING_HOUR, MARKET_SQUARE_OFF_MIN));
+    }
+
+    public static Duration getLtpDuration() {
+        var now = ZonedDateTime.now(IST_ZONE);
+        LocalTime time = now.toLocalTime();
+
+        LocalTime marketOpenTime = LocalTime.of(9, 15);
+        LocalTime marketCloseTime = LocalTime.of(MARKET_CLOSING_HOUR, 45);
+        DayOfWeek day = now.getDayOfWeek();
+
+        if (isTradingDay(day) && !time.isBefore(marketOpenTime) && !time.isAfter(marketCloseTime)) {
+            return Duration.ofMinutes(1);
+        }
+
+        if (isTradingDay(day) && time.isBefore(marketOpenTime)) {
+            return Duration.between(time, marketOpenTime);
+        }
+
+        ZonedDateTime nextTargetOpen = calculateNextMarketOpen(now, marketOpenTime);
+        return Duration.between(now, nextTargetOpen);
+    }
+
+    private static boolean isTradingDay(DayOfWeek day) {
+        return day != DayOfWeek.SATURDAY && day != DayOfWeek.SUNDAY;
+    }
+
+    private static ZonedDateTime calculateNextMarketOpen(ZonedDateTime now, LocalTime marketOpenTime) {
+        ZonedDateTime target = now.plusDays(1)
+                .with(marketOpenTime)
+                .withSecond(0)
+                .withNano(0);
+
+        while (!isTradingDay(target.getDayOfWeek())) {
+            target = target.plusDays(1);
+        }
+
+        return target;
     }
 
 }
