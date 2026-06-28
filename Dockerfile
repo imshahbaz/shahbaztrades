@@ -1,5 +1,5 @@
 # -------- BUILD STAGE --------
-FROM --platform=linux/amd64 ibm-semeru-runtimes:open-21-jdk-jammy AS builder
+FROM --platform=linux/amd64 ibm-semeru-runtimes:open-25-jdk-jammy AS builder
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY src ./src
 RUN ./mvnw clean package -DskipTests -B
 
 # -------- RUNTIME STAGE --------
-FROM --platform=linux/amd64 ibm-semeru-runtimes:open-21-jre-jammy
+FROM --platform=linux/amd64 ibm-semeru-runtimes:open-25-jre-jammy
 
 WORKDIR /app
 
