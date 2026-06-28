@@ -179,23 +179,17 @@ public class HelperUtil {
                     .replace("\\u0026", "&");
 
             String symbol = extract(json, "\"symbol\":\"", "\"");
-            if (StringUtils.isEmpty(symbol)) {
-                continue;
-            }
-
             var update = map.get(symbol);
-            if (update == null) {
-                continue;
-            }
+            if (!StringUtils.isEmpty(symbol) && update != null) {
+                String leverage = extract(json, "\"margin_multiplier\":", ",");
+                String stockName = extract(json, "\"security_desc\":\"", "\"");
+                if (!StringUtils.isEmpty(stockName)) {
+                    update.set(Margin.Fields.name, stockName);
+                }
 
-            String leverage = extract(json, "\"margin_multiplier\":", ",");
-            String stockName = extract(json, "\"security_desc\":\"", "\"");
-            if (!StringUtils.isEmpty(stockName)) {
-                update.set(Margin.Fields.name, stockName);
-            }
-
-            if (NumberUtils.isCreatable(leverage)) {
-                update.set(Margin.Fields.rupeezyMargin, Float.parseFloat(leverage));
+                if (NumberUtils.isCreatable(leverage)) {
+                    update.set(Margin.Fields.rupeezyMargin, Float.parseFloat(leverage));
+                }
             }
         }
     }

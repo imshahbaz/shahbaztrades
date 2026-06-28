@@ -40,6 +40,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class HoldingsServiceImpl implements HoldingsService {
 
+    private static final String HOLDINGS_NOT_FOUND = "Holdings not found";
+
     private final HoldingsRepo holdingsRepo;
     private final StringRedisTemplate stringRedisTemplate;
     private final MarginService marginService;
@@ -60,7 +62,7 @@ public class HoldingsServiceImpl implements HoldingsService {
 
         var holdingInfo = holdings.getBrokerHoldingMap().get(brokerType);
         if (CollectionUtils.isEmpty(holdingInfo)) {
-            throw new NotFoundException("Holdings not found");
+            throw new NotFoundException(HOLDINGS_NOT_FOUND);
         }
 
         return ResponseEntity.ok(ApiResponse.ok(holdingInfo.stream()
@@ -107,7 +109,7 @@ public class HoldingsServiceImpl implements HoldingsService {
             return ResponseEntity.ok(ApiResponse.ok(true, "Holdings deleted"));
         }
 
-        throw new NotFoundException("Holdings not found");
+        throw new NotFoundException(HOLDINGS_NOT_FOUND);
     }
 
     @Override
@@ -120,22 +122,22 @@ public class HoldingsServiceImpl implements HoldingsService {
         var holdings = findHoldingsById(userDto.getUserId());
         var holdingInfos = holdings.getBrokerHoldingMap().get(brokerType);
         if (CollectionUtils.isEmpty(holdingInfos)) {
-            throw new BadRequestException("Holdings not found");
+            throw new BadRequestException(HOLDINGS_NOT_FOUND);
         }
 
         var info = holdingInfos.stream()
                 .filter(i -> i.getSymbol().equals(holdingDto.getSymbol()))
                 .findFirst()
-                .orElseThrow(() -> new BadRequestException("Holdings not found"));
+                .orElseThrow(() -> new BadRequestException(HOLDINGS_NOT_FOUND));
 
         if (CollectionUtils.isEmpty(info.getHoldingDetails())) {
-            throw new BadRequestException("Holdings not found");
+            throw new BadRequestException(HOLDINGS_NOT_FOUND);
         }
 
         var holdingDetail = info.getHoldingDetails().stream()
                 .filter(det -> det.getId() == detail.getId())
                 .findFirst()
-                .orElseThrow(() -> new BadRequestException("Holdings not found"));
+                .orElseThrow(() -> new BadRequestException(HOLDINGS_NOT_FOUND));
 
         holdingDetail.setPrice(detail.getPrice());
         holdingDetail.setQuantity(detail.getQuantity());
@@ -152,21 +154,21 @@ public class HoldingsServiceImpl implements HoldingsService {
         var holdings = findHoldingsById(userDto.getUserId());
         var holdingInfos = holdings.getBrokerHoldingMap().get(brokerType);
         if (CollectionUtils.isEmpty(holdingInfos)) {
-            throw new BadRequestException("Holdings not found");
+            throw new BadRequestException(HOLDINGS_NOT_FOUND);
         }
 
         var info = holdingInfos.stream()
                 .filter(i -> i.getSymbol().equals(symbol))
                 .findFirst()
-                .orElseThrow(() -> new BadRequestException("Holdings not found"));
+                .orElseThrow(() -> new BadRequestException(HOLDINGS_NOT_FOUND));
 
         if (CollectionUtils.isEmpty(info.getHoldingDetails())) {
-            throw new BadRequestException("Holdings not found");
+            throw new BadRequestException(HOLDINGS_NOT_FOUND);
         }
 
         boolean removed = info.getHoldingDetails().removeIf(det -> det.getId() == id);
         if (!removed) {
-            throw new BadRequestException("Holdings not found");
+            throw new BadRequestException(HOLDINGS_NOT_FOUND);
         }
 
         holdingsRepo.save(holdings);
@@ -239,7 +241,7 @@ public class HoldingsServiceImpl implements HoldingsService {
 
     private Holdings findHoldingsById(long userId) {
         return holdingsRepo.findById(userId)
-                .orElseThrow(() -> new NotFoundException("Holdings not found"));
+                .orElseThrow(() -> new NotFoundException(HOLDINGS_NOT_FOUND));
     }
 
     private Holdings getOrCreateHoldings(long userId) {
