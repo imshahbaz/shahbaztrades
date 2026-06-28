@@ -14,6 +14,7 @@ import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -64,7 +65,7 @@ public class YahooClient {
                 stringRedisTemplate.opsForValue().set(
                         cacheKey,
                         HelperUtil.GSON.toJson(list),
-                        DateUtil.getNseCacheExpiryTime()
+                        DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10))
                 );
             }
             return list;
