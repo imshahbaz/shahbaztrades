@@ -20,10 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -91,7 +88,10 @@ public class ChartInkServiceImpl implements ChartInkService {
                 .sorted(Comparator.comparingDouble(StockMarginDto::getMargin).reversed())
                 .toList();
 
-        stringRedisTemplate.opsForValue().set(redisKey, HelperUtil.GSON.toJson(result), DateUtil.getNseCacheExpiryTime());
+        stringRedisTemplate.opsForValue().set(redisKey,
+                HelperUtil.GSON.toJson(result),
+                DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10)));
+
         return result;
     }
 

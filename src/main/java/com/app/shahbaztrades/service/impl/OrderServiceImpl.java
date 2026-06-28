@@ -2,21 +2,25 @@ package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
 import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
+import com.app.shahbaztrades.components.yahoo.YahooClient;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
+import com.app.shahbaztrades.model.dto.analysis.TechnicalMetrics;
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.dto.order.ActiveMtfTrade;
 import com.app.shahbaztrades.model.dto.order.OrderDto;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.ExchangeType;
+import com.app.shahbaztrades.model.enums.YahooTimeRange;
 import com.app.shahbaztrades.repo.OrderRepo;
 import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.OrderService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
+import com.app.shahbaztrades.util.TechnicalAnalysisUtil;
 import com.app.shahbaztrades.validator.OrderValidator;
 import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +44,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -55,6 +60,7 @@ public class OrderServiceImpl implements OrderService {
     private final ApplicationEventPublisher eventPublisher;
     private final TradeWatchdog tradeWatchdog;
     private final OrderRouterFactory orderRouterFactory;
+    private final YahooClient yahooClient;
 
     @Override
     public OrderDto getById(String id) {
@@ -217,6 +223,33 @@ public class OrderServiceImpl implements OrderService {
             return;
         }
 
+        if (type.equalsIgnoreCase("Initiate MTF")) {
+            Map<String, TechnicalMetrics> metrics = new ConcurrentHashMap<>();
+            orders.forEach(order -> {
+                try {
+                    var res = metrics.computeIfAbsent(order.getSymbol(), symbol -> {
+                        var data = yahooClient.getHistoricalData(order.getSymbol(), YahooTimeRange.RANGE_1MO.getValue());
+                        if (CollectionUtils.isEmpty(data)) {
+                            return null;
+                        }
+
+                        var atr = TechnicalAnalysisUtil.getAtr(data);
+                        if (atr == null || !atr.isAtrValid()) {
+                            return null;
+                        }
+
+                        return atr;
+                    });
+
+                    if (res != null) {
+                        order.setAtr(res);
+                    }
+                } catch (Exception e) {
+                    log.error("Error updating ATR for {} orderId {}", order.getSymbol(), order.getId());
+                }
+            });
+        }
+
         Map<Long, List<Order>> userOrderMap = orders.stream()
                 .collect(Collectors.groupingBy(Order::getUserId));
 
@@ -236,7 +269,8 @@ public class OrderServiceImpl implements OrderService {
         Query query = Query.query(Criteria.where(Order.Fields.id).is(order.getId()));
         Update update = new Update()
                 .set(Order.Fields.entry, order.getEntry())
-                .set(Order.Fields.exit, order.getExit());
+                .set(Order.Fields.exit, order.getExit())
+                .set(Order.Fields.atr, order.getAtr());
         mongoTemplate.updateFirst(query, update, Order.class);
     }
 
@@ -250,13 +284,22 @@ public class OrderServiceImpl implements OrderService {
 
     private short addStopLoss(Order order, double ltp, double buyPrice, double peakPrice) {
         boolean reachedProfitThreshold = ltp > buyPrice * 1.004;
-        boolean droppedFromPeak = ltp <= peakPrice * 0.994;
         boolean marketClosing = DateUtil.isPastClosingGrace();
 
         Order.ExecutionRecord exitRecord = order.getExit();
         boolean hasNoExitOrder = (exitRecord == null || StringUtils.isEmpty(exitRecord.getBrokerOrderId()));
 
-        if (reachedProfitThreshold && (droppedFromPeak || marketClosing)) {
+        boolean squareOff;
+        if (order.getAtr() != null) {
+            double dailyAtr = order.getAtr().getAtrValue();
+            double trailingDistance = dailyAtr * 0.4;
+            double stopLossFloor = peakPrice - trailingDistance;
+            squareOff = ltp <= stopLossFloor;
+        } else {
+            squareOff = ltp <= peakPrice * 0.994;
+        }
+
+        if (reachedProfitThreshold && (squareOff || marketClosing)) {
             return handleSquareOff(order, hasNoExitOrder);
         }
 

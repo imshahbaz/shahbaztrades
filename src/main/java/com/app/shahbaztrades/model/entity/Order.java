@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.model.entity;
 
+import com.app.shahbaztrades.model.dto.analysis.TechnicalMetrics;
 import com.app.shahbaztrades.model.dto.order.OrderDto;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.util.DateUtil;
@@ -39,6 +40,8 @@ public class Order {
     Margin margin;
 
     BrokerType broker;
+
+    TechnicalMetrics atr;
 
     public OrderDto toDto() {
         return OrderDto.builder()

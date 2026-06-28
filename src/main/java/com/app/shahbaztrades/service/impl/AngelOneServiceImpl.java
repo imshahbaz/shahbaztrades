@@ -16,11 +16,12 @@ import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -181,7 +182,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     }
 
     @Override
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     public void refreshBrokerSession() {
         var key = "angel_one_login_data";
         var loginData = angelOneClient.getWebsocketLogin(mongoConfigService.getConfig().getAngelOneConfig());
@@ -234,7 +235,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
                         .build());
 
         if (response != null && response.data() != null && !CollectionUtils.isEmpty(response.data().fetched())) {
-            stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(response.data().fetched().getFirst()), DateUtil.getLtpDuration());
+            stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(response.data().fetched().getFirst()), DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(1)));
             return ResponseEntity.ok(ApiResponse.ok(response.data().fetched().getFirst(), "Ltp Fetched Successfully"));
         }
 
