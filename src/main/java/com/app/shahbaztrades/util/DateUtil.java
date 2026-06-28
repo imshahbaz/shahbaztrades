@@ -88,7 +88,7 @@ public class DateUtil {
     }
 
     private static boolean isTradingDay(DayOfWeek day) {
-        return day != DayOfWeek.SATURDAY && day != DayOfWeek.SUNDAY;
+        return !day.equals(DayOfWeek.SATURDAY) && !day.equals(DayOfWeek.SUNDAY);
     }
 
     private static ZonedDateTime calculateNextMarketOpen(ZonedDateTime now, LocalTime marketOpenTime) {

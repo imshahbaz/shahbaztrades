@@ -62,6 +62,8 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRouterFactory orderRouterFactory;
     private final YahooClient yahooClient;
 
+    private static final String INITIATE_MTF = "Initiate MTF";
+
     @Override
     public OrderDto getById(String id) {
         return this.getOrderById(id).toDto();
@@ -143,7 +145,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Async("taskExecutor")
     public void initiateMtfOrders() {
-        processTodayOrders("Initiate MTF", (order) -> {
+        processTodayOrders(INITIATE_MTF, (order) -> {
             if (order.getEntry() != null && StringUtils.isNotBlank(order.getEntry().getBrokerOrderId())) {
                 log.warn("MTF order exists for user {} symbol {}", order.getUserId(), order.getSymbol());
                 return null;
@@ -223,46 +225,64 @@ public class OrderServiceImpl implements OrderService {
             return;
         }
 
-        if (type.equalsIgnoreCase("Initiate MTF")) {
-            Map<String, TechnicalMetrics> metrics = new ConcurrentHashMap<>();
-            orders.forEach(order -> {
-                try {
-                    var res = metrics.computeIfAbsent(order.getSymbol(), symbol -> {
-                        var data = yahooClient.getHistoricalData(order.getSymbol(), YahooTimeRange.RANGE_1MO.getValue());
-                        if (CollectionUtils.isEmpty(data)) {
-                            return null;
-                        }
-
-                        var atr = TechnicalAnalysisUtil.getAtr(data);
-                        if (atr == null || !atr.isAtrValid()) {
-                            return null;
-                        }
-
-                        return atr;
-                    });
-
-                    if (res != null) {
-                        order.setAtr(res);
-                    }
-                } catch (Exception e) {
-                    log.error("Error updating ATR for {} orderId {}", order.getSymbol(), order.getId());
-                }
-            });
+        if (shouldUpdateAtr(type)) {
+            updateAtr(orders);
         }
 
+        processOrdersByUser(orders, processor);
+    }
+
+    private boolean shouldUpdateAtr(String type) {
+        return INITIATE_MTF.equalsIgnoreCase(type);
+    }
+
+    private void updateAtr(List<Order> orders) {
+        Map<String, TechnicalMetrics> metrics = new ConcurrentHashMap<>();
+        orders.forEach(order -> updateAtr(order, metrics));
+    }
+
+    private void updateAtr(Order order, Map<String, TechnicalMetrics> metrics) {
+        try {
+            var res = metrics.computeIfAbsent(order.getSymbol(), this::getValidTechnicalMetrics);
+            if (res != null) {
+                order.setAtr(res);
+            }
+        } catch (Exception e) {
+            log.error("Error updating ATR for {} orderId {}", order.getSymbol(), order.getId());
+        }
+    }
+
+    private TechnicalMetrics getValidTechnicalMetrics(String symbol) {
+        var data = yahooClient.getHistoricalData(symbol, YahooTimeRange.RANGE_1MO.getValue());
+        if (CollectionUtils.isEmpty(data)) {
+            return null;
+        }
+
+        var atr = TechnicalAnalysisUtil.getAtr(data);
+        if (atr == null || !atr.isAtrValid()) {
+            return null;
+        }
+
+        return atr;
+    }
+
+    private void processOrdersByUser(List<Order> orders, Function<Order, Void> processor) {
         Map<Long, List<Order>> userOrderMap = orders.stream()
                 .collect(Collectors.groupingBy(Order::getUserId));
 
-        userOrderMap.forEach((userId, userOrders) -> HelperUtil.EXECUTOR.execute(() -> {
-            try {
-                for (Order order : userOrders) {
-                    processor.apply(order);
-                    saveOrderProgress(order);
-                }
-            } catch (Exception e) {
-                log.error("Error processing orders for user {}", userId, e);
+        userOrderMap.forEach((userId, userOrders) ->
+                HelperUtil.EXECUTOR.execute(() -> processUserOrders(userId, userOrders, processor)));
+    }
+
+    private void processUserOrders(Long userId, List<Order> userOrders, Function<Order, Void> processor) {
+        try {
+            for (Order order : userOrders) {
+                processor.apply(order);
+                saveOrderProgress(order);
             }
-        }));
+        } catch (Exception e) {
+            log.error("Error processing orders for user {}", userId, e);
+        }
     }
 
     private void saveOrderProgress(Order order) {
