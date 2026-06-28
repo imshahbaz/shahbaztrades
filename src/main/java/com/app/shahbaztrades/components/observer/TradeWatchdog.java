@@ -81,7 +81,7 @@ public class TradeWatchdog {
             return;
         }
 
-        if (activeKeys.isEmpty()) {
+        if (CollectionUtils.isEmpty(activeKeys)) {
             return;
         }
 
@@ -115,7 +115,7 @@ public class TradeWatchdog {
             return;
         }
 
-        if (activeKeys.isEmpty()) {
+        if (CollectionUtils.isEmpty(activeKeys)) {
             return;
         }
 

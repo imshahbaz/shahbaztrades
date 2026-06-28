@@ -29,23 +29,6 @@ public class DateUtil {
         return Duration.between(now, target).toSeconds();
     }
 
-    public static Duration getNseCacheExpiryTime() {
-        ZonedDateTime now = ZonedDateTime.now(IST_ZONE);
-
-        ZonedDateTime start = now.withHour(8).withMinute(0).withSecond(0).withNano(0);
-        ZonedDateTime end = now.withHour(17).withMinute(30).withSecond(0).withNano(0);
-
-        if (now.isAfter(start) && now.isBefore(end)) {
-            return Duration.ofMinutes(10);
-        }
-
-        if (now.isBefore(start)) {
-            return Duration.between(now, start);
-        }
-
-        return Duration.between(now, start.plusDays(1));
-    }
-
     public static LocalDate getTodayDate() {
         return LocalDate.now(IST_ZONE);
     }
@@ -84,7 +67,7 @@ public class DateUtil {
         return Duration.between(LocalTime.now(IST_ZONE), LocalTime.of(MARKET_CLOSING_HOUR, MARKET_SQUARE_OFF_MIN));
     }
 
-    public static Duration getLtpDuration() {
+    public static Duration getDurationUntilMarketOpen(Duration defaultDuration) {
         var now = ZonedDateTime.now(IST_ZONE);
         LocalTime time = now.toLocalTime();
 
@@ -93,7 +76,7 @@ public class DateUtil {
         DayOfWeek day = now.getDayOfWeek();
 
         if (isTradingDay(day) && !time.isBefore(marketOpenTime) && !time.isAfter(marketCloseTime)) {
-            return Duration.ofMinutes(1);
+            return defaultDuration;
         }
 
         if (isTradingDay(day) && time.isBefore(marketOpenTime)) {

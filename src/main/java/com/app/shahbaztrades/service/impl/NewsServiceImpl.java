@@ -76,7 +76,8 @@ public class NewsServiceImpl implements NewsService {
 
         try {
             var res = HelperUtil.GSON.fromJson(analysis, AIAnalysis.class);
-            stringRedisTemplate.opsForValue().set(cacheKey, analysis, DateUtil.getNseCacheExpiryTime());
+            stringRedisTemplate.opsForValue().set(cacheKey, analysis,
+                    DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10)));
             return ResponseEntity.ok(ApiResponse.ok(res, "Ai Analysis Fetched Successfully"));
         } catch (Exception e) {
             log.error("Error while getting GenAiStockAnalysis data", e);
