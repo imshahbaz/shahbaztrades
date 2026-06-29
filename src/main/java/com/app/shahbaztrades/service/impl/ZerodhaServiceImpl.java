@@ -22,6 +22,8 @@ import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -106,6 +108,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     }
 
     @Override
+    @CacheEvict(value = "zerodhaAuthCache", key = "#request.userId")
     public ResponseEntity<ApiResponse<Void>> login(BrokerLoginDto request) {
         var token = generateAccessToken(request.requestToken(), request.userId());
         stringRedisTemplate.opsForValue().set(ZERODHA_TOKEN_KEY + request.userId(), token, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
@@ -114,6 +117,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     }
 
     @Override
+    @Cacheable(value = "zerodhaAuthCache", key = "#userDto.userId", sync = true)
     public ResponseEntity<ApiResponse<String>> getAuth(UserDto userDto) {
         var user = getUser(userDto.getUserId());
 
