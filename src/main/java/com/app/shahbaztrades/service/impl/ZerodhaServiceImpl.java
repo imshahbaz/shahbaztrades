@@ -118,7 +118,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
 
     @Override
     @Cacheable(value = "zerodhaAuthCache", key = "#userDto.userId", sync = true)
-    public ResponseEntity<ApiResponse<String>> getAuth(UserDto userDto) {
+    public ApiResponse<String> getAuth(UserDto userDto) {
         var user = getUser(userDto.getUserId());
 
         if (!BrokerConfigValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
@@ -136,14 +136,14 @@ public class ZerodhaServiceImpl implements ZerodhaService {
             var kc = getKiteClient(userDto.getUserId());
             kc.getProfile();
         } catch (NotFoundException | IOException | KiteException e) {
-            return ResponseEntity.ok(ApiResponse.<String>builder()
+            return ApiResponse.<String>builder()
                     .success(Boolean.FALSE)
                     .data(user.getZerodhaConfig().getApiKey())
                     .message("Token expired")
-                    .build());
+                    .build();
         }
 
-        return ResponseEntity.ok(ApiResponse.ok(String.valueOf(user.getUserId()), "Token already exist"));
+        return ApiResponse.ok(String.valueOf(user.getUserId()), "Token already exist");
     }
 
     @Override
