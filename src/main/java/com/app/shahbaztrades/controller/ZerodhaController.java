@@ -24,7 +24,7 @@ public class ZerodhaController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<String>> getAuth(@RequestAttribute("user") UserDto userDto) {
-        return zerodhaService.getAuth(userDto);
+        return ResponseEntity.ok(zerodhaService.getAuth(userDto));
     }
 
     @PostMapping("/config")

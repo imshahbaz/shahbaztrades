@@ -25,7 +25,7 @@ public interface ZerodhaService {
 
     ResponseEntity<ApiResponse<Void>> login(BrokerLoginDto request);
 
-    ResponseEntity<ApiResponse<String>> getAuth(UserDto userDto);
+    ApiResponse<String> getAuth(UserDto userDto);
 
     ResponseEntity<ApiResponse<Long>> setConfig(User.ZerodhaConfig config, UserDto userDto);
 
