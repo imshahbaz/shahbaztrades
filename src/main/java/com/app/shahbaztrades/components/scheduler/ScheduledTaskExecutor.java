@@ -26,14 +26,14 @@ public class ScheduledTaskExecutor {
     public void executeTask(ScheduledTaskDto scheduledTask) {
         log.info("Executing scheduled task {}", scheduledTask.getTaskId());
         var res = HelperUtil.executeCallBack(scheduledTask.getCallBack());
-        log.info("Executed scheduled task {} responseStatus {}", scheduledTask, res.getStatusCode());
+        log.info("Executed scheduled task {} responseStatus {}", scheduledTask.getTaskId(), res.getStatusCode());
         redissonClient.getMap(scheduledTask.getType().getValue()).remove(scheduledTask.getTaskId());
     }
 
     public void executeCron(CronTaskDto cronTaskDto) {
         log.info("Executing cron {}", cronTaskDto.getCronId());
         var res = HelperUtil.executeCallBack(cronTaskDto.getCallBack());
-        log.info("Executed cron {} responseStatus {}", cronTaskDto, res.getStatusCode());
+        log.info("Executed cron {} responseStatus {}", cronTaskDto.getCronId(), res.getStatusCode());
     }
 
     @EventListener(ApplicationReadyEvent.class)
