@@ -7,6 +7,7 @@ import org.redisson.api.RedissonClient;
 import org.redisson.api.WorkerOptions;
 import org.redisson.codec.JsonJacksonCodec;
 import org.redisson.config.Config;
+import org.redisson.config.ConstantDelay;
 import org.redisson.executor.SpringTasksInjector;
 import org.redisson.spring.cache.CacheConfig;
 import org.redisson.spring.cache.RedissonSpringCacheManager;
@@ -57,7 +58,13 @@ public class RedisConfig {
         config.useSingleServer()
                 .setAddress(redisUrl)
                 .setConnectTimeout((int) Duration.ofSeconds(10).toMillis())
-                .setTimeout((int) Duration.ofSeconds(5).toMillis());
+                .setTimeout((int) Duration.ofSeconds(5).toMillis())
+                .setRetryAttempts(5)
+                .setRetryDelay(new ConstantDelay(Duration.ofSeconds(2)))
+                .setConnectionMinimumIdleSize(3)
+                .setConnectionPoolSize(10)
+                .setSubscriptionConnectionMinimumIdleSize(2)
+                .setSubscriptionConnectionPoolSize(5);
 
         return Redisson.create(config);
     }
@@ -67,7 +74,7 @@ public class RedisConfig {
         RScheduledExecutorService executorService = redissonClient.getExecutorService(SCHEDULER_NAME);
         executorService.deregisterWorkers();
         WorkerOptions options = WorkerOptions.defaults()
-                .workers(5)
+                .workers(3)
                 .tasksInjector(new SpringTasksInjector(beanFactory));
 
         executorService.registerWorkers(options);
