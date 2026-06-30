@@ -32,3 +32,7 @@ server:
       min: 32
       max: 200
       idle-timeout: 60000
+
+axiom:
+  token: ${AXIOM_TOKEN}
+  dataset: ${AXIOM_DATASET}

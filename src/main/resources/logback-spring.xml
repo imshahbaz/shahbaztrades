@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <springProperty name="AXIOM_TOKEN" source="axiom.token"/>
+    <springProperty name="AXIOM_DATASET" source="axiom.dataset"/>
+
+    <appender name="CONSOLE"
+              class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n%rEx</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="AXIOM"
+              class="com.app.shahbaztrades.components.logs.AxiomHttpAppender">
+
+        <token>${AXIOM_TOKEN}</token>
+        <dataset>${AXIOM_DATASET}</dataset>
+
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="AXIOM"/>
+    </root>
+
+</configuration>
