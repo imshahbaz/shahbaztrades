@@ -30,3 +30,7 @@ server:
     threads:
       min: 8
       max: 20
+
+axiom:
+  token: ${AXIOM_TOKEN}
+  dataset: ${AXIOM_DATASET}

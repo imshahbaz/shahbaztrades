@@ -13,8 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ActiveMtfTrade {
     double ltp;
-    @Builder.Default
-    double prevLtp = 0;
+    double prevLtp;
     double peakPrice;
     Order order;
 }
