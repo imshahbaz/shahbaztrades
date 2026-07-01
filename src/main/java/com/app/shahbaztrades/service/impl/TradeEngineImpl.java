@@ -51,6 +51,9 @@ public class TradeEngineImpl implements TradeEngine {
     private final TradeWatchdog tradeWatchdog;
     private final OrderRouterFactory orderRouterFactory;
 
+    private static final int LTP_POLL_ATTEMPTS = 10;
+    private static final long LTP_POLL_INTERVAL_MS = 100;
+
     @Override
     public void continuousTrade() {
         var orders = strategyOrderService.getTodayOrders();
@@ -197,8 +200,7 @@ public class TradeEngineImpl implements TradeEngine {
 
         if (ltp == -1) {
             angelOneService.subscribe(target.getToken(), ExchangeType.NSE.getValue());
-            Thread.sleep(1000);
-            ltp = angelOneService.getLTP(target.getToken());
+            ltp = awaitLtp(target.getToken());
             if (ltp < 0) {
                 return null;
             }
@@ -210,6 +212,15 @@ public class TradeEngineImpl implements TradeEngine {
         }
 
         return null;
+    }
+
+    private double awaitLtp(String token) throws InterruptedException {
+        double ltp = angelOneService.getLTP(token);
+        for (int attempt = 0; attempt < LTP_POLL_ATTEMPTS && ltp == -1; attempt++) {
+            Thread.sleep(LTP_POLL_INTERVAL_MS);
+            ltp = angelOneService.getLTP(token);
+        }
+        return ltp;
     }
 
     private void punchSingleTrade(Margin targetStock, int qty, long userId, StrategyOrder order) {
