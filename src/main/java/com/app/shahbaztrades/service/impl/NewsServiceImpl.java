@@ -101,11 +101,11 @@ public class NewsServiceImpl implements NewsService {
                 }
             } else {
                 log.warn("Could not acquire lock for symbol: {}, server is busy", symbol);
-                throw new RuntimeException("Server is busy processing this request, please try again.");
+                throw new NotFoundException("Analysis Not Found");
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Thread interrupted while waiting for lock", e);
+            throw new NotFoundException("Analysis Not Found");
         } catch (NotFoundException e) {
             throw e;
         } catch (Exception e) {
