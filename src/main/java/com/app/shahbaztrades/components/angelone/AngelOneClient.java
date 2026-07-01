@@ -4,18 +4,17 @@ import com.app.shahbaztrades.model.dto.angelone.MinimalInstrument;
 import com.app.shahbaztrades.model.dto.angelone.websocket.AngelOneLoginResponse;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.MongoEnvConfig;
+import com.app.shahbaztrades.util.HelperUtil;
 import com.app.shahbaztrades.util.TotpUtil;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,20 +32,19 @@ public class AngelOneClient {
     public AngelOneClient(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
         this.restClient = RestClient.builder()
-                .requestFactory(new JdkClientHttpRequestFactory(
-                        HttpClient.newBuilder()
-                                .connectTimeout(Duration.ofMinutes(5))
-                                .build()
-                ))
+                .requestFactory(HelperUtil.requestFactory(Duration.ofSeconds(60)))
                 .build();
-        this.websocketRestClient = RestClient.builder().baseUrl("https://apiconnect.angelone.in").build();
+        this.websocketRestClient = RestClient.builder()
+                .baseUrl("https://apiconnect.angelone.in")
+                .requestFactory(HelperUtil.requestFactory(Duration.ofSeconds(10)))
+                .build();
     }
 
     public List<Margin> getTokens(Map<String, Margin> cachedMargin) {
         List<Margin> margins = new ArrayList<>();
         restClient.get()
                 .uri(URL)
-                .exchange((request, response) -> handleResponse(response, cachedMargin, margins));
+                .exchange((_, response) -> handleResponse(response, cachedMargin, margins));
 
         return margins;
     }

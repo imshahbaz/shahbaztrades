@@ -10,15 +10,18 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.*;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HexFormat;
 import java.util.Map;
@@ -29,13 +32,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-
 public class HelperUtil {
     public static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
     public static final SecureRandom RANDOM = new SecureRandom();
     public static final Gson GSON = Beans.createGson();
     public static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
-    public static final RestTemplate REST_TEMPLATE = new RestTemplate();
+    // Declared before REST_TEMPLATE: static fields initialise in textual order and
+    // REST_TEMPLATE's initializer calls requestFactory(), which reads HTTP_CLIENT.
+    public static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(5))
+            .build();
+    public static final RestTemplate REST_TEMPLATE = new RestTemplate(requestFactory(Duration.ofSeconds(15)));
     public static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(5);
     private static final String ALPHA_NUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final int OTP_LENGTH = 6;
@@ -203,6 +210,12 @@ public class HelperUtil {
 
         if (e == -1) return text.substring(s);
         return text.substring(s, e);
+    }
+
+    public static JdkClientHttpRequestFactory requestFactory(Duration readTimeout) {
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(HTTP_CLIENT);
+        factory.setReadTimeout(readTimeout);
+        return factory;
     }
 
 }
