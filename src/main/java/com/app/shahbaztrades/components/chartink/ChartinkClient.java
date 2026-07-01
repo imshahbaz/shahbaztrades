@@ -1,6 +1,7 @@
 package com.app.shahbaztrades.components.chartink;
 
 import com.app.shahbaztrades.util.Constants;
+import com.app.shahbaztrades.util.HelperUtil;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.springframework.http.MediaType;
@@ -28,11 +29,7 @@ public class ChartinkClient {
         this.restClient = RestClient.builder()
                 .baseUrl(BASE_URL)
                 .defaultHeader("Accept", "application/json")
-                .requestFactory(new org.springframework.http.client.JdkClientHttpRequestFactory(
-                        java.net.http.HttpClient.newBuilder()
-                                .connectTimeout(Duration.ofSeconds(30))
-                                .build()
-                ))
+                .requestFactory(HelperUtil.requestFactory(Duration.ofSeconds(25)))
                 .build();
     }
 

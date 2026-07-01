@@ -7,6 +7,7 @@ import com.app.shahbaztrades.util.HelperUtil;
 import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -19,6 +20,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -27,14 +29,17 @@ public class YahooClient {
     private static final String BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
     private final RestClient restClient;
     private final StringRedisTemplate stringRedisTemplate;
+    private final RedissonClient redissonClient;
 
-    public YahooClient(RestClient.Builder restClientBuilder, StringRedisTemplate stringRedisTemplate) {
+    public YahooClient(RestClient.Builder restClientBuilder, StringRedisTemplate stringRedisTemplate, RedissonClient redissonClient) {
         this.restClient = restClientBuilder
                 .baseUrl(BASE_URL)
+                .requestFactory(HelperUtil.requestFactory(Duration.ofSeconds(15)))
                 .defaultHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36")
                 .defaultHeader("Accept", MediaType.APPLICATION_JSON_VALUE)
                 .build();
         this.stringRedisTemplate = stringRedisTemplate;
+        this.redissonClient = redissonClient;
     }
 
     public List<NSEHistoricalData> getHistoricalData(String symbol, String timeRange) {
@@ -45,33 +50,54 @@ public class YahooClient {
             }.getType());
         }
 
-        log.info("Fetching fresh historical data from Yahoo for: {}", symbol);
+        var lock = redissonClient.getLock("yahoo_lock:fetch:" + symbol + ":" + timeRange);
         try {
-            YahooChartResponse response = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/{symbol}.NS")
-                            .queryParam("range", timeRange)
-                            .queryParam("interval", "1d")
-                            .build(symbol))
-                    .retrieve()
-                    .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
-                            (request, resp) ->
-                                    log.error("Yahoo API Error: {} {}", resp.getStatusCode(), resp.getStatusText()))
-                    .body(YahooChartResponse.class);
+            if (lock.tryLock(2, -1, TimeUnit.SECONDS)) {
+                try {
+                    value = stringRedisTemplate.opsForValue().get(cacheKey);
+                    if (StringUtils.isNotBlank(value)) {
+                        return HelperUtil.GSON.fromJson(value, new TypeToken<List<NSEHistoricalData>>() {
+                        }.getType());
+                    }
 
-            List<NSEHistoricalData> list = (response != null) ? parseResponse(symbol, response) : Collections.emptyList();
-            if (!list.isEmpty()) {
-                Collections.reverse(list);
-                stringRedisTemplate.opsForValue().set(
-                        cacheKey,
-                        HelperUtil.GSON.toJson(list),
-                        DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10))
-                );
+                    log.info("Fetching fresh historical data from Yahoo for: {}", symbol);
+                    YahooChartResponse response = restClient.get()
+                            .uri(uriBuilder -> uriBuilder
+                                    .path("/{symbol}.NS")
+                                    .queryParam("range", timeRange)
+                                    .queryParam("interval", "1d")
+                                    .build(symbol))
+                            .retrieve()
+                            .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                                    (_, resp) ->
+                                            log.error("Yahoo API Error: {} {}", resp.getStatusCode(), resp.getStatusText()))
+                            .body(YahooChartResponse.class);
+
+                    List<NSEHistoricalData> list = (response != null) ? parseResponse(symbol, response) : Collections.emptyList();
+                    if (!list.isEmpty()) {
+                        Collections.reverse(list);
+                        stringRedisTemplate.opsForValue().set(
+                                cacheKey,
+                                HelperUtil.GSON.toJson(list),
+                                DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10))
+                        );
+                    }
+
+                    return list;
+                } catch (Exception e) {
+                    log.error("Critical failure fetching Yahoo data for {}", symbol, e);
+                    return Collections.emptyList();
+                } finally {
+                    if (lock.isLocked() && lock.isHeldByCurrentThread()) {
+                        lock.unlock();
+                    }
+                }
+            } else {
+                log.warn("Could not acquire distributed lock within 2 seconds for symbol: {}. Returning empty list.", symbol);
+                return Collections.emptyList();
             }
-            return list;
-
-        } catch (Exception e) {
-            log.error("Critical failure fetching Yahoo data for {}", symbol, e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             return Collections.emptyList();
         }
     }

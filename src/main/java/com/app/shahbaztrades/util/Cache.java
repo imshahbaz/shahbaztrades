@@ -1,103 +1,61 @@
 package com.app.shahbaztrades.util;
 
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Data;
-import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Expiry;
+import org.jspecify.annotations.NonNull;
 
 import java.time.Duration;
 import java.util.Set;
-import java.util.concurrent.*;
 
-@Slf4j
 public class Cache<K, V> {
-    private final ScheduledExecutorService cleanupService = Executors.newSingleThreadScheduledExecutor();
-    private final ConcurrentHashMap<K, DataHolder<V>> cacheMap = new ConcurrentHashMap<>();
-    private final PriorityBlockingQueue<ExpiryNode<K>> expiryQueue = new PriorityBlockingQueue<>();
 
-    public Cache() {
-        startCleanup();
-    }
+    private static final long MAXIMUM_SIZE = 50_000;
 
-    private void startCleanup() {
-        cleanupService.scheduleWithFixedDelay(() -> {
-            try {
-                var now = System.currentTimeMillis();
-                while (true) {
-                    ExpiryNode<K> node = expiryQueue.peek();
-                    if (node == null || node.expiryTime() > now) {
-                        break;
-                    }
+    private record Holder<V>(V data, long ttlNanos) {}
 
-                    expiryQueue.poll();
-                    cacheMap.computeIfPresent(node.key(), (k, holder) ->
-                            holder.getExpiryTime() <= now ? null : holder
-                    );
+    private final com.github.benmanes.caffeine.cache.Cache<K, Holder<V>> cache = Caffeine.newBuilder()
+            .maximumSize(MAXIMUM_SIZE)
+            .expireAfter(new Expiry<K, Holder<V>>() {
+                @Override
+                public long expireAfterCreate(@NonNull K key, @NonNull Holder<V> holder, long currentTime) {
+                    return holder.ttlNanos();
                 }
-            } catch (Exception e) {
-                log.error("Error occurred while cleaning up", e);
-            }
-        }, 1, 1, TimeUnit.MINUTES);
-    }
+
+                @Override
+                public long expireAfterUpdate(@NonNull K key, @NonNull Holder<V> holder, long currentTime, long currentDuration) {
+                    return holder.ttlNanos();
+                }
+
+                @Override
+                public long expireAfterRead(@NonNull K key, @NonNull Holder<V> holder, long currentTime, long currentDuration) {
+                    return currentDuration;
+                }
+            })
+            .build();
 
     public void set(K key, V value) {
-        cacheMap.put(key, DataHolder.<V>builder()
-                .data(value)
-                .expiryTime(-1)
-                .build());
-    }
-
-    public V get(K key) {
-        var holder = cacheMap.get(key);
-        if (holder == null) {
-            return null;
-        }
-        if (holder.getExpiryTime() > 0 && holder.getExpiryTime() < System.currentTimeMillis()) {
-            cacheMap.remove(key, holder);
-            return null;
-        }
-        return holder.data;
-    }
-
-    public void remove(K key) {
-        cacheMap.remove(key);
+        cache.put(key, new Holder<>(value, Long.MAX_VALUE));
     }
 
     public void set(K key, V value, Duration expiry) {
-        var expiryTime = System.currentTimeMillis() + expiry.toMillis();
-        cacheMap.put(key, DataHolder.<V>builder()
-                .data(value)
-                .expiryTime(expiryTime)
-                .build());
-        boolean offered = expiryQueue.offer(new ExpiryNode<>(key, expiryTime));
-        if (!offered) {
-            log.warn("Failed to add expiry node for key {}", key);
-        }
+        cache.put(key, new Holder<>(value, expiry.toNanos()));
+    }
+
+    public V get(K key) {
+        var holder = cache.getIfPresent(key);
+        return holder == null ? null : holder.data();
+    }
+
+    public void remove(K key) {
+        cache.invalidate(key);
     }
 
     public Set<K> getActiveKeys() {
-        return cacheMap.keySet();
+        return cache.asMap().keySet();
     }
 
     public void invalidateAll() {
-        cacheMap.clear();
-        expiryQueue.clear();
-    }
-
-    @Data
-    @Builder
-    @FieldDefaults(level = AccessLevel.PRIVATE)
-    private static class DataHolder<T> {
-        T data;
-        long expiryTime;
-    }
-
-    public record ExpiryNode<K>(K key, long expiryTime) implements Comparable<ExpiryNode<K>> {
-        @Override
-        public int compareTo(ExpiryNode<K> other) {
-            return Long.compare(this.expiryTime, other.expiryTime);
-        }
+        cache.invalidateAll();
     }
 
 }

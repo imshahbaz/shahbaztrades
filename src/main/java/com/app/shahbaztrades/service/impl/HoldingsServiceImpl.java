@@ -16,6 +16,7 @@ import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -180,13 +181,18 @@ public class HoldingsServiceImpl implements HoldingsService {
     @Override
     @Async("taskExecutor")
     public void updatePortfolio() {
-        var holdings = holdingsRepo.findAll();
+        var zerodhaField = Holdings.Fields.brokerHoldingMap + Constants.DOT + BrokerType.ZERODHA.name();
+
+        // Only load users who actually hold Zerodha positions, instead of the whole collection.
+        var holdings = mongoTemplate.find(new Query(Criteria.where(zerodhaField).exists(true)), Holdings.class);
         if (CollectionUtils.isEmpty(holdings)) {
             return;
         }
 
         Map<String, Double> ltpMap = new HashMap<>();
         var keys = new ArrayList<String>(holdings.size());
+        var bulkOps = mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, Holdings.class);
+        boolean hasUpdates = false;
 
         for (var info : holdings) {
             var zerodhaHoldings = info.getBrokerHoldingMap().get(BrokerType.ZERODHA);
@@ -195,11 +201,19 @@ public class HoldingsServiceImpl implements HoldingsService {
             }
 
             processZerodhaHoldings(zerodhaHoldings, ltpMap);
+
+            // Update only the Zerodha sub-array for this user, not the entire document.
+            bulkOps.updateOne(
+                    new Query(Criteria.where(Constants.MONGO_ID).is(info.getUserId())),
+                    new Update().set(zerodhaField, zerodhaHoldings));
+            hasUpdates = true;
             keys.add(HOLDING_KEY + info.getUserId());
         }
 
-        holdingsRepo.saveAll(holdings);
-        stringRedisTemplate.delete(keys);
+        if (hasUpdates) {
+            bulkOps.execute();
+            stringRedisTemplate.delete(keys);
+        }
     }
 
     private void processZerodhaHoldings(List<Holdings.HoldingInfo> zerodhaHoldings, Map<String, Double> ltpMap) {

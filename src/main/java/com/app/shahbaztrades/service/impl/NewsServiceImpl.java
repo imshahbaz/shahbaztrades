@@ -16,6 +16,7 @@ import com.google.gson.reflect.TypeToken;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -35,6 +37,7 @@ public class NewsServiceImpl implements NewsService {
     private final GenAiClient genAiClient;
     private final YahooClient yahooClient;
     private final MongoConfigService mongoConfigService;
+    private final RedissonClient redissonClient;
 
     @Override
     public ResponseEntity<ApiResponse<List<TradingViewNewsResponse.NewsItem>>> getStockNews(String symbol) {
@@ -58,31 +61,57 @@ public class NewsServiceImpl implements NewsService {
     @Override
     public ResponseEntity<ApiResponse<AIAnalysis>> getGenAiAnalysis(String symbol) {
         var cacheKey = "genai_" + symbol;
+
         var value = stringRedisTemplate.opsForValue().get(cacheKey);
         if (StringUtils.isNotBlank(value)) {
             var res = HelperUtil.GSON.fromJson(value, AIAnalysis.class);
             return ResponseEntity.ok(ApiResponse.ok(res, NEWS_FETCHED_SUCCESS_MSG));
         }
 
-        var history = yahooClient.getHistoricalData(symbol, YahooTimeRange.RANGE_1MO.getValue());
-        if (CollectionUtils.isEmpty(history)) {
-            throw new NotFoundException("Analysis Not Found");
-        }
-
-        var analysis = genAiClient.getGenAiStockAnalysis(symbol, history, mongoConfigService.getConfig().getGoogleAuth().getGeminiKey());
-        if (StringUtils.isEmpty(analysis)) {
-            throw new NotFoundException("Analysis Not Found");
-        }
+        var lockKey = "lock:genai_" + symbol;
+        var lock = redissonClient.getLock(lockKey);
 
         try {
-            var res = HelperUtil.GSON.fromJson(analysis, AIAnalysis.class);
-            stringRedisTemplate.opsForValue().set(cacheKey, analysis,
-                    DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10)));
-            return ResponseEntity.ok(ApiResponse.ok(res, "Ai Analysis Fetched Successfully"));
+            if (lock.tryLock(20, -1, TimeUnit.SECONDS)) {
+                try {
+                    value = stringRedisTemplate.opsForValue().get(cacheKey);
+                    if (StringUtils.isNotBlank(value)) {
+                        var res = HelperUtil.GSON.fromJson(value, AIAnalysis.class);
+                        return ResponseEntity.ok(ApiResponse.ok(res, NEWS_FETCHED_SUCCESS_MSG));
+                    }
+
+                    var history = yahooClient.getHistoricalData(symbol, YahooTimeRange.RANGE_1MO.getValue());
+                    if (CollectionUtils.isEmpty(history)) {
+                        throw new NotFoundException("Analysis Not Found");
+                    }
+
+                    var analysis = genAiClient.getGenAiStockAnalysis(symbol, history, mongoConfigService.getConfig().getGoogleAuth().getGeminiKey());
+                    if (StringUtils.isEmpty(analysis)) {
+                        throw new NotFoundException("Analysis Not Found");
+                    }
+
+                    var res = HelperUtil.GSON.fromJson(analysis, AIAnalysis.class);
+                    stringRedisTemplate.opsForValue().set(cacheKey, analysis,
+                            DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10)));
+                    return ResponseEntity.ok(ApiResponse.ok(res, "Ai Analysis Fetched Successfully"));
+                } finally {
+                    if (lock.isLocked() && lock.isHeldByCurrentThread()) {
+                        lock.unlock();
+                    }
+                }
+            } else {
+                log.warn("Could not acquire lock for symbol: {}, server is busy", symbol);
+                throw new NotFoundException("Analysis Not Found");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new NotFoundException("Analysis Not Found");
+        } catch (NotFoundException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error while getting GenAiStockAnalysis data", e);
+            throw new NotFoundException("Analysis Not Found");
         }
-
-        throw new NotFoundException("Analysis Not Found");
     }
+
 }
