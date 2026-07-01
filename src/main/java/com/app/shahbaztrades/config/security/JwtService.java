@@ -22,12 +22,23 @@ public class JwtService {
     private final MongoConfigService mongoConfigService;
     private final JsonMapper jsonMapper;
 
-    public JwtClaims validateToken(String tokenString) {
-        SecretKey key = Keys.hmacShaKeyFor(mongoConfigService.getConfig().getJwtSecret()
-                .getBytes(StandardCharsets.UTF_8));
+    private volatile String cachedSecret;
+    private volatile SecretKey cachedKey;
 
+    private SecretKey key() {
+        String secret = mongoConfigService.getConfig().getJwtSecret();
+        SecretKey local = cachedKey;
+        if (!secret.equals(cachedSecret)) {
+            local = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+            cachedKey = local;
+            cachedSecret = secret;
+        }
+        return local;
+    }
+
+    public JwtClaims validateToken(String tokenString) {
         Claims claims = Jwts.parser()
-                .verifyWith(key)
+                .verifyWith(key())
                 .build()
                 .parseSignedClaims(tokenString)
                 .getPayload();
@@ -56,9 +67,6 @@ public class JwtService {
     }
 
     public String generateToken(UserDto user) {
-        SecretKey key = Keys.hmacShaKeyFor(mongoConfigService.getConfig().getJwtSecret()
-                .getBytes(StandardCharsets.UTF_8));
-
         Date now = new Date();
         Date expiration = new Date(now.getTime() + 86400000);
 
@@ -68,7 +76,7 @@ public class JwtService {
                 .issuedAt(now)
                 .expiration(expiration)
                 .claim("user", user)
-                .signWith(key)
+                .signWith(key())
                 .compact();
     }
 
