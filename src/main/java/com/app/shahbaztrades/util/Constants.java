@@ -23,6 +23,7 @@ public class Constants {
     public static final String NOTIFICATION_MESSAGE_SELL_SL = "Your stop-loss sell order for %d shares of %s at ₹%.2f has been submitted successfully.";
 
     public static final String DOT = ".";
+    public static final String MONGO_ID = "_id";
 
     public static void validateSessionCallback(String header) {
         if (StringUtils.isEmpty(header) || !SESSION_MANAGER_SOURCE.equals(header)) {
