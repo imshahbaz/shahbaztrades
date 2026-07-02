@@ -10,9 +10,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
-
-import java.util.HashMap;
 
 @Component
 @RequiredArgsConstructor
@@ -36,7 +33,7 @@ public class AsyncHelper {
             return;
         }
 
-        fcmService.sendNotification(user.getFcmToken(), request.title(), request.body(), CollectionUtils.isEmpty(request.data()) ? new HashMap<>() : new HashMap<>(request.data()));
+        fcmService.sendNotification(user.getFcmToken(), request.title(), request.body(), request.data());
     }
 
 }
