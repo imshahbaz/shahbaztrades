@@ -26,7 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -114,20 +113,6 @@ public class UserServiceImpl implements UserService {
         }
 
         return user;
-    }
-
-    @Override
-    @Transactional
-    public ResponseEntity<ApiResponse<String>> patchFcmToken(UserDto userDto, Map<String, String> request) {
-        if (StringUtils.isEmpty(request.get("token"))) {
-            throw new BadRequestException("Token is empty!");
-        }
-        var token = request.get("token");
-        Query query = new Query(Criteria.where(User.Fields.userId).is(userDto.getUserId()));
-        Update update = new Update();
-        update.set(User.Fields.fcmToken, token);
-        mongoTemplate.updateFirst(query, update, User.class);
-        return ResponseEntity.ok(ApiResponse.ok(token, "FCM token synchronized"));
     }
 
     @Override

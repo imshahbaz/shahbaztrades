@@ -1,8 +1,10 @@
 package com.app.shahbaztrades.controller;
 
+import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.enums.UserTheme;
+import com.app.shahbaztrades.service.FcmService;
 import com.app.shahbaztrades.service.UserService;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -18,11 +20,13 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final FcmService fcmService;
 
     @PatchMapping("/fcm-token")
     public ResponseEntity<ApiResponse<String>> patchFcmToken(@RequestAttribute("user") UserDto userDto,
                                                              @RequestBody @NotNull @NotEmpty Map<String, String> payload) {
-        return userService.patchFcmToken(userDto, payload);
+        fcmService.saveToken(userDto.getUserId(), payload.get("token"));
+        return ResponseEntity.ok(ApiResponse.ok(payload.get("token"), "FCM token synchronized"));
     }
 
     @PatchMapping("/username")
@@ -34,6 +38,13 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserTheme>> patchTheme(@RequestBody UserDto userDto, @RequestAttribute("user") UserDto currentUser) {
         userDto.setUserId(currentUser.getUserId());
         return userService.updateUserTheme(userDto);
+    }
+
+    @PublicEndpoint
+    @PostMapping("/fcm-token/remove")
+    public ResponseEntity<ApiResponse<Void>> removeToken(@RequestBody @NotNull @NotEmpty Map<String, String> payload) {
+        fcmService.removeToken(payload.get("token"));
+        return ResponseEntity.ok(ApiResponse.ok(null, "FCM Token removed"));
     }
 
 }
