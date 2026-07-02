@@ -13,11 +13,14 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
 @Service
 public class FcmServiceImpl implements FcmService {
+
+    private static final String DEFAULT_CHANNEL_ID = "default";
 
     private final FirebaseMessaging messaging;
 
@@ -37,31 +40,33 @@ public class FcmServiceImpl implements FcmService {
 
     @Override
     public void sendNotification(String token, String title, String body, Map<String, String> data) {
-        data.put("title", title);
-        data.put("body", body);
-        data.put("tag", String.valueOf(System.currentTimeMillis() / 1000));
+        Map<String, String> payload = data == null ? new HashMap<>() : new HashMap<>(data);
+        payload.put("title", title);
+        payload.put("body", body);
+        payload.put("tag", String.valueOf(System.currentTimeMillis() / 1000));
 
         Message message = Message.builder()
                 .setToken(token)
-                .putAllData(data)
+                .putAllData(payload)
+                .setNotification(Notification.builder()
+                        .setTitle(title)
+                        .setBody(body)
+                        .build())
                 .setAndroidConfig(AndroidConfig.builder()
                         .setPriority(AndroidConfig.Priority.HIGH)
+                        .setNotification(AndroidNotification.builder()
+                                .setChannelId(DEFAULT_CHANNEL_ID)
+                                .setSound("default")
+                                .setTag(payload.get("tag"))
+                                .build())
                         .build())
                 .setWebpushConfig(WebpushConfig.builder()
                         .putHeader("Urgency", "high")
                         .build())
                 .setApnsConfig(ApnsConfig.builder()
                         .setAps(Aps.builder()
-                                .setContentAvailable(true)
+                                .setSound("default")
                                 .build())
-                        .build())
-                .setNotification(Notification.builder()
-                        .setTitle(title)
-                        .setBody(body)
-                        .build())
-                .setNotification(com.google.firebase.messaging.Notification.builder()
-                        .setTitle(title)
-                        .setBody(body)
                         .build())
                 .build();
 
@@ -69,7 +74,7 @@ public class FcmServiceImpl implements FcmService {
             String response = messaging.send(message);
             log.info("Successfully sent FCM message: {}", response);
         } catch (FirebaseMessagingException e) {
-            log.error("Error sending FCM message: ", e);
+            log.error("Error sending FCM message to token {}: ", token, e);
         }
     }
 
