@@ -31,7 +31,6 @@ public class User {
     String profile;
     ZerodhaConfig zerodhaConfig;
     MstockConfig mstockConfig;
-    String fcmToken;
     RupeezyConfig rupeezyConfig;
 
     public UserDto toDto() {

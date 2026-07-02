@@ -8,7 +8,6 @@ import com.app.shahbaztrades.model.enums.UserTheme;
 import org.springframework.http.ResponseEntity;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 public interface UserService {
@@ -20,8 +19,6 @@ public interface UserService {
     User findByUserIdOrEmailOrMobile(Long userId, String email, Long mobile);
 
     User findOrCreateGoogleUser(GoogleUser gUser);
-
-    ResponseEntity<ApiResponse<String>> patchFcmToken(UserDto userDto, Map<String, String> request);
 
     ResponseEntity<ApiResponse<Void>> updateUserName(UserDto userDto);
 
