@@ -25,6 +25,8 @@ public class Constants {
     public static final String DOT = ".";
     public static final String MONGO_ID = "_id";
 
+    public static final String ENV_PRODUCTION = "production";
+
     public static void validateSessionCallback(String header) {
         if (StringUtils.isEmpty(header) || !SESSION_MANAGER_SOURCE.equals(header)) {
             throw new UnauthorizedException("Unauthorized");

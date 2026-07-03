@@ -32,12 +32,12 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
 
+import static com.app.shahbaztrades.util.Constants.ENV_PRODUCTION;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
-
-    private static final String ENV_PRODUCTION = "production";
 
     private final StringRedisTemplate stringRedisTemplate;
     private final OtpProviderFactory otpProviderFactory;
