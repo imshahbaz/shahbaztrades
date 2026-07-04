@@ -5,8 +5,10 @@ import com.app.shahbaztrades.components.angelone.SmartApiFeignClient;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
+import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpDto;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
+import com.app.shahbaztrades.model.dto.angelone.websocket.AngelOneLoginResponse;
 import com.app.shahbaztrades.model.dto.angelone.websocket.SmartStreamParams;
 import com.app.shahbaztrades.model.dto.angelone.websocket.SmartStreamRequest;
 import com.app.shahbaztrades.model.dto.angelone.websocket.TokenGroup;
@@ -16,9 +18,11 @@ import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.reflect.TypeToken;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.NonNull;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -34,6 +38,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,6 +47,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static com.app.shahbaztrades.util.Constants.AO_DATE_FORMATTER;
 
 
 @Slf4j
@@ -185,7 +193,19 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     @EventListener(ApplicationReadyEvent.class)
     public void refreshBrokerSession() {
         var key = "angel_one_login_data";
-        var loginData = angelOneClient.getWebsocketLogin(mongoConfigService.getConfig().getAngelOneConfig());
+        var data = stringRedisTemplate.opsForValue().get(key);
+        AngelOneLoginResponse.LoginData loginData;
+        if (StringUtils.isNotEmpty(data)) {
+            loginData = HelperUtil.GSON.fromJson(data, AngelOneLoginResponse.LoginData.class);
+            var response = smartApiFeignClient.getUserProfile("Bearer " + loginData.getJwtToken(), mongoConfigService.getConfig().getAngelOneConfig().getApiKey());
+            if (response != null && response.status() != null && response.status()) {
+                mongoConfigService.setAngelOneJwtToken(loginData.getJwtToken());
+                mongoConfigService.setAngelOneFeedToken(loginData.getFeedToken());
+                return;
+            }
+        }
+
+        loginData = angelOneClient.getWebsocketLogin(mongoConfigService.getConfig().getAngelOneConfig());
         if (loginData != null) {
             stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(loginData), Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
             mongoConfigService.setAngelOneJwtToken(loginData.getJwtToken());
@@ -221,7 +241,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
 
     @Override
     public ResponseEntity<ApiResponse<SmartApiLtpResponse.MarketTicker>> getMarketTicker(String token) {
-        var key = "angel_one_ltp_" + token;
+        var key = "angel_one_ltp:" + token;
         var data = stringRedisTemplate.opsForValue().get(key);
         if (data != null) {
             return ResponseEntity.ok(ApiResponse.ok(HelperUtil.GSON.fromJson(data, SmartApiLtpResponse.MarketTicker.class), "Ltp Fetched Successfully"));
@@ -240,6 +260,56 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
         }
 
         throw new NotFoundException("Ltp not found");
+    }
+
+    @Override
+    public Map<LocalDate, SmartApiLtpResponse.CandleDetail> getHistoricalData(String token, String symbol) {
+        var key = "angel_one_historical_data:" + symbol;
+        var data = stringRedisTemplate.opsForValue().get(key);
+        if (data != null) {
+            Map<String, SmartApiLtpResponse.CandleDetail> stringKeyMap = HelperUtil.GSON.fromJson(
+                    data,
+                    new TypeToken<Map<String, SmartApiLtpResponse.CandleDetail>>() {
+                    }.getType()
+            );
+
+            Map<LocalDate, SmartApiLtpResponse.CandleDetail> cachedResult = new HashMap<>();
+            stringKeyMap.forEach((dateStr, candle) -> cachedResult.put(LocalDate.parse(dateStr), candle));
+            return cachedResult;
+        }
+
+        var jwt = mongoConfigService.getAngelOneJwtToken();
+        LocalDate today = LocalDate.now();
+        LocalDate thirtyDaysAgo = today.minusDays(30);
+
+
+        String fromDateStr = thirtyDaysAgo.format(AO_DATE_FORMATTER);
+        String toDateStr = today.format(AO_DATE_FORMATTER);
+
+        var request = HistoricalDataRequest.builder()
+                .exchange("NSE")
+                .symbolToken(token)
+                .interval("ONE_DAY")
+                .fromDate(fromDateStr)
+                .toDate(toDateStr)
+                .build();
+
+        var response = smartApiFeignClient.getHistoricalData("Bearer " + jwt, mongoConfigService.getConfig().getAngelOneConfig().getApiKey(), request);
+
+        if (response != null) {
+            var candles = response.getHistoricalCandles();
+            Map<LocalDate, SmartApiLtpResponse.CandleDetail> candleDetails = new HashMap<>();
+            Map<String, SmartApiLtpResponse.CandleDetail> cachePersistenceMap = new HashMap<>();
+            for (var candle : candles) {
+                cachePersistenceMap.put(candle.timestamp().toLocalDate().toString(), candle);
+                candleDetails.put(candle.timestamp().toLocalDate(), candle);
+            }
+
+            stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(cachePersistenceMap), DateUtil.getDurationUntilMarketOpen(Duration.ofHours(1)));
+            return candleDetails;
+        }
+
+        throw new NotFoundException("Historical data not found");
     }
 
 }

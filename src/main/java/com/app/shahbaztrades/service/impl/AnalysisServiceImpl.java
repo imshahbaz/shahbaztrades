@@ -7,9 +7,10 @@ import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.analysis.AIAnalysis;
 import com.app.shahbaztrades.model.dto.analysis.TradingViewNewsResponse;
+import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
+import com.app.shahbaztrades.model.entity.Strategy;
 import com.app.shahbaztrades.model.enums.YahooTimeRange;
-import com.app.shahbaztrades.service.MongoConfigService;
-import com.app.shahbaztrades.service.NewsService;
+import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
 import com.google.gson.reflect.TypeToken;
@@ -17,19 +18,28 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.redisson.api.RedissonClient;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class NewsServiceImpl implements NewsService {
+public class AnalysisServiceImpl implements AnalysisService {
 
     private static final String NEWS_FETCHED_SUCCESS_MSG = "News Fetched Successfully";
 
@@ -38,6 +48,10 @@ public class NewsServiceImpl implements NewsService {
     private final YahooClient yahooClient;
     private final MongoConfigService mongoConfigService;
     private final RedissonClient redissonClient;
+    private final StrategyService strategyService;
+    private final ChartInkService chartInkService;
+    private final AngelOneService angelOneService;
+    private final MongoTemplate mongoTemplate;
 
     @Override
     public ResponseEntity<ApiResponse<List<TradingViewNewsResponse.NewsItem>>> getStockNews(String symbol) {
@@ -112,6 +126,77 @@ public class NewsServiceImpl implements NewsService {
             log.error("Error while getting GenAiStockAnalysis data", e);
             throw new NotFoundException("Analysis Not Found");
         }
+    }
+
+    @Override
+    @Async("taskExecutor")
+    public void updateStrategyBacktestData() {
+        var activeStrategies = strategyService.getAllStrategies().getBody().getData();
+        if (CollectionUtils.isEmpty(activeStrategies)) {
+            return;
+        }
+
+        Map<String, Map<LocalDate, SmartApiLtpResponse.CandleDetail>> historicalData = new HashMap<>();
+        var stopDate = LocalDate.now().minusDays(30);
+
+        for (var strategy : activeStrategies) {
+            var backtestResults = chartInkService.fetchBacktestDataWithMargin(strategy.getName());
+            if (!CollectionUtils.isEmpty(backtestResults)) {
+                var tradeCount = 0;
+                var success = 0;
+                for (int i = backtestResults.size() - 1; i >= 0; i--) {
+                    var tradeData = backtestResults.get(i);
+                    var tradeDate = tradeData.getMarketTime().toLocalDate();
+                    if (tradeDate.isBefore(stopDate)) {
+                        break;
+                    }
+
+                    for (var trade : tradeData.getMargins()) {
+                        var symbol = trade.getSymbol();
+                        if (!historicalData.containsKey(symbol)) {
+                            try {
+                                Thread.sleep(Duration.ofSeconds(1).toMillis());
+                                Map<LocalDate, SmartApiLtpResponse.CandleDetail> stockHistory =
+                                        angelOneService.getHistoricalData(trade.getToken(), symbol);
+
+                                historicalData.put(symbol, stockHistory != null ? stockHistory : Collections.emptyMap());
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                log.warn("Sleep interrupted");
+                                continue;
+                            } catch (Exception e) {
+                                log.error("Failed fetching data for {}: {}", symbol, e.getMessage());
+                                historicalData.put(symbol, Collections.emptyMap());
+                            }
+                        }
+
+                        var stockHistory = historicalData.get(symbol);
+                        if (CollectionUtils.isEmpty(stockHistory)) {
+                            continue;
+                        }
+
+                        var candle = stockHistory.get(tradeDate);
+                        if (candle == null) {
+                            continue;
+                        }
+
+                        tradeCount++;
+                        if ((candle.open() * 1.006) <= candle.high()) {
+                            success++;
+                        }
+                    }
+                }
+
+                log.info("Trade Count: {} for Strategy: {} with Success: {}", tradeCount, strategy.getName(), success);
+                float successRate = ((float) success / tradeCount) * 100;
+                Query query = new Query(Criteria.where(Strategy.Fields.name).is(strategy.getName()));
+                Update update = new Update();
+                update.set(Strategy.Fields.successRate, successRate);
+                mongoTemplate.updateFirst(query, update, Strategy.class);
+            }
+        }
+
+        strategyService.refreshStrategyCache();
     }
 
 }

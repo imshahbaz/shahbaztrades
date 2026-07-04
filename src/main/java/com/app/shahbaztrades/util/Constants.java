@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 
+import java.time.format.DateTimeFormatter;
 import java.util.regex.Pattern;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -26,6 +27,7 @@ public class Constants {
     public static final String MONGO_ID = "_id";
 
     public static final String ENV_PRODUCTION = "production";
+    public static DateTimeFormatter AO_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd 00:00");
 
     public static void validateSessionCallback(String header) {
         if (StringUtils.isEmpty(header) || !SESSION_MANAGER_SOURCE.equals(header)) {

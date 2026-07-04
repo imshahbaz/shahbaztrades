@@ -20,6 +20,8 @@ public class StrategyDto {
 
     boolean active;
 
+    float successRate;
+
     public Strategy toEntity() {
         this.setName(this.getName().toUpperCase());
         return Strategy.builder().name(name).scanClause(scanClause).active(active).build();

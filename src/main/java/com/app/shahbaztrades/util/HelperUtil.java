@@ -37,8 +37,6 @@ public class HelperUtil {
     public static final SecureRandom RANDOM = new SecureRandom();
     public static final Gson GSON = Beans.createGson();
     public static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
-    // Declared before REST_TEMPLATE: static fields initialise in textual order and
-    // REST_TEMPLATE's initializer calls requestFactory(), which reads HTTP_CLIENT.
     public static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();

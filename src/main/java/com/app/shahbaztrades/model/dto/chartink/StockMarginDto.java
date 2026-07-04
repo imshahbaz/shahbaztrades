@@ -21,6 +21,4 @@ public class StockMarginDto {
     float rupeezyMargin;
 
     float close;
-
-    float deliveryPercent;
 }

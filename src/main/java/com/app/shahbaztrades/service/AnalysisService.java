@@ -7,9 +7,11 @@ import org.springframework.http.ResponseEntity;
 
 import java.util.List;
 
-public interface NewsService {
+public interface AnalysisService {
 
     ResponseEntity<ApiResponse<List<TradingViewNewsResponse.NewsItem>>> getStockNews(String symbol);
 
     ResponseEntity<ApiResponse<AIAnalysis>> getGenAiAnalysis(String symbol);
+
+    void updateStrategyBacktestData();
 }
