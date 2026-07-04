@@ -13,7 +13,7 @@ import java.util.Set;
 
 public interface ZerodhaService {
 
-    String ZERODHA_TOKEN_KEY = "zerodha_token_";
+    String ZERODHA_TOKEN_KEY = "zerodha_token:";
 
     Cache<Long, KiteConnect> kiteClientCache = new Cache<>();
 

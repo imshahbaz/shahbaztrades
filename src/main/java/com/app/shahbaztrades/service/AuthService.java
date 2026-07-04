@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 
 public interface AuthService {
 
-    String AUTH_KEY = "auth_";
+    String AUTH_KEY = "auth:";
 
     ResponseEntity<ApiResponse<SignUpResponse>> signUp(AuthRequest request);
 
