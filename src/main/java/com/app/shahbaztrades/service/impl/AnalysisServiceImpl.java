@@ -137,7 +137,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         }
 
         Map<String, Map<LocalDate, SmartApiLtpResponse.CandleDetail>> historicalData = new HashMap<>();
-        var stopDate = LocalDate.now().minusDays(30);
+        var stopDate = DateUtil.getTodayDate().minusDays(30);
 
         for (var strategy : activeStrategies) {
             var backtestResults = chartInkService.fetchBacktestDataWithMargin(strategy.getName());

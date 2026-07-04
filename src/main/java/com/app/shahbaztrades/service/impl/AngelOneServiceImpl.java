@@ -279,7 +279,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
         }
 
         var jwt = mongoConfigService.getAngelOneJwtToken();
-        LocalDate today = LocalDate.now();
+        LocalDate today = DateUtil.getTodayDate();
         LocalDate thirtyDaysAgo = today.minusDays(30);
 
 
