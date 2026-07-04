@@ -57,6 +57,7 @@ import static com.app.shahbaztrades.util.Constants.AO_DATE_FORMATTER;
 public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
 
     private static final String WS_URL = "wss://smartapisocket.angelone.in/smart-stream";
+    private static final String BEARER_PREFIX = "Bearer ";
     private final ConcurrentHashMap<String, Double> ltpCache = new ConcurrentHashMap<>();
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -73,7 +74,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
 
         StandardWebSocketClient client = new StandardWebSocketClient();
         WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
-        headers.add("Authorization", "Bearer " + mongoConfigService.getAngelOneJwtToken());
+        headers.add("Authorization", BEARER_PREFIX + mongoConfigService.getAngelOneJwtToken());
         headers.add("x-api-key", mongoConfigService.getConfig().getAngelOneConfig().getApiKey());
         headers.add("x-client-code", mongoConfigService.getConfig().getAngelOneConfig().getClientId());
         headers.add("x-feed-token", mongoConfigService.getAngelOneFeedToken());
@@ -197,7 +198,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
         AngelOneLoginResponse.LoginData loginData;
         if (StringUtils.isNotEmpty(data)) {
             loginData = HelperUtil.GSON.fromJson(data, AngelOneLoginResponse.LoginData.class);
-            var response = smartApiFeignClient.getUserProfile("Bearer " + loginData.getJwtToken(), mongoConfigService.getConfig().getAngelOneConfig().getApiKey());
+            var response = smartApiFeignClient.getUserProfile(BEARER_PREFIX + loginData.getJwtToken(), mongoConfigService.getConfig().getAngelOneConfig().getApiKey());
             if (response != null && response.status() != null && response.status()) {
                 mongoConfigService.setAngelOneJwtToken(loginData.getJwtToken());
                 mongoConfigService.setAngelOneFeedToken(loginData.getFeedToken());
@@ -248,7 +249,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
         }
 
         var jwt = mongoConfigService.getAngelOneJwtToken();
-        var response = smartApiFeignClient.getMultipleLtp("Bearer " + jwt, mongoConfigService.getConfig().getAngelOneConfig().getApiKey(),
+        var response = smartApiFeignClient.getMultipleLtp(BEARER_PREFIX + jwt, mongoConfigService.getConfig().getAngelOneConfig().getApiKey(),
                 SmartApiLtpDto.builder()
                         .mode("OHLC")
                         .exchangeTokens(Map.of(ExchangeType.NSE.name(), List.of(token)))
@@ -294,7 +295,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
                 .toDate(toDateStr)
                 .build();
 
-        var response = smartApiFeignClient.getHistoricalData("Bearer " + jwt, mongoConfigService.getConfig().getAngelOneConfig().getApiKey(), request);
+        var response = smartApiFeignClient.getHistoricalData(BEARER_PREFIX + jwt, mongoConfigService.getConfig().getAngelOneConfig().getApiKey(), request);
 
         if (response != null) {
             var candles = response.getHistoricalCandles();
