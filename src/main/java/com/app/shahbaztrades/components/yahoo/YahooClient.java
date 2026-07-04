@@ -43,7 +43,7 @@ public class YahooClient {
     }
 
     public List<NSEHistoricalData> getHistoricalData(String symbol, String timeRange) {
-        var cacheKey = "yahoo_history_" + symbol + "_" + timeRange;
+        var cacheKey = "yahoo_history:" + symbol + "_" + timeRange;
         var value = stringRedisTemplate.opsForValue().get(cacheKey);
         if (StringUtils.isNotBlank(value)) {
             return HelperUtil.GSON.fromJson(value, new TypeToken<List<NSEHistoricalData>>() {

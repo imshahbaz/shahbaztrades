@@ -175,7 +175,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Invalid or tampered session state");
         }
 
-        String cacheKey = "auth_" + id;
+        String cacheKey = AUTH_KEY + id;
         var redisUser = stringRedisTemplate.opsForValue().get(cacheKey);
 
         if (StringUtils.isEmpty(redisUser)) {
@@ -186,7 +186,7 @@ public class AuthServiceImpl implements AuthService {
         String tokenStr = jwtService.generateToken(userDto);
         String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
 
-        stringRedisTemplate.opsForValue().set("auth_" + userDto.getUserId(), HelperUtil.GSON.toJson(userDto), Duration.ofHours(1));
+        stringRedisTemplate.opsForValue().set(AUTH_KEY + userDto.getUserId(), HelperUtil.GSON.toJson(userDto), Duration.ofHours(1));
         stringRedisTemplate.delete(cacheKey);
 
         return ResponseEntity.ok()

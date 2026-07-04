@@ -57,7 +57,7 @@ public class AnalysisServiceImpl implements AnalysisService {
 
     @Override
     public ResponseEntity<ApiResponse<List<TradingViewNewsResponse.NewsItem>>> getStockNews(String symbol) {
-        var cacheKey = "tv_news_" + symbol;
+        var cacheKey = "tv_news:" + symbol;
         var value = stringRedisTemplate.opsForValue().get(cacheKey);
         if (StringUtils.isNotBlank(value)) {
             List<TradingViewNewsResponse.NewsItem> res = HelperUtil.GSON.fromJson(value, new TypeToken<List<TradingViewNewsResponse.NewsItem>>() {
@@ -76,7 +76,7 @@ public class AnalysisServiceImpl implements AnalysisService {
 
     @Override
     public ResponseEntity<ApiResponse<AIAnalysis>> getGenAiAnalysis(String symbol) {
-        var cacheKey = "genai_" + symbol;
+        var cacheKey = "genai:" + symbol;
 
         var value = stringRedisTemplate.opsForValue().get(cacheKey);
         if (StringUtils.isNotBlank(value)) {
