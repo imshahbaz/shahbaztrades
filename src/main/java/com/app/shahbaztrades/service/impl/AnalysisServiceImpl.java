@@ -119,7 +119,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                 log.warn("Could not acquire lock for symbol: {}, server is busy", symbol);
                 throw new NotFoundException("Analysis Not Found");
             }
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             throw new NotFoundException("Analysis Not Found");
         } catch (NotFoundException e) {
@@ -133,7 +133,8 @@ public class AnalysisServiceImpl implements AnalysisService {
     @Override
     @Async("taskExecutor")
     public void updateStrategyBacktestData() {
-        var activeStrategies = strategyService.getAllStrategies().getBody().getData();
+        var body = strategyService.getAllStrategies().getBody();
+        var activeStrategies = body != null ? body.getData() : null;
         if (CollectionUtils.isEmpty(activeStrategies)) {
             return;
         }
@@ -213,7 +214,7 @@ public class AnalysisServiceImpl implements AnalysisService {
             Map<LocalDate, SmartApiLtpResponse.CandleDetail> stockHistory =
                     angelOneService.getHistoricalData(token, symbol);
             historicalData.put(symbol, stockHistory != null ? stockHistory : Collections.emptyMap());
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             log.warn("Sleep interrupted");
         } catch (Exception e) {
