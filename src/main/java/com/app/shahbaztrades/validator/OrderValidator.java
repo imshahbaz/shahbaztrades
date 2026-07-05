@@ -1,6 +1,8 @@
 package com.app.shahbaztrades.validator;
 
 import com.app.shahbaztrades.exceptions.BadRequestException;
+import com.app.shahbaztrades.model.entity.User;
+import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.util.DateUtil;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -27,6 +29,22 @@ public class OrderValidator {
         var now = Instant.now().atZone(DateUtil.IST_ZONE);
         if (now.isBefore(end) && now.isAfter(start)) {
             throw new BadRequestException("Order cannot be deleted at this time please try later.");
+        }
+    }
+
+    public static void validateForCreateAndUpdate(User user, BrokerType brokerType) {
+        switch (brokerType) {
+            case ZERODHA -> {
+                if (!BrokerConfigValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
+                    throw new BadRequestException("Zerodha is not registered");
+                }
+            }
+            case RUPEEZY -> {
+                if (!BrokerConfigValidator.validateRupeezyConfig(user.getRupeezyConfig())) {
+                    throw new BadRequestException("Rupeezy is not registered");
+                }
+            }
+            default -> throw new BadRequestException("Broker not supported");
         }
     }
 
