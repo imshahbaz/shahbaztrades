@@ -18,6 +18,7 @@ import com.app.shahbaztrades.repo.OrderRepo;
 import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.OrderService;
+import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
 import com.app.shahbaztrades.util.TechnicalAnalysisUtil;
@@ -61,6 +62,7 @@ public class OrderServiceImpl implements OrderService {
     private final TradeWatchdog tradeWatchdog;
     private final OrderRouterFactory orderRouterFactory;
     private final YahooClient yahooClient;
+    private final UserService userService;
 
     private static final String INITIATE_MTF = "Initiate MTF";
 
@@ -103,6 +105,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         var entity = orderDto.toEntity(margin);
+        OrderValidator.validateForCreateAndUpdate(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
         try {
             mongoTemplate.insert(entity);
         } catch (DataIntegrityViolationException e) {
@@ -116,7 +119,9 @@ public class OrderServiceImpl implements OrderService {
         if (margin == null) {
             throw new NotFoundException("Margin not found");
         }
+
         var entity = orderDto.toEntity(margin);
+        OrderValidator.validateForCreateAndUpdate(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
         try {
             orderRepo.save(entity);
         } catch (DataIntegrityViolationException e) {
