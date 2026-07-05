@@ -6,6 +6,7 @@ import com.app.shahbaztrades.model.dto.order.StrategyOrderDto;
 import com.app.shahbaztrades.model.entity.StrategyOrder;
 import com.app.shahbaztrades.repo.StrategyOrderRepo;
 import com.app.shahbaztrades.service.StrategyOrderService;
+import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.validator.OrderValidator;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class StrategyOrderServiceImpl implements StrategyOrderService {
 
     private final MongoTemplate mongoTemplate;
     private final StrategyOrderRepo strategyOrderRepo;
+    private final UserService userService;
 
     @Override
     public List<StrategyOrderDto> getAllOrdersAdmin(String strategyName) {
@@ -41,6 +43,7 @@ public class StrategyOrderServiceImpl implements StrategyOrderService {
     @Override
     public StrategyOrderDto createOrder(StrategyOrderDto request) {
         var entity = request.toEntity();
+        OrderValidator.validateForCreateAndUpdate(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
         try {
             entity = strategyOrderRepo.insert(entity);
         } catch (DataIntegrityViolationException e) {
@@ -52,6 +55,7 @@ public class StrategyOrderServiceImpl implements StrategyOrderService {
     @Override
     public StrategyOrderDto updateOrder(StrategyOrderDto request) {
         var entity = request.toEntity();
+        OrderValidator.validateForCreateAndUpdate(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
         try {
             entity = strategyOrderRepo.save(entity);
         } catch (DataIntegrityViolationException e) {
