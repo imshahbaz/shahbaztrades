@@ -45,6 +45,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -67,6 +68,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     private final MongoConfigService mongoConfigService;
     private final SmartApiFeignClient smartApiFeignClient;
     private WebSocketSession session;
+    private ScheduledFuture<?> heartbeatTask;
 
     @Override
     public void startWebSocket() {
@@ -168,7 +170,10 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     public void afterConnectionEstablished(@NonNull WebSocketSession session) {
         this.session = session;
         this.connected.set(true);
-        scheduler.scheduleAtFixedRate(this::sendHeartbeat, 20, 20, TimeUnit.SECONDS);
+        if (heartbeatTask != null) {
+            heartbeatTask.cancel(false);
+        }
+        heartbeatTask = scheduler.scheduleAtFixedRate(this::sendHeartbeat, 20, 20, TimeUnit.SECONDS);
         log.info("Smart Stream Connected and Heartbeat started");
     }
 
@@ -219,6 +224,11 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
         connected.set(false);
 
         synchronized (this) {
+            if (heartbeatTask != null) {
+                heartbeatTask.cancel(false);
+                heartbeatTask = null;
+            }
+
             if (session != null && session.isOpen()) {
                 try {
                     session.close(CloseStatus.NORMAL);
@@ -227,7 +237,6 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
                     log.error("Error while closing WebSocket session", e);
                 } finally {
                     session = null;
-                    scheduler.shutdownNow();
                 }
             }
         }
@@ -238,6 +247,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     @PreDestroy
     public void tearDown() {
         disconnect();
+        scheduler.shutdownNow();
     }
 
     @Override
