@@ -228,6 +228,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
                 heartbeatTask.cancel(false);
                 heartbeatTask = null;
             }
+
             if (session != null && session.isOpen()) {
                 try {
                     session.close(CloseStatus.NORMAL);
