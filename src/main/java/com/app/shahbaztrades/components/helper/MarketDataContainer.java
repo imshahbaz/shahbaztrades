@@ -25,9 +25,11 @@ import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
-import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 import static com.app.shahbaztrades.util.Constants.AO_DATE_FORMATTER;
@@ -39,8 +41,8 @@ import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
 public class MarketDataContainer {
 
     private final ConcurrentHashMap<String, BarSeries> tokenSeriesMap = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Queue<LiveTick>> tokenTickBufferMap = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Boolean> activeWorkerMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, BlockingQueue<LiveTick>> tokenTickBufferMap = new ConcurrentHashMap<>();
+    private final Set<String> activeWorkers = ConcurrentHashMap.newKeySet();
     private final StrategyRegistry strategyRegistry;
     private final SmartApiFeignClient smartApiFeignClient;
     private final ChartInkService chartInkService;
@@ -55,12 +57,14 @@ public class MarketDataContainer {
         });
     }
 
-    public Queue<LiveTick> getTickBuffer(String token) {
-        return tokenTickBufferMap.computeIfAbsent(token, _ -> new ConcurrentLinkedQueue<>());
+    public BlockingQueue<LiveTick> getTickBuffer(String token) {
+        return tokenTickBufferMap.computeIfAbsent(token, _ -> new LinkedBlockingQueue<>());
     }
 
     public void clear() {
         tokenSeriesMap.clear();
+        tokenTickBufferMap.clear();
+        activeWorkers.clear();
     }
 
     public void startWorkersForActiveWatchlist(BiConsumer<String, Integer> webSocketSubscriber) {
@@ -68,10 +72,9 @@ public class MarketDataContainer {
 
         for (String token : activeTokens) {
             webSocketSubscriber.accept(token, ExchangeType.NSE.getValue());
-            activeWorkerMap.computeIfAbsent(token, k -> {
-                HelperUtil.EXECUTOR.execute(() -> runTokenEventLoop(k));
-                return true;
-            });
+            if (activeWorkers.add(token)) {
+                HelperUtil.EXECUTOR.execute(() -> runTokenEventLoop(token));
+            }
         }
     }
 
@@ -88,121 +91,85 @@ public class MarketDataContainer {
         var processedTokens = new HashSet<String>();
         var failedTokens = new HashSet<String>();
 
-        var chartInkResult = chartInkService.fetchData("RSI15MINLOCAL");
-        if (chartInkResult != null && !CollectionUtils.isEmpty(chartInkResult.getData())) {
-            chartInkResult.getData().forEach(dto -> {
-                var margin = marginService.getMarginCache().get(dto.getNsecode());
-                if (margin != null) {
-                    if (!processedTokens.contains(margin.getToken())) {
-                        try {
-                            Thread.sleep(Duration.ofSeconds(1));
-                        } catch (InterruptedException e) {
-                            log.warn(e.getMessage(), e);
-                        }
-
-                        var request = HistoricalDataRequest.builder()
-                                .exchange("NSE")
-                                .symbolToken(margin.getToken())
-                                .interval("FIFTEEN_MINUTE")
-                                .fromDate(fromDateStr)
-                                .toDate(toDateStr)
-                                .build();
-
-                        try {
-                            var angelOneResp = smartApiFeignClient.getHistoricalData(BEARER_PREFIX + jwt, apiKey, request);
-                            if (angelOneResp != null) {
-                                var candles = angelOneResp.getHistoricalCandles();
-                                var series = getSeries(margin.getToken());
-                                for (var candle : candles) {
-                                    series.addBar(buildBar(series, candle.timestamp().plusMinutes(15).toInstant(),
-                                            candle.open(), candle.high(), candle.low(), candle.close()), false);
-                                }
-                                processedTokens.add(margin.getToken());
-                            }
-                        } catch (Exception e) {
-                            log.error(e.getMessage(), e);
-                            failedTokens.add(margin.getToken());
-                        }
-                    }
-
-                    strategyRegistry.assignTokenToStrategy("RSI15MIN", margin.getToken(), margin.getSymbol());
-                }
-            });
-        }
-
-        chartInkResult = chartInkService.fetchData("MACD15MINLOCAL");
-        if (chartInkResult != null && !CollectionUtils.isEmpty(chartInkResult.getData())) {
-            chartInkResult.getData().forEach(dto -> {
-                var margin = marginService.getMarginCache().get(dto.getNsecode());
-                if (margin != null) {
-                    if (!processedTokens.contains(margin.getToken())) {
-                        try {
-                            Thread.sleep(Duration.ofSeconds(1));
-                        } catch (InterruptedException e) {
-                            log.warn(e.getMessage(), e);
-                        }
-
-                        var request = HistoricalDataRequest.builder()
-                                .exchange("NSE")
-                                .symbolToken(margin.getToken())
-                                .interval("FIFTEEN_MINUTE")
-                                .fromDate(fromDateStr)
-                                .toDate(toDateStr)
-                                .build();
-
-                        try {
-                            var angelOneResp = smartApiFeignClient.getHistoricalData(BEARER_PREFIX + jwt, apiKey, request);
-                            if (angelOneResp != null) {
-                                var candles = angelOneResp.getHistoricalCandles();
-                                var series = getSeries(margin.getToken());
-                                for (var candle : candles) {
-                                    series.addBar(buildBar(series, candle.timestamp().plusMinutes(15).toInstant(),
-                                            candle.open(), candle.high(), candle.low(), candle.close()), false);
-                                }
-                                processedTokens.add(margin.getToken());
-                                failedTokens.remove(margin.getToken());
-                            }
-                        } catch (Exception e) {
-                            log.error(e.getMessage(), e);
-                            failedTokens.add(margin.getToken());
-                        }
-                    }
-
-                    strategyRegistry.assignTokenToStrategy("MACD15MIN", margin.getToken(), margin.getSymbol());
-                }
-            });
-        }
+        loadStrategyTokens("RSI15MINLOCAL", "RSI15MIN", jwt, apiKey, fromDateStr, toDateStr,
+                processedTokens, failedTokens);
+        loadStrategyTokens("MACD15MINLOCAL", "MACD15MIN", jwt, apiKey, fromDateStr, toDateStr,
+                processedTokens, failedTokens);
 
         for (var token : failedTokens) {
-            var request = HistoricalDataRequest.builder()
-                    .exchange("NSE")
-                    .symbolToken(token)
-                    .interval("FIFTEEN_MINUTE")
-                    .fromDate(fromDateStr)
-                    .toDate(toDateStr)
-                    .build();
-
-            try {
-                var angelOneResp = smartApiFeignClient.getHistoricalData(BEARER_PREFIX + jwt, apiKey, request);
-                if (angelOneResp != null) {
-                    var candles = angelOneResp.getHistoricalCandles();
-                    var series = getSeries(token);
-                    for (var candle : candles) {
-                        series.addBar(buildBar(series, candle.timestamp().plusMinutes(15).toInstant(),
-                                candle.open(), candle.high(), candle.low(), candle.close()), false);
-                    }
-                }
-                Thread.sleep(Duration.ofSeconds(1));
-            } catch (Exception e) {
-                log.error(e.getMessage(), e);
-            }
+            loadHistoricalBars(token, jwt, apiKey, fromDateStr, toDateStr);
+            sleepOneSecond();
         }
 
         log.info("Container Warm Up Completed");
     }
 
+    private void loadStrategyTokens(String chartInkKey, String strategyName, String jwt, String apiKey,
+                                    String fromDate, String toDate,
+                                    HashSet<String> processedTokens, HashSet<String> failedTokens) {
+        var chartInkResult = chartInkService.fetchData(chartInkKey);
+        if (chartInkResult == null || CollectionUtils.isEmpty(chartInkResult.getData())) {
+            return;
+        }
+
+        chartInkResult.getData().forEach(dto -> {
+            var margin = marginService.getMarginCache().get(dto.getNsecode());
+            if (margin == null) {
+                return;
+            }
+
+            if (!processedTokens.contains(margin.getToken())) {
+                sleepOneSecond();
+                if (loadHistoricalBars(margin.getToken(), jwt, apiKey, fromDate, toDate)) {
+                    processedTokens.add(margin.getToken());
+                    failedTokens.remove(margin.getToken());
+                } else {
+                    failedTokens.add(margin.getToken());
+                }
+            }
+
+            strategyRegistry.assignTokenToStrategy(strategyName, margin.getToken(), margin.getSymbol());
+        });
+    }
+
+    private boolean loadHistoricalBars(String token, String jwt, String apiKey,
+                                       String fromDate, String toDate) {
+        var request = HistoricalDataRequest.builder()
+                .exchange("NSE")
+                .symbolToken(token)
+                .interval("FIFTEEN_MINUTE")
+                .fromDate(fromDate)
+                .toDate(toDate)
+                .build();
+
+        try {
+            var angelOneResp = smartApiFeignClient.getHistoricalData(BEARER_PREFIX + jwt, apiKey, request);
+            if (angelOneResp == null) {
+                return false;
+            }
+            var series = getSeries(token);
+            for (var candle : angelOneResp.getHistoricalCandles()) {
+                series.addBar(buildBar(series, candle.timestamp().plusMinutes(15).toInstant(),
+                        candle.open(), candle.high(), candle.low(), candle.close()), false);
+            }
+            return true;
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            return false;
+        }
+    }
+
+    private void sleepOneSecond() {
+        try {
+            Thread.sleep(Duration.ofSeconds(1));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn(e.getMessage(), e);
+        }
+    }
+
     private void runTokenEventLoop(String token) {
-        Queue<LiveTick> queue = getTickBuffer(token);
+        BlockingQueue<LiveTick> queue = getTickBuffer(token);
         BarSeries series = getSeries(token);
 
         log.info("🚀 Started dedicated Virtual Thread loop for token: {}", token);
@@ -212,15 +179,15 @@ public class MarketDataContainer {
                 break;
             }
 
-            LiveTick tick = queue.poll();
+            LiveTick tick;
+            try {
+                tick = queue.poll(1, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
 
             if (tick == null) {
-                try {
-                    Thread.sleep(2);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
                 continue;
             }
 
@@ -253,7 +220,7 @@ public class MarketDataContainer {
             }
         }
 
-        activeWorkerMap.remove(token);
+        activeWorkers.remove(token);
         log.info("🛑 Stopped worker loop for token: {}", token);
     }
 
