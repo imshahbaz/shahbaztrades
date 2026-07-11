@@ -28,7 +28,12 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
                     var margin = marginService.getMarginCache().get(symbol);
                     if (margin == null) return null;
 
-                    return matches(barSeries) ? margin : null;
+                    boolean hit;
+                    synchronized (barSeries) {
+                        hit = matches(barSeries);
+                    }
+
+                    return hit ? margin : null;
                 })
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparingDouble(Margin::getRequiredMargin).reversed())
