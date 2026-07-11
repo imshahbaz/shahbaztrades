@@ -67,6 +67,7 @@ public class MarketDataContainer {
         activeWorkers.clear();
     }
 
+    @Async("taskExecutor")
     public void startWorkersForActiveWatchlist(BiConsumer<String, Integer> webSocketSubscriber) {
         var activeTokens = strategyRegistry.getAllActiveTokens();
 
