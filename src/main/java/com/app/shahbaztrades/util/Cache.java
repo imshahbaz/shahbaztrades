@@ -10,9 +10,6 @@ import java.util.Set;
 public class Cache<K, V> {
 
     private static final long MAXIMUM_SIZE = 50_000;
-
-    private record Holder<V>(V data, long ttlNanos) {}
-
     private final com.github.benmanes.caffeine.cache.Cache<K, Holder<V>> cache = Caffeine.newBuilder()
             .maximumSize(MAXIMUM_SIZE)
             .expireAfter(new Expiry<K, Holder<V>>() {
@@ -56,6 +53,9 @@ public class Cache<K, V> {
 
     public void invalidateAll() {
         cache.invalidateAll();
+    }
+
+    private record Holder<V>(V data, long ttlNanos) {
     }
 
 }

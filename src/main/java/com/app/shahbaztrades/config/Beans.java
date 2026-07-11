@@ -24,27 +24,6 @@ import java.time.ZonedDateTime;
 @Configuration
 public class Beans {
 
-    @Bean
-    @Primary
-    public JsonMapper jsonMapper() {
-        return JsonMapper.builder()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                .build();
-    }
-
-    @Bean
-    public AsyncTaskExecutor taskExecutor() {
-        return new TaskExecutorAdapter(HelperUtil.EXECUTOR);
-    }
-
-    @Bean
-    public TaskScheduler taskScheduler() {
-        SimpleAsyncTaskScheduler scheduler = new SimpleAsyncTaskScheduler();
-        scheduler.setVirtualThreads(true);
-        scheduler.setThreadNamePrefix("task-scheduler-");
-        return scheduler;
-    }
-
     public static Gson createGson() {
         return new GsonBuilder()
                 .registerTypeAdapter(Instant.class, new TypeAdapter<Instant>() {
@@ -86,6 +65,27 @@ public class Beans {
                     }
                 })
                 .create();
+    }
+
+    @Bean
+    @Primary
+    public JsonMapper jsonMapper() {
+        return JsonMapper.builder()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .build();
+    }
+
+    @Bean
+    public AsyncTaskExecutor taskExecutor() {
+        return new TaskExecutorAdapter(HelperUtil.EXECUTOR);
+    }
+
+    @Bean
+    public TaskScheduler taskScheduler() {
+        SimpleAsyncTaskScheduler scheduler = new SimpleAsyncTaskScheduler();
+        scheduler.setVirtualThreads(true);
+        scheduler.setThreadNamePrefix("task-scheduler-");
+        return scheduler;
     }
 
 }

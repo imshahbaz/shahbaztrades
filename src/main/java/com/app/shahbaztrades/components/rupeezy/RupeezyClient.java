@@ -9,8 +9,6 @@ import java.util.Map;
 @FeignClient(name = "rupeezy-client", url = "https://vortex-api.rupeezy.in/v2")
 public interface RupeezyClient {
 
-    String BEARER = "Bearer ";
-
     @PostMapping("/user/session")
     RupeezySessionResponse generateAccessToken(@RequestBody RupeezySessionRequest request);
 

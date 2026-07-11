@@ -2,16 +2,14 @@ package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.angelone.AngelOneClient;
 import com.app.shahbaztrades.components.angelone.SmartApiFeignClient;
+import com.app.shahbaztrades.components.helper.MarketDataContainer;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpDto;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
-import com.app.shahbaztrades.model.dto.angelone.websocket.AngelOneLoginResponse;
-import com.app.shahbaztrades.model.dto.angelone.websocket.SmartStreamParams;
-import com.app.shahbaztrades.model.dto.angelone.websocket.SmartStreamRequest;
-import com.app.shahbaztrades.model.dto.angelone.websocket.TokenGroup;
+import com.app.shahbaztrades.model.dto.angelone.websocket.*;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.MongoConfigService;
@@ -39,17 +37,15 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.app.shahbaztrades.util.Constants.AO_DATE_FORMATTER;
+import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
 
 
 @Slf4j
@@ -58,7 +54,6 @@ import static com.app.shahbaztrades.util.Constants.AO_DATE_FORMATTER;
 public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
 
     private static final String WS_URL = "wss://smartapisocket.angelone.in/smart-stream";
-    private static final String BEARER_PREFIX = "Bearer ";
     private final ConcurrentHashMap<String, Double> ltpCache = new ConcurrentHashMap<>();
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -67,6 +62,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     private final AngelOneClient angelOneClient;
     private final MongoConfigService mongoConfigService;
     private final SmartApiFeignClient smartApiFeignClient;
+    private final MarketDataContainer marketDataContainer;
     private WebSocketSession session;
     private ScheduledFuture<?> heartbeatTask;
 
@@ -107,6 +103,9 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
 
                     if (ltp > 0) {
                         ltpCache.put(token, ltp);
+                        marketDataContainer.getTickBuffer(token).add(
+                                new LiveTick(ltp, ZonedDateTime.now(DateUtil.IST_ZONE))
+                        );
                     }
                 }
             }
@@ -290,12 +289,12 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
         }
 
         var jwt = mongoConfigService.getAngelOneJwtToken();
-        LocalDate today = DateUtil.getTodayDate();
-        LocalDate thirtyDaysAgo = today.minusDays(30);
+        var today = DateUtil.getTodayDate();
+        var thirtyDaysAgo = today.atTime(0, 0).minusDays(30);
 
 
         String fromDateStr = thirtyDaysAgo.format(AO_DATE_FORMATTER);
-        String toDateStr = today.format(AO_DATE_FORMATTER);
+        String toDateStr = today.atTime(23, 59).format(AO_DATE_FORMATTER);
 
         var request = HistoricalDataRequest.builder()
                 .exchange("NSE")
