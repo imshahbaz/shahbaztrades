@@ -43,14 +43,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MarginServiceImpl implements MarginService {
 
-    private Map<String, Margin> cachedMargins = new ConcurrentHashMap<>();
-
     private final MarginRepo marginRepo;
     private final MongoConfigService mongoConfigService;
     private final JsonMapper jsonMapper;
     private final MongoTemplate mongoTemplate;
     private final AngelOneClient angelOneClient;
     private final RupeezyWebClient rupeezyWebClient;
+    private Map<String, Margin> cachedMargins = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void init() {

@@ -54,6 +54,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
+    private static final String INITIATE_MTF = "Initiate MTF";
     private final OrderRepo orderRepo;
     private final MongoTemplate mongoTemplate;
     private final MarginService marginService;
@@ -63,8 +64,6 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRouterFactory orderRouterFactory;
     private final YahooClient yahooClient;
     private final UserService userService;
-
-    private static final String INITIATE_MTF = "Initiate MTF";
 
     @Override
     public OrderDto getById(String id) {

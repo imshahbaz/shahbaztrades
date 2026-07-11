@@ -16,6 +16,18 @@ public class RupeezyOrderHistory extends RupeezyBaseResponse {
 
     List<OrderData> orders;
 
+    public OrderData getOrder(String orderId) {
+        if (CollectionUtils.isEmpty(orders)) {
+            return null;
+        }
+        for (OrderData order : orders) {
+            if (order.getOrderId().equals(orderId)) {
+                return order;
+            }
+        }
+        return null;
+    }
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -39,18 +51,6 @@ public class RupeezyOrderHistory extends RupeezyBaseResponse {
 
         @JsonProperty("traded_price")
         double averagePrice;
-    }
-
-    public OrderData getOrder(String orderId) {
-        if (CollectionUtils.isEmpty(orders)) {
-            return null;
-        }
-        for (OrderData order : orders) {
-            if (order.getOrderId().equals(orderId)) {
-                return order;
-            }
-        }
-        return null;
     }
 
 }

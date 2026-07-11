@@ -22,12 +22,13 @@ public class Constants {
     public static final String NOTIFICATION_MESSAGE_SELL = "Sold %d shares of %s at ₹%.2f.";
     public static final String NOTIFICATION_MESSAGE_SELL_MARKET = "Your market sell order for %d shares of %s has been submitted successfully.";
     public static final String NOTIFICATION_MESSAGE_SELL_SL = "Your stop-loss sell order for %d shares of %s at ₹%.2f has been submitted successfully.";
+    public static final String BEARER_PREFIX = "Bearer ";
 
     public static final String DOT = ".";
     public static final String MONGO_ID = "_id";
 
     public static final String ENV_PRODUCTION = "production";
-    public static DateTimeFormatter AO_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd 00:00");
+    public static DateTimeFormatter AO_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     public static void validateSessionCallback(String header) {
         if (StringUtils.isEmpty(header) || !SESSION_MANAGER_SOURCE.equals(header)) {

@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.components.helper.PollingHelper;
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
 import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestMarginDto;
@@ -7,14 +8,16 @@ import com.app.shahbaztrades.model.dto.chartink.ChartInkSignalEvent;
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.dto.strategy.ActiveTrade;
-import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
 import com.app.shahbaztrades.model.dto.strategy.TargetStockResult;
 import com.app.shahbaztrades.model.dto.strategy.TradeCompletionEvent;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.StrategyOrder;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.model.enums.ExchangeType;
-import com.app.shahbaztrades.service.*;
+import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.service.StrategyOrderService;
+import com.app.shahbaztrades.service.StrategyService;
+import com.app.shahbaztrades.service.TradeEngine;
 import com.app.shahbaztrades.util.Cache;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
@@ -27,32 +30,25 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
-import java.time.LocalTime;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class TradeEngineImpl implements TradeEngine {
 
-    private final Map<String, ScheduledFuture<?>> runningPollers = new ConcurrentHashMap<>();
+    private static final int LTP_POLL_ATTEMPTS = 10;
+    private static final long LTP_POLL_INTERVAL_MS = 100;
     private final Cache<String, Boolean> activeOrders = new Cache<>();
     private final Cache<String, List<StrategyOrder>> strategyOrders = new Cache<>();
-
     private final StrategyOrderService strategyOrderService;
     private final StrategyService strategyService;
-    private final ChartInkService chartInkService;
     private final ApplicationEventPublisher eventPublisher;
     private final AngelOneService angelOneService;
     private final TradeWatchdog tradeWatchdog;
     private final OrderRouterFactory orderRouterFactory;
-
-    private static final int LTP_POLL_ATTEMPTS = 10;
-    private static final long LTP_POLL_INTERVAL_MS = 100;
+    private final PollingHelper pollingHelper;
 
     @Override
     public void continuousTrade() {
@@ -94,42 +90,7 @@ public class TradeEngineImpl implements TradeEngine {
         }
 
         processedStrategies.add(strategyName);
-        HelperUtil.EXECUTOR.execute(() -> startManualPoller(strategy));
-    }
-
-    public void startManualPoller(StrategyDto strategy) {
-        runningPollers.computeIfAbsent(strategy.getName(), name -> {
-            log.info("Manual Watchdog Poller started for strategy {}", name);
-            return HelperUtil.SCHEDULER.scheduleAtFixedRate(() -> HelperUtil.EXECUTOR.execute(() -> runPollerTask(name)), 1, 1, TimeUnit.MINUTES);
-        });
-    }
-
-    private void runPollerTask(String name) {
-        if (DateUtil.isSquareOffTimeReached()) {
-            log.info("Market closed. Watchdog exiting.");
-            var task = runningPollers.remove(name);
-            if (task != null) {
-                task.cancel(false);
-            }
-            return;
-        }
-
-        String currentTime = LocalTime.now(DateUtil.IST_ZONE).format(HOUR_MIN_FORMATTER);
-
-        if (FIFTEEN_MIN_TARGETS.contains(currentTime)) {
-            log.info("Target match at time {} ! Fetching signals...", currentTime);
-            try {
-                var signals = chartInkService.fetchTodayBacktestDataWithMargin(name);
-                if (CollectionUtils.isEmpty(signals)) {
-                    return;
-                }
-
-                log.info("Complete signals list: {}", signals);
-                eventPublisher.publishEvent(new ChartInkSignalEvent(name, signals));
-            } catch (Exception e) {
-                log.error("Manual fetch failed", e);
-            }
-        }
+        HelperUtil.EXECUTOR.execute(() -> pollingHelper.runPollerTask(strategyName, false));
     }
 
     @EventListener
@@ -160,7 +121,7 @@ public class TradeEngineImpl implements TradeEngine {
     private TargetStockResult findTargetStock(List<ChartInkBacktestMarginDto> signals, float orderAmount, BrokerType brokerType) {
         var now = DateUtil.getCurrentDateTime();
         var latest = signals.getLast();
-        if (now.isAfter(latest.getMarketTime().plusMinutes(20)) && now.isBefore(latest.getMarketTime().plusMinutes(23)) && !CollectionUtils.isEmpty(latest.getMargins())) {
+        if (now.isAfter(latest.getMarketTime().plusMinutes(15)) && now.isBefore(latest.getMarketTime().plusMinutes(23)) && !CollectionUtils.isEmpty(latest.getMargins())) {
             return processSignal(latest, orderAmount, brokerType);
         }
         return null;

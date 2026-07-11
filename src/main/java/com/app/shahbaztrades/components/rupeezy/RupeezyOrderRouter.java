@@ -17,6 +17,8 @@ import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
+
 @Component
 @RequiredArgsConstructor
 public class RupeezyOrderRouter implements OrderRoutingStrategy {
@@ -70,7 +72,7 @@ public class RupeezyOrderRouter implements OrderRoutingStrategy {
         var cache = getTokenCache(userId);
         RupeezyOrderResponseDto res;
         try {
-            res = rupeezyClient.cancelOrder(orderId, cache.getApiSecret(), RupeezyClient.BEARER + cache.getAccessToken());
+            res = rupeezyClient.cancelOrder(orderId, cache.getApiSecret(), BEARER_PREFIX + cache.getAccessToken());
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
@@ -90,7 +92,7 @@ public class RupeezyOrderRouter implements OrderRoutingStrategy {
         var cache = getTokenCache(userId);
         RupeezyOrderHistory res;
         try {
-            res = rupeezyClient.getOrder(cache.getApiSecret(), RupeezyClient.BEARER + cache.getAccessToken());
+            res = rupeezyClient.getOrder(cache.getApiSecret(), BEARER_PREFIX + cache.getAccessToken());
         } catch (Exception e) {
             throw new NotFoundException("Can't get order details");
         }
@@ -138,7 +140,7 @@ public class RupeezyOrderRouter implements OrderRoutingStrategy {
     private TradeOrderResponse placeOrder(RupeezyOrderDto req, RupeezyTokenCache cache) {
         RupeezyOrderResponseDto res;
         try {
-            res = rupeezyClient.placeOrder(req, cache.getApiSecret(), RupeezyClient.BEARER + cache.getAccessToken());
+            res = rupeezyClient.placeOrder(req, cache.getApiSecret(), BEARER_PREFIX + cache.getAccessToken());
             if (res == null || res.getOrderId() == null) {
                 throw new IllegalStateException("Order placement failed: No Order ID returned");
             }
