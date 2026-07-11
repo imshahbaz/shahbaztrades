@@ -27,6 +27,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 
+import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
+
 @Service
 @RequiredArgsConstructor
 public class RupeezyServiceImpl implements RupeezyService {
@@ -75,7 +77,7 @@ public class RupeezyServiceImpl implements RupeezyService {
         }
 
         try {
-            var res = rupeezyClient.getUserFunds(config.getApiSecret(), RupeezyClient.BEARER + cache.getAccessToken());
+            var res = rupeezyClient.getUserFunds(config.getApiSecret(), BEARER_PREFIX + cache.getAccessToken());
             if (res.isEmpty() || res.get("nse") == null) {
                 throw new UnauthorizedException("Access token expired");
             }

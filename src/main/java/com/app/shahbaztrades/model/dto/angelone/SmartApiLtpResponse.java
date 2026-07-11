@@ -14,33 +14,6 @@ public record SmartApiLtpResponse<T>(
         String errorcode,
         T data
 ) {
-    public record MarketData(
-            List<MarketTicker> fetched
-    ) {
-    }
-
-    public record MarketTicker(
-            String exchange,
-            String tradingSymbol,
-            String symbolToken,
-            Double ltp,
-            Double open,
-            Double high,
-            Double low,
-            Double close
-    ) {
-    }
-
-    @Builder
-    public record CandleDetail(
-            ZonedDateTime timestamp,
-            double open,
-            double high,
-            double low,
-            double close
-    ) {
-    }
-
     private CandleDetail mapCandleDetail(List<Object> candle) {
         if (CollectionUtils.isEmpty(candle)) {
             return null;
@@ -72,6 +45,33 @@ public record SmartApiLtpResponse<T>(
             }
         }
         return list;
+    }
+
+    public record MarketData(
+            List<MarketTicker> fetched
+    ) {
+    }
+
+    public record MarketTicker(
+            String exchange,
+            String tradingSymbol,
+            String symbolToken,
+            Double ltp,
+            Double open,
+            Double high,
+            Double low,
+            Double close
+    ) {
+    }
+
+    @Builder
+    public record CandleDetail(
+            ZonedDateTime timestamp,
+            double open,
+            double high,
+            double low,
+            double close
+    ) {
     }
 
 }

@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 public interface RupeezyWebClient {
 
     @GetMapping(
-        value = "/margin-trading-facility/mtf-stock-lists",
-        produces = "text/html"
+            value = "/margin-trading-facility/mtf-stock-lists",
+            produces = "text/html"
     )
     String getMtfStockListPage(@RequestHeader("User-Agent") String userAgent);
 }
