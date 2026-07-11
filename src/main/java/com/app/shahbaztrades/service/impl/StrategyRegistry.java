@@ -27,8 +27,10 @@ public class StrategyRegistry {
             throw new IllegalArgumentException("Strategy not found: " + strategyName);
         }
 
-        strategyTokenMap.computeIfAbsent(strategyName, k -> new CopyOnWriteArrayList<>())
-                .add(token);
+        var tokens = strategyTokenMap.computeIfAbsent(strategyName, _ -> new CopyOnWriteArrayList<>());
+        if (!tokens.contains(token)) {
+            tokens.add(token);
+        }
 
         tokenSymbolMap.put(token, symbol);
     }
