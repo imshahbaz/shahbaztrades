@@ -26,7 +26,7 @@ public class UserDto {
 
     UserTheme theme;
 
-    long mobile;
+    Long mobile;
 
     String name;
 

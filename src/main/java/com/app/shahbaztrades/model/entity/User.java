@@ -26,7 +26,7 @@ public class User {
     String password;
     UserRole role;
     UserTheme theme;
-    long mobile;
+    Long mobile;
     String name;
     String profile;
     ZerodhaConfig zerodhaConfig;
