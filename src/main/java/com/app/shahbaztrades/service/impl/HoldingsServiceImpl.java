@@ -101,7 +101,8 @@ public class HoldingsServiceImpl implements HoldingsService {
 
         var query = new Query(criteria);
         var update = new Update()
-                .unset(Holdings.Fields.brokerHoldingMap + Constants.DOT + brokerType.name());
+                .pull(Holdings.Fields.brokerHoldingMap + Constants.DOT + brokerType.name(),
+                        Query.query(Criteria.where(Holdings.HoldingInfo.Fields.symbol).is(symbol)));
 
         var result = mongoTemplate.updateFirst(query, update, Holdings.class);
         if (result.getModifiedCount() > 0) {
@@ -279,7 +280,7 @@ public class HoldingsServiceImpl implements HoldingsService {
         var holdingInfos = holdings.getBrokerHoldingMap()
                 .computeIfAbsent(
                         brokerType,
-                        key -> new CopyOnWriteArrayList<>()
+                        _ -> new CopyOnWriteArrayList<>()
                 );
 
         return holdingInfos.stream()
