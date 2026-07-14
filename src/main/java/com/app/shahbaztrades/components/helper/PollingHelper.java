@@ -35,10 +35,10 @@ public class PollingHelper {
     );
 
     private static final Set<String> FIFTEEN_MIN_TARGETS = Set.of(
-            "09:15", "09:30", "09:45", "10:00", "10:15", "10:30",
-            "10:45", "11:00", "11:15", "11:30", "11:45", "12:00",
-            "12:15", "12:30", "12:45", "13:00", "13:15", "13:30",
-            "13:45", "14:00", "14:15", "14:30", "14:45", "15:00"
+            "09:30", "09:45", "10:00", "10:15", "10:30", "10:45",
+            "11:00", "11:15", "11:30", "11:45", "12:00", "12:15",
+            "12:30", "12:45", "13:00", "13:15", "13:30", "13:45",
+            "14:00", "14:15", "14:30", "14:45", "15:00"
     );
 
     private final Map<String, ScheduledFuture<?>> runningPollers = new ConcurrentHashMap<>();
@@ -118,7 +118,7 @@ public class PollingHelper {
 
                 log.info("Complete manual signals list: {}", signals);
                 eventPublisher.publishEvent(new ChartInkSignalEvent(name, List.of(ChartInkBacktestMarginDto.builder()
-                        .marketTime(now)
+                        .marketTime(now.minusMinutes(15))
                         .margins(signals)
                         .build())));
             } catch (Exception e) {
