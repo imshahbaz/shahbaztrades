@@ -225,7 +225,7 @@ public class MarketDataContainer {
         log.info("🛑 Stopped worker loop for token: {}", token);
     }
 
-    public Bar buildBar(BarSeries series, Instant endInstant, double o, double h, double l, double c) {
+    private Bar buildBar(BarSeries series, Instant endInstant, double o, double h, double l, double c) {
         return series.barBuilder()
                 .timePeriod(Duration.ofMinutes(15))
                 .endTime(endInstant)
@@ -236,4 +236,9 @@ public class MarketDataContainer {
                 .volume(0L)
                 .build();
     }
+
+    public boolean checkActiveWorker(String token) {
+        return activeWorkers.contains(token);
+    }
+
 }

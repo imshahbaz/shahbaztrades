@@ -103,9 +103,11 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
 
                     if (ltp > 0) {
                         ltpCache.put(token, ltp);
-                        marketDataContainer.getTickBuffer(token).add(
-                                new LiveTick(ltp, ZonedDateTime.now(DateUtil.IST_ZONE))
-                        );
+                        if (marketDataContainer.checkActiveWorker(token)) {
+                            marketDataContainer.getTickBuffer(token).add(
+                                    new LiveTick(ltp, ZonedDateTime.now(DateUtil.IST_ZONE))
+                            );
+                        }
                     }
                 }
             }
