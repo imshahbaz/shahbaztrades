@@ -175,6 +175,12 @@ public class MarketDataContainer {
 
         log.info("🚀 Started dedicated Virtual Thread loop for token: {}", token);
 
+        double currentOpen = -1;
+        double currentHigh = -1;
+        double currentLow = -1;
+        double currentClose = -1;
+        ZonedDateTime currentBarEndTime = null;
+
         while (true) {
             if (DateUtil.isMarketClosedForTrading()) {
                 break;
@@ -192,33 +198,47 @@ public class MarketDataContainer {
                 continue;
             }
 
-            double ltp = tick.price();
             ZonedDateTime tickTimeIST = tick.arrivalTime();
 
             if (tickTimeIST.getHour() == 9 && tickTimeIST.getMinute() < 15) {
                 continue;
             }
 
+            double ltp = tick.price();
             int minute = tickTimeIST.getMinute();
             int startMinute = (minute / 15) * 15;
-            ZonedDateTime barEndTimeIST = tickTimeIST.truncatedTo(ChronoUnit.HOURS)
+            ZonedDateTime expectedEndTime = tickTimeIST.truncatedTo(ChronoUnit.HOURS)
                     .withMinute(startMinute)
                     .plusMinutes(15);
 
-            Instant barEndInstant = barEndTimeIST.toInstant();
-            synchronized (series) {
-                if (!series.isEmpty() && series.getLastBar().getEndTime().equals(barEndInstant)) {
-                    Bar existingBar = series.getLastBar();
-                    double open = existingBar.getOpenPrice().doubleValue();
-                    double high = Math.max(existingBar.getHighPrice().doubleValue(), ltp);
-                    double low = Math.min(existingBar.getLowPrice().doubleValue(), ltp);
-                    Bar updatedBar = buildBar(series, barEndInstant, open, high, low, ltp);
-                    series.addBar(updatedBar, true);
-                } else {
-                    Bar newBar = buildBar(series, barEndInstant, ltp, ltp, ltp, ltp);
-                    series.addBar(newBar, false);
+            if (currentBarEndTime != null && !expectedEndTime.equals(currentBarEndTime)) {
+                synchronized (series) {
+                    Bar finalBar = buildBar(series, currentBarEndTime.toInstant(), currentOpen, currentHigh, currentLow, currentClose);
+                    series.addBar(finalBar, !series.isEmpty() && series.getLastBar().getEndTime().equals(currentBarEndTime.toInstant()));
                 }
+                currentBarEndTime = null;
             }
+
+            if (currentBarEndTime == null) {
+                currentBarEndTime = expectedEndTime;
+                synchronized (series) {
+                    if (!series.isEmpty() && series.getLastBar().getEndTime().equals(expectedEndTime.toInstant())) {
+                        Bar existing = series.getLastBar();
+                        currentOpen = existing.getOpenPrice().doubleValue();
+                        currentHigh = Math.max(existing.getHighPrice().doubleValue(), ltp);
+                        currentLow = Math.min(existing.getLowPrice().doubleValue(), ltp);
+                    } else {
+                        currentOpen = ltp;
+                        currentHigh = ltp;
+                        currentLow = ltp;
+                    }
+                }
+            } else {
+                currentHigh = Math.max(currentHigh, ltp);
+                currentLow = Math.min(currentLow, ltp);
+            }
+
+            currentClose = ltp;
         }
 
         activeWorkers.remove(token);
