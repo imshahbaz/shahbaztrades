@@ -109,6 +109,7 @@ public class PollingHelper {
                     return;
                 }
 
+                TimeUnit.SECONDS.sleep(1);
                 var strategy = strategyRegistry.getStrategyInstance(name);
                 var barSeriesList = tokens.stream().map(marketDataContainer::getSeries).toList();
                 var signals = strategy.getFilteredMargins(barSeriesList, strategyRegistry.getTokenSymbolMap());
