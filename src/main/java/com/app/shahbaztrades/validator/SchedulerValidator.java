@@ -64,7 +64,7 @@ public class SchedulerValidator {
                 return false;
             }
             return uri.getHost() != null && !uri.getHost().isBlank();
-        } catch (Exception e) {
+        } catch (Exception _) {
             return false;
         }
     }

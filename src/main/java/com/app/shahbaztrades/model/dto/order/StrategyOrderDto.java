@@ -42,7 +42,7 @@ public class StrategyOrderDto {
         try {
             parsedDate = LocalDate.parse(this.date, DateTimeFormatter.ISO_LOCAL_DATE);
             OrderValidator.validateOrderDate(parsedDate);
-        } catch (Exception e) {
+        } catch (Exception _) {
             throw new BadRequestException("Invalid date format");
         }
 

@@ -56,7 +56,7 @@ public class StrategyServiceImpl implements StrategyService {
         try {
             strategyRepository.insert(strategyDto.toEntity());
             cachedStrategies.put(strategyDto.getName().toUpperCase(), strategyDto);
-        } catch (Exception e) {
+        } catch (Exception _) {
             throw new ResourceAlreadyExistsException("Strategy with name " + strategyDto.getName() + " already exists");
         }
         return ResponseEntity.ok(ApiResponse.ok(strategyDto, "Strategy created successfully"));

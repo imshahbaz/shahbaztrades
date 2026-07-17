@@ -120,7 +120,7 @@ public class HelperUtil {
             }
 
             return uuid;
-        } catch (Exception e) {
+        } catch (Exception _) {
             return null;
         }
     }
@@ -129,7 +129,7 @@ public class HelperUtil {
         try {
             TimeUnit.MILLISECONDS.sleep(waitMillis);
             return true;
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             return false;
         }

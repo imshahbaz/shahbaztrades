@@ -135,7 +135,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
         try {
             var kc = getKiteClient(userDto.getUserId());
             kc.getProfile();
-        } catch (NotFoundException | IOException | KiteException e) {
+        } catch (NotFoundException | IOException | KiteException _) {
             return ApiResponse.<String>builder()
                     .success(Boolean.FALSE)
                     .data(user.getZerodhaConfig().getApiKey())
@@ -230,9 +230,9 @@ public class ZerodhaServiceImpl implements ZerodhaService {
             var kc = getKiteClient(userId);
             kc.getProfile();
             return;
-        } catch (NotFoundException e) {
+        } catch (NotFoundException _) {
             log.info("Access token not found proceeding with auto login {}", userId);
-        } catch (IOException | KiteException e) {
+        } catch (IOException | KiteException _) {
             log.info("Kite connection failed proceeding with auto login {}", userId);
         }
 
