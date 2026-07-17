@@ -19,14 +19,16 @@ import java.util.Map;
 @RequestMapping("/api/user")
 public class UserController {
 
+    private static final String TOKEN = "token";
+
     private final UserService userService;
     private final FcmService fcmService;
 
     @PatchMapping("/fcm-token")
     public ResponseEntity<ApiResponse<String>> patchFcmToken(@RequestAttribute("user") UserDto userDto,
                                                              @RequestBody @NotNull @NotEmpty Map<String, String> payload) {
-        fcmService.saveToken(userDto.getUserId(), payload.get("token"));
-        return ResponseEntity.ok(ApiResponse.ok(payload.get("token"), "FCM token synchronized"));
+        fcmService.saveToken(userDto.getUserId(), payload.get(TOKEN));
+        return ResponseEntity.ok(ApiResponse.ok(payload.get(TOKEN), "FCM token synchronized"));
     }
 
     @PatchMapping("/username")
@@ -43,7 +45,7 @@ public class UserController {
     @PublicEndpoint
     @PostMapping("/fcm-token/remove")
     public ResponseEntity<ApiResponse<Void>> removeToken(@RequestBody @NotNull @NotEmpty Map<String, String> payload) {
-        fcmService.removeToken(payload.get("token"));
+        fcmService.removeToken(payload.get(TOKEN));
         return ResponseEntity.ok(ApiResponse.ok(null, "FCM Token removed"));
     }
 

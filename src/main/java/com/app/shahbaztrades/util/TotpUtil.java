@@ -28,7 +28,7 @@ public class TotpUtil {
             long currentBucket = timeProvider.getTime() / 30;
 
             return codeGenerator.generate(secret, currentBucket);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return "";
         }
     }

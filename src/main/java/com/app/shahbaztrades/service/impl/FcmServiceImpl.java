@@ -25,7 +25,7 @@ import java.util.Map;
 @Service
 public class FcmServiceImpl implements FcmService {
 
-    private static final String DEFAULT_CHANNEL_ID = "default";
+    private static final String DEFAULT = "default";
 
     private final FirebaseMessaging messaging;
     private final FcmTokenRepository fcmTokenRepository;
@@ -53,14 +53,14 @@ public class FcmServiceImpl implements FcmService {
 
         fcmTokenRepository.deleteByTokenAndUserIdNot(token, userId);
 
-        FcmToken record = fcmTokenRepository.findByToken(token)
+        FcmToken fcmToken = fcmTokenRepository.findByToken(token)
                 .orElseGet(() -> FcmToken.createEntity(userId, token));
 
-        if (StringUtils.isNotEmpty(record.getId())) {
-            record.setToken(token);
-            record.setUserId(userId);
+        if (StringUtils.isNotEmpty(fcmToken.getId())) {
+            fcmToken.setToken(token);
+            fcmToken.setUserId(userId);
         }
-        fcmTokenRepository.save(record);
+        fcmTokenRepository.save(fcmToken);
     }
 
     @Override
@@ -94,8 +94,8 @@ public class FcmServiceImpl implements FcmService {
                 .setAndroidConfig(AndroidConfig.builder()
                         .setPriority(AndroidConfig.Priority.HIGH)
                         .setNotification(AndroidNotification.builder()
-                                .setChannelId(DEFAULT_CHANNEL_ID)
-                                .setSound("default")
+                                .setChannelId(DEFAULT)
+                                .setSound(DEFAULT)
                                 .setTag(payload.get("tag"))
                                 .build())
                         .build())
@@ -104,7 +104,7 @@ public class FcmServiceImpl implements FcmService {
                         .build())
                 .setApnsConfig(ApnsConfig.builder()
                         .setAps(Aps.builder()
-                                .setSound("default")
+                                .setSound(DEFAULT)
                                 .build())
                         .build())
                 .build();

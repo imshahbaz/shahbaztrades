@@ -30,6 +30,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 
 import static com.app.shahbaztrades.util.Constants.AO_DATE_FORMATTER;
@@ -42,6 +43,7 @@ public class MarketDataContainer {
 
     private final ConcurrentHashMap<String, BarSeries> tokenSeriesMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, BlockingQueue<LiveTick>> tokenTickBufferMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ReentrantLock> tokenLocks = new ConcurrentHashMap<>();
     private final Set<String> activeWorkers = ConcurrentHashMap.newKeySet();
     private final StrategyRegistry strategyRegistry;
     private final SmartApiFeignClient smartApiFeignClient;
@@ -61,9 +63,29 @@ public class MarketDataContainer {
         return tokenTickBufferMap.computeIfAbsent(token, _ -> new LinkedBlockingQueue<>());
     }
 
+    private ReentrantLock getLock(String token) {
+        return tokenLocks.computeIfAbsent(token, _ -> new ReentrantLock());
+    }
+
+    public BarSeries snapshotSeries(String token) {
+        ReentrantLock lock = getLock(token);
+        lock.lock();
+        try {
+            BarSeries live = getSeries(token);
+            BarSeries copy = new BaseBarSeriesBuilder().withName(live.getName()).build();
+            for (int i = live.getBeginIndex(); i <= live.getEndIndex(); i++) {
+                copy.addBar(live.getBar(i));
+            }
+            return copy;
+        } finally {
+            lock.unlock();
+        }
+    }
+
     public void clear() {
         tokenSeriesMap.clear();
         tokenTickBufferMap.clear();
+        tokenLocks.clear();
         activeWorkers.clear();
     }
 
@@ -89,24 +111,22 @@ public class MarketDataContainer {
         LocalDate today = DateUtil.getTodayDate();
         String fromDateStr = today.atTime(9, 15).minusDays(10).format(AO_DATE_FORMATTER);
         String toDateStr = today.atTime(15, 30).format(AO_DATE_FORMATTER);
+        var ctx = new WarmupContext(jwt, apiKey, fromDateStr, toDateStr);
         var processedTokens = new HashSet<String>();
         var failedTokens = new HashSet<String>();
 
-        loadStrategyTokens("RSI15MINLOCAL", "RSI15MIN", jwt, apiKey, fromDateStr, toDateStr,
-                processedTokens, failedTokens);
-        loadStrategyTokens("MACD15MINLOCAL", "MACD15MIN", jwt, apiKey, fromDateStr, toDateStr,
-                processedTokens, failedTokens);
+        loadStrategyTokens("RSI15MINLOCAL", "RSI15MIN", ctx, processedTokens, failedTokens);
+        loadStrategyTokens("MACD15MINLOCAL", "MACD15MIN", ctx, processedTokens, failedTokens);
 
         for (var token : failedTokens) {
-            loadHistoricalBars(token, jwt, apiKey, fromDateStr, toDateStr);
+            loadHistoricalBars(token, ctx);
             sleepOneSecond();
         }
 
         log.info("Container Warm Up Completed");
     }
 
-    private void loadStrategyTokens(String chartInkKey, String strategyName, String jwt, String apiKey,
-                                    String fromDate, String toDate,
+    private void loadStrategyTokens(String chartInkKey, String strategyName, WarmupContext ctx,
                                     HashSet<String> processedTokens, HashSet<String> failedTokens) {
         var chartInkResult = chartInkService.fetchData(chartInkKey);
         if (chartInkResult == null || CollectionUtils.isEmpty(chartInkResult.getData())) {
@@ -121,7 +141,7 @@ public class MarketDataContainer {
 
             if (!processedTokens.contains(margin.getToken())) {
                 sleepOneSecond();
-                if (loadHistoricalBars(margin.getToken(), jwt, apiKey, fromDate, toDate)) {
+                if (loadHistoricalBars(margin.getToken(), ctx)) {
                     processedTokens.add(margin.getToken());
                     failedTokens.remove(margin.getToken());
                 } else {
@@ -133,25 +153,30 @@ public class MarketDataContainer {
         });
     }
 
-    private boolean loadHistoricalBars(String token, String jwt, String apiKey,
-                                       String fromDate, String toDate) {
+    private boolean loadHistoricalBars(String token, WarmupContext ctx) {
         var request = HistoricalDataRequest.builder()
                 .exchange("NSE")
                 .symbolToken(token)
                 .interval("FIFTEEN_MINUTE")
-                .fromDate(fromDate)
-                .toDate(toDate)
+                .fromDate(ctx.fromDate())
+                .toDate(ctx.toDate())
                 .build();
 
         try {
-            var angelOneResp = smartApiFeignClient.getHistoricalData(BEARER_PREFIX + jwt, apiKey, request);
+            var angelOneResp = smartApiFeignClient.getHistoricalData(BEARER_PREFIX + ctx.jwt(), ctx.apiKey(), request);
             if (angelOneResp == null) {
                 return false;
             }
             var series = getSeries(token);
-            for (var candle : angelOneResp.getHistoricalCandles()) {
-                series.addBar(buildBar(series, candle.timestamp().plusMinutes(15).toInstant(),
-                        candle.open(), candle.high(), candle.low(), candle.close()), false);
+            ReentrantLock lock = getLock(token);
+            lock.lock();
+            try {
+                for (var candle : angelOneResp.getHistoricalCandles()) {
+                    series.addBar(buildBar(series, candle.timestamp().plusMinutes(15).toInstant(),
+                            candle.open(), candle.high(), candle.low(), candle.close()), false);
+                }
+            } finally {
+                lock.unlock();
             }
             return true;
         } catch (Exception e) {
@@ -175,74 +200,102 @@ public class MarketDataContainer {
 
         log.info("🚀 Started dedicated Virtual Thread loop for token: {}", token);
 
-        double currentOpen = -1;
-        double currentHigh = -1;
-        double currentLow = -1;
-        double currentClose = -1;
-        ZonedDateTime currentBarEndTime = null;
+        ReentrantLock lock = getLock(token);
+        BarState state = new BarState();
 
-        while (true) {
-            if (DateUtil.isMarketClosedForTrading()) {
-                break;
-            }
-
-            LiveTick tick;
-            try {
-                tick = queue.poll(1, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-
+        while (!DateUtil.isMarketClosedForTrading()) {
+            LiveTick tick = pollNextTick(queue);
             if (tick == null) {
+                if (Thread.currentThread().isInterrupted()) {
+                    break;
+                }
                 continue;
             }
-
-            ZonedDateTime tickTimeIST = tick.arrivalTime();
-
-            if (tickTimeIST.getHour() == 9 && tickTimeIST.getMinute() < 15) {
-                continue;
-            }
-
-            double ltp = tick.price();
-            int minute = tickTimeIST.getMinute();
-            int startMinute = (minute / 15) * 15;
-            ZonedDateTime expectedEndTime = tickTimeIST.truncatedTo(ChronoUnit.HOURS)
-                    .withMinute(startMinute)
-                    .plusMinutes(15);
-
-            if (currentBarEndTime != null && !expectedEndTime.equals(currentBarEndTime)) {
-                synchronized (series) {
-                    Bar finalBar = buildBar(series, currentBarEndTime.toInstant(), currentOpen, currentHigh, currentLow, currentClose);
-                    series.addBar(finalBar, !series.isEmpty() && series.getLastBar().getEndTime().equals(currentBarEndTime.toInstant()));
-                }
-                currentBarEndTime = null;
-            }
-
-            if (currentBarEndTime == null) {
-                currentBarEndTime = expectedEndTime;
-                synchronized (series) {
-                    if (!series.isEmpty() && series.getLastBar().getEndTime().equals(expectedEndTime.toInstant())) {
-                        Bar existing = series.getLastBar();
-                        currentOpen = existing.getOpenPrice().doubleValue();
-                        currentHigh = Math.max(existing.getHighPrice().doubleValue(), ltp);
-                        currentLow = Math.min(existing.getLowPrice().doubleValue(), ltp);
-                    } else {
-                        currentOpen = ltp;
-                        currentHigh = ltp;
-                        currentLow = ltp;
-                    }
-                }
-            } else {
-                currentHigh = Math.max(currentHigh, ltp);
-                currentLow = Math.min(currentLow, ltp);
-            }
-
-            currentClose = ltp;
+            processTick(series, lock, state, tick);
         }
 
         activeWorkers.remove(token);
         log.info("🛑 Stopped worker loop for token: {}", token);
+    }
+
+    private LiveTick pollNextTick(BlockingQueue<LiveTick> queue) {
+        try {
+            return queue.poll(1, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
+    }
+
+    private void processTick(BarSeries series, ReentrantLock lock, BarState state, LiveTick tick) {
+        ZonedDateTime tickTimeIST = tick.arrivalTime();
+        if (tickTimeIST.getHour() == 9 && tickTimeIST.getMinute() < 15) {
+            return;
+        }
+
+        double ltp = tick.price();
+        ZonedDateTime expectedEndTime = computeBarEndTime(tickTimeIST);
+
+        if (state.endTime != null && !expectedEndTime.equals(state.endTime)) {
+            flushBar(series, lock, state);
+        }
+
+        if (state.endTime == null) {
+            startBar(series, lock, state, expectedEndTime, ltp);
+        } else {
+            state.high = Math.max(state.high, ltp);
+            state.low = Math.min(state.low, ltp);
+        }
+
+        state.close = ltp;
+    }
+
+    private ZonedDateTime computeBarEndTime(ZonedDateTime tickTimeIST) {
+        int startMinute = (tickTimeIST.getMinute() / 15) * 15;
+        return tickTimeIST.truncatedTo(ChronoUnit.HOURS)
+                .withMinute(startMinute)
+                .plusMinutes(15);
+    }
+
+    private void flushBar(BarSeries series, ReentrantLock lock, BarState state) {
+        lock.lock();
+        try {
+            Bar finalBar = buildBar(series, state.endTime.toInstant(), state.open, state.high, state.low, state.close);
+            series.addBar(finalBar, !series.isEmpty() && series.getLastBar().getEndTime().equals(state.endTime.toInstant()));
+        } finally {
+            lock.unlock();
+        }
+        state.endTime = null;
+    }
+
+    private void startBar(BarSeries series, ReentrantLock lock, BarState state, ZonedDateTime expectedEndTime, double ltp) {
+        state.endTime = expectedEndTime;
+        lock.lock();
+        try {
+            if (!series.isEmpty() && series.getLastBar().getEndTime().equals(expectedEndTime.toInstant())) {
+                Bar existing = series.getLastBar();
+                state.open = existing.getOpenPrice().doubleValue();
+                state.high = Math.max(existing.getHighPrice().doubleValue(), ltp);
+                state.low = Math.min(existing.getLowPrice().doubleValue(), ltp);
+            } else {
+                state.open = ltp;
+                state.high = ltp;
+                state.low = ltp;
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private record WarmupContext(String jwt, String apiKey, String fromDate, String toDate) {
+    }
+
+    private static final class BarState {
+        private double open = -1;
+        private double high = -1;
+        private double low = -1;
+        private double close = -1;
+        private ZonedDateTime endTime = null;
     }
 
     private Bar buildBar(BarSeries series, Instant endInstant, double o, double h, double l, double c) {
