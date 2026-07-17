@@ -44,60 +44,73 @@ public class YahooClient {
 
     public List<NSEHistoricalData> getHistoricalData(String symbol, String timeRange) {
         var cacheKey = "yahoo_history:" + symbol + "_" + timeRange;
-        var value = stringRedisTemplate.opsForValue().get(cacheKey);
-        if (StringUtils.isNotBlank(value)) {
-            return HelperUtil.GSON.fromJson(value, new TypeToken<List<NSEHistoricalData>>() {
-            }.getType());
+        List<NSEHistoricalData> cached = readCache(cacheKey);
+        if (cached != null) {
+            return cached;
         }
 
         var lock = redissonClient.getLock("yahoo_lock:fetch:" + symbol + ":" + timeRange);
         try {
-            if (lock.tryLock(2, -1, TimeUnit.SECONDS)) {
-                try {
-                    value = stringRedisTemplate.opsForValue().get(cacheKey);
-                    if (StringUtils.isNotBlank(value)) {
-                        return HelperUtil.GSON.fromJson(value, new TypeToken<List<NSEHistoricalData>>() {
-                        }.getType());
-                    }
-
-                    log.info("Fetching fresh historical data from Yahoo for: {}", symbol);
-                    YahooChartResponse response = restClient.get()
-                            .uri(uriBuilder -> uriBuilder
-                                    .path("/{symbol}.NS")
-                                    .queryParam("range", timeRange)
-                                    .queryParam("interval", "1d")
-                                    .build(symbol))
-                            .retrieve()
-                            .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
-                                    (_, resp) ->
-                                            log.error("Yahoo API Error: {} {}", resp.getStatusCode(), resp.getStatusText()))
-                            .body(YahooChartResponse.class);
-
-                    List<NSEHistoricalData> list = (response != null) ? parseResponse(symbol, response) : Collections.emptyList();
-                    if (!list.isEmpty()) {
-                        Collections.reverse(list);
-                        stringRedisTemplate.opsForValue().set(
-                                cacheKey,
-                                HelperUtil.GSON.toJson(list),
-                                DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10))
-                        );
-                    }
-
-                    return list;
-                } catch (Exception e) {
-                    log.error("Critical failure fetching Yahoo data for {}", symbol, e);
-                    return Collections.emptyList();
-                } finally {
-                    if (lock.isLocked() && lock.isHeldByCurrentThread()) {
-                        lock.unlock();
-                    }
-                }
-            } else {
+            if (!lock.tryLock(2, -1, TimeUnit.SECONDS)) {
                 log.warn("Could not acquire distributed lock within 2 seconds for symbol: {}. Returning empty list.", symbol);
                 return Collections.emptyList();
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            return Collections.emptyList();
+        }
+
+        try {
+            return fetchAndCache(symbol, timeRange, cacheKey);
+        } finally {
+            if (lock.isLocked() && lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
+    }
+
+    private List<NSEHistoricalData> readCache(String cacheKey) {
+        var value = stringRedisTemplate.opsForValue().get(cacheKey);
+        if (StringUtils.isNotBlank(value)) {
+            return HelperUtil.GSON.fromJson(value, new TypeToken<List<NSEHistoricalData>>() {
+            }.getType());
+        }
+        return null;
+    }
+
+    private List<NSEHistoricalData> fetchAndCache(String symbol, String timeRange, String cacheKey) {
+        try {
+            List<NSEHistoricalData> cached = readCache(cacheKey);
+            if (cached != null) {
+                return cached;
+            }
+
+            log.info("Fetching fresh historical data from Yahoo for: {}", symbol);
+            YahooChartResponse response = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/{symbol}.NS")
+                            .queryParam("range", timeRange)
+                            .queryParam("interval", "1d")
+                            .build(symbol))
+                    .retrieve()
+                    .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                            (_, resp) ->
+                                    log.error("Yahoo API Error: {} {}", resp.getStatusCode(), resp.getStatusText()))
+                    .body(YahooChartResponse.class);
+
+            List<NSEHistoricalData> list = (response != null) ? parseResponse(symbol, response) : Collections.emptyList();
+            if (!list.isEmpty()) {
+                Collections.reverse(list);
+                stringRedisTemplate.opsForValue().set(
+                        cacheKey,
+                        HelperUtil.GSON.toJson(list),
+                        DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10))
+                );
+            }
+
+            return list;
+        } catch (Exception e) {
+            log.error("Critical failure fetching Yahoo data for {}", symbol, e);
             return Collections.emptyList();
         }
     }
