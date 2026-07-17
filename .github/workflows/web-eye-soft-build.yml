@@ -29,7 +29,6 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/one_klik_java:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/one_klik_java:${{ github.sha }}
 
   deploy:
     runs-on: ubuntu-latest
