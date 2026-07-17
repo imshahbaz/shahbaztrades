@@ -111,7 +111,7 @@ public class PollingHelper {
 
                 TimeUnit.SECONDS.sleep(1);
                 var strategy = strategyRegistry.getStrategyInstance(name);
-                var barSeriesList = tokens.stream().map(marketDataContainer::getSeries).toList();
+                var barSeriesList = tokens.stream().map(marketDataContainer::snapshotSeries).toList();
                 var signals = strategy.getFilteredMargins(barSeriesList, strategyRegistry.getTokenSymbolMap());
                 if (CollectionUtils.isEmpty(signals)) {
                     return;
