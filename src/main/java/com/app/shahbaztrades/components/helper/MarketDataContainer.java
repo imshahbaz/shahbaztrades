@@ -175,74 +175,92 @@ public class MarketDataContainer {
 
         log.info("🚀 Started dedicated Virtual Thread loop for token: {}", token);
 
-        double currentOpen = -1;
-        double currentHigh = -1;
-        double currentLow = -1;
-        double currentClose = -1;
-        ZonedDateTime currentBarEndTime = null;
+        BarState state = new BarState();
 
-        while (true) {
-            if (DateUtil.isMarketClosedForTrading()) {
-                break;
-            }
-
-            LiveTick tick;
-            try {
-                tick = queue.poll(1, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-
+        while (!DateUtil.isMarketClosedForTrading()) {
+            LiveTick tick = pollNextTick(queue);
             if (tick == null) {
+                if (Thread.currentThread().isInterrupted()) {
+                    break;
+                }
                 continue;
             }
-
-            ZonedDateTime tickTimeIST = tick.arrivalTime();
-
-            if (tickTimeIST.getHour() == 9 && tickTimeIST.getMinute() < 15) {
-                continue;
-            }
-
-            double ltp = tick.price();
-            int minute = tickTimeIST.getMinute();
-            int startMinute = (minute / 15) * 15;
-            ZonedDateTime expectedEndTime = tickTimeIST.truncatedTo(ChronoUnit.HOURS)
-                    .withMinute(startMinute)
-                    .plusMinutes(15);
-
-            if (currentBarEndTime != null && !expectedEndTime.equals(currentBarEndTime)) {
-                synchronized (series) {
-                    Bar finalBar = buildBar(series, currentBarEndTime.toInstant(), currentOpen, currentHigh, currentLow, currentClose);
-                    series.addBar(finalBar, !series.isEmpty() && series.getLastBar().getEndTime().equals(currentBarEndTime.toInstant()));
-                }
-                currentBarEndTime = null;
-            }
-
-            if (currentBarEndTime == null) {
-                currentBarEndTime = expectedEndTime;
-                synchronized (series) {
-                    if (!series.isEmpty() && series.getLastBar().getEndTime().equals(expectedEndTime.toInstant())) {
-                        Bar existing = series.getLastBar();
-                        currentOpen = existing.getOpenPrice().doubleValue();
-                        currentHigh = Math.max(existing.getHighPrice().doubleValue(), ltp);
-                        currentLow = Math.min(existing.getLowPrice().doubleValue(), ltp);
-                    } else {
-                        currentOpen = ltp;
-                        currentHigh = ltp;
-                        currentLow = ltp;
-                    }
-                }
-            } else {
-                currentHigh = Math.max(currentHigh, ltp);
-                currentLow = Math.min(currentLow, ltp);
-            }
-
-            currentClose = ltp;
+            processTick(series, state, tick);
         }
 
         activeWorkers.remove(token);
         log.info("🛑 Stopped worker loop for token: {}", token);
+    }
+
+    private LiveTick pollNextTick(BlockingQueue<LiveTick> queue) {
+        try {
+            return queue.poll(1, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
+    }
+
+    private void processTick(BarSeries series, BarState state, LiveTick tick) {
+        ZonedDateTime tickTimeIST = tick.arrivalTime();
+        if (tickTimeIST.getHour() == 9 && tickTimeIST.getMinute() < 15) {
+            return;
+        }
+
+        double ltp = tick.price();
+        ZonedDateTime expectedEndTime = computeBarEndTime(tickTimeIST);
+
+        if (state.endTime != null && !expectedEndTime.equals(state.endTime)) {
+            flushBar(series, state);
+        }
+
+        if (state.endTime == null) {
+            startBar(series, state, expectedEndTime, ltp);
+        } else {
+            state.high = Math.max(state.high, ltp);
+            state.low = Math.min(state.low, ltp);
+        }
+
+        state.close = ltp;
+    }
+
+    private ZonedDateTime computeBarEndTime(ZonedDateTime tickTimeIST) {
+        int startMinute = (tickTimeIST.getMinute() / 15) * 15;
+        return tickTimeIST.truncatedTo(ChronoUnit.HOURS)
+                .withMinute(startMinute)
+                .plusMinutes(15);
+    }
+
+    private void flushBar(BarSeries series, BarState state) {
+        synchronized (series) {
+            Bar finalBar = buildBar(series, state.endTime.toInstant(), state.open, state.high, state.low, state.close);
+            series.addBar(finalBar, !series.isEmpty() && series.getLastBar().getEndTime().equals(state.endTime.toInstant()));
+        }
+        state.endTime = null;
+    }
+
+    private void startBar(BarSeries series, BarState state, ZonedDateTime expectedEndTime, double ltp) {
+        state.endTime = expectedEndTime;
+        synchronized (series) {
+            if (!series.isEmpty() && series.getLastBar().getEndTime().equals(expectedEndTime.toInstant())) {
+                Bar existing = series.getLastBar();
+                state.open = existing.getOpenPrice().doubleValue();
+                state.high = Math.max(existing.getHighPrice().doubleValue(), ltp);
+                state.low = Math.min(existing.getLowPrice().doubleValue(), ltp);
+            } else {
+                state.open = ltp;
+                state.high = ltp;
+                state.low = ltp;
+            }
+        }
+    }
+
+    private static final class BarState {
+        private double open = -1;
+        private double high = -1;
+        private double low = -1;
+        private double close = -1;
+        private ZonedDateTime endTime = null;
     }
 
     private Bar buildBar(BarSeries series, Instant endInstant, double o, double h, double l, double c) {

@@ -87,32 +87,34 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     @Override
     public void handleMessage(@NonNull WebSocketSession session, @NonNull WebSocketMessage<?> message) {
         if (message instanceof BinaryMessage binaryMessage) {
-            ByteBuffer buffer = binaryMessage.getPayload();
-            buffer.order(ByteOrder.LITTLE_ENDIAN);
-
-            if (buffer.remaining() >= 51) {
-                byte firstByte = buffer.get();
-
-                if (firstByte == 1) {
-                    byte[] tokenBytes = new byte[25];
-                    buffer.position(2);
-                    buffer.get(tokenBytes);
-                    String token = new String(tokenBytes, StandardCharsets.UTF_8).trim();
-                    int priceInt = buffer.getInt(43);
-                    double ltp = priceInt / 100.0;
-
-                    if (ltp > 0) {
-                        ltpCache.put(token, ltp);
-                        if (marketDataContainer.checkActiveWorker(token)) {
-                            marketDataContainer.getTickBuffer(token).add(
-                                    new LiveTick(ltp, ZonedDateTime.now(DateUtil.IST_ZONE))
-                            );
-                        }
-                    }
-                }
-            }
+            handleBinaryTick(binaryMessage.getPayload());
         } else if (message instanceof TextMessage textMessage && "pong".equals(textMessage.getPayload())) {
             log.trace("Received keep-alive pong");
+        }
+    }
+
+    private void handleBinaryTick(ByteBuffer buffer) {
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+
+        if (buffer.remaining() < 51 || buffer.get() != 1) {
+            return;
+        }
+
+        byte[] tokenBytes = new byte[25];
+        buffer.position(2);
+        buffer.get(tokenBytes);
+        String token = new String(tokenBytes, StandardCharsets.UTF_8).trim();
+        double ltp = buffer.getInt(43) / 100.0;
+
+        if (ltp <= 0) {
+            return;
+        }
+
+        ltpCache.put(token, ltp);
+        if (marketDataContainer.checkActiveWorker(token)) {
+            marketDataContainer.getTickBuffer(token).add(
+                    new LiveTick(ltp, ZonedDateTime.now(DateUtil.IST_ZONE))
+            );
         }
     }
 
