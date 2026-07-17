@@ -44,4 +44,4 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             # Simply trigger the private script sitting securely on your VPS
-            bash /root/1klik-app/autodeploy.sh
+            bash /root/1klik-app/github-actions.sh
