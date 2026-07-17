@@ -43,4 +43,4 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
-            bash /root/1klik-app/github-actions.sh
+            bash /root/github-actions.sh
