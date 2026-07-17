@@ -89,24 +89,22 @@ public class MarketDataContainer {
         LocalDate today = DateUtil.getTodayDate();
         String fromDateStr = today.atTime(9, 15).minusDays(10).format(AO_DATE_FORMATTER);
         String toDateStr = today.atTime(15, 30).format(AO_DATE_FORMATTER);
+        var ctx = new WarmupContext(jwt, apiKey, fromDateStr, toDateStr);
         var processedTokens = new HashSet<String>();
         var failedTokens = new HashSet<String>();
 
-        loadStrategyTokens("RSI15MINLOCAL", "RSI15MIN", jwt, apiKey, fromDateStr, toDateStr,
-                processedTokens, failedTokens);
-        loadStrategyTokens("MACD15MINLOCAL", "MACD15MIN", jwt, apiKey, fromDateStr, toDateStr,
-                processedTokens, failedTokens);
+        loadStrategyTokens("RSI15MINLOCAL", "RSI15MIN", ctx, processedTokens, failedTokens);
+        loadStrategyTokens("MACD15MINLOCAL", "MACD15MIN", ctx, processedTokens, failedTokens);
 
         for (var token : failedTokens) {
-            loadHistoricalBars(token, jwt, apiKey, fromDateStr, toDateStr);
+            loadHistoricalBars(token, ctx);
             sleepOneSecond();
         }
 
         log.info("Container Warm Up Completed");
     }
 
-    private void loadStrategyTokens(String chartInkKey, String strategyName, String jwt, String apiKey,
-                                    String fromDate, String toDate,
+    private void loadStrategyTokens(String chartInkKey, String strategyName, WarmupContext ctx,
                                     HashSet<String> processedTokens, HashSet<String> failedTokens) {
         var chartInkResult = chartInkService.fetchData(chartInkKey);
         if (chartInkResult == null || CollectionUtils.isEmpty(chartInkResult.getData())) {
@@ -121,7 +119,7 @@ public class MarketDataContainer {
 
             if (!processedTokens.contains(margin.getToken())) {
                 sleepOneSecond();
-                if (loadHistoricalBars(margin.getToken(), jwt, apiKey, fromDate, toDate)) {
+                if (loadHistoricalBars(margin.getToken(), ctx)) {
                     processedTokens.add(margin.getToken());
                     failedTokens.remove(margin.getToken());
                 } else {
@@ -133,18 +131,17 @@ public class MarketDataContainer {
         });
     }
 
-    private boolean loadHistoricalBars(String token, String jwt, String apiKey,
-                                       String fromDate, String toDate) {
+    private boolean loadHistoricalBars(String token, WarmupContext ctx) {
         var request = HistoricalDataRequest.builder()
                 .exchange("NSE")
                 .symbolToken(token)
                 .interval("FIFTEEN_MINUTE")
-                .fromDate(fromDate)
-                .toDate(toDate)
+                .fromDate(ctx.fromDate())
+                .toDate(ctx.toDate())
                 .build();
 
         try {
-            var angelOneResp = smartApiFeignClient.getHistoricalData(BEARER_PREFIX + jwt, apiKey, request);
+            var angelOneResp = smartApiFeignClient.getHistoricalData(BEARER_PREFIX + ctx.jwt(), ctx.apiKey(), request);
             if (angelOneResp == null) {
                 return false;
             }
@@ -253,6 +250,9 @@ public class MarketDataContainer {
                 state.low = ltp;
             }
         }
+    }
+
+    private record WarmupContext(String jwt, String apiKey, String fromDate, String toDate) {
     }
 
     private static final class BarState {
