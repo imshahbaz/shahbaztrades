@@ -25,7 +25,7 @@ import java.util.Map;
 @Service
 public class FcmServiceImpl implements FcmService {
 
-    private static final String DEFAULT_CHANNEL_ID = "default";
+    private static final String DEFAULT = "default";
 
     private final FirebaseMessaging messaging;
     private final FcmTokenRepository fcmTokenRepository;
@@ -94,8 +94,8 @@ public class FcmServiceImpl implements FcmService {
                 .setAndroidConfig(AndroidConfig.builder()
                         .setPriority(AndroidConfig.Priority.HIGH)
                         .setNotification(AndroidNotification.builder()
-                                .setChannelId(DEFAULT_CHANNEL_ID)
-                                .setSound("default")
+                                .setChannelId(DEFAULT)
+                                .setSound(DEFAULT)
                                 .setTag(payload.get("tag"))
                                 .build())
                         .build())
@@ -104,7 +104,7 @@ public class FcmServiceImpl implements FcmService {
                         .build())
                 .setApnsConfig(ApnsConfig.builder()
                         .setAps(Aps.builder()
-                                .setSound("default")
+                                .setSound(DEFAULT)
                                 .build())
                         .build())
                 .build();
