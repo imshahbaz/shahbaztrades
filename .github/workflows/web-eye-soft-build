@@ -43,5 +43,4 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
-            # Simply trigger the private script sitting securely on your VPS
             bash /root/1klik-app/github-actions.sh
