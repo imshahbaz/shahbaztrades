@@ -81,7 +81,7 @@ public class RupeezyServiceImpl implements RupeezyService {
             if (res.isEmpty() || res.get("nse") == null) {
                 throw new UnauthorizedException("Access token expired");
             }
-        } catch (Exception e) {
+        } catch (Exception _) {
             return ResponseEntity.ok(ApiResponse.<String>builder()
                     .success(Boolean.FALSE)
                     .data(config.getAppId())

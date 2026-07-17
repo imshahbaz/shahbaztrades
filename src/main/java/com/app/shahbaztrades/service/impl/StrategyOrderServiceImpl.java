@@ -46,7 +46,7 @@ public class StrategyOrderServiceImpl implements StrategyOrderService {
         OrderValidator.validateForCreateAndUpdate(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
         try {
             entity = strategyOrderRepo.insert(entity);
-        } catch (DataIntegrityViolationException e) {
+        } catch (DataIntegrityViolationException _) {
             throw new ResourceAlreadyExistsException("Strategy order already exists for this user on this date");
         }
         return entity.toDto();
@@ -58,7 +58,7 @@ public class StrategyOrderServiceImpl implements StrategyOrderService {
         OrderValidator.validateForCreateAndUpdate(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
         try {
             entity = strategyOrderRepo.save(entity);
-        } catch (DataIntegrityViolationException e) {
+        } catch (DataIntegrityViolationException _) {
             throw new ResourceAlreadyExistsException("Strategy order already exists for this user on this date");
         }
         return entity.toDto();

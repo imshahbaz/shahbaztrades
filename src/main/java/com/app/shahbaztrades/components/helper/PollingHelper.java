@@ -122,6 +122,9 @@ public class PollingHelper {
                         .marketTime(now.minusMinutes(15))
                         .margins(signals)
                         .build())));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Manual fetch interrupted", e);
             } catch (Exception e) {
                 log.error("Manual fetch failed", e);
             }

@@ -53,14 +53,14 @@ public class FcmServiceImpl implements FcmService {
 
         fcmTokenRepository.deleteByTokenAndUserIdNot(token, userId);
 
-        FcmToken record = fcmTokenRepository.findByToken(token)
+        FcmToken fcmToken = fcmTokenRepository.findByToken(token)
                 .orElseGet(() -> FcmToken.createEntity(userId, token));
 
-        if (StringUtils.isNotEmpty(record.getId())) {
-            record.setToken(token);
-            record.setUserId(userId);
+        if (StringUtils.isNotEmpty(fcmToken.getId())) {
+            fcmToken.setToken(token);
+            fcmToken.setUserId(userId);
         }
-        fcmTokenRepository.save(record);
+        fcmTokenRepository.save(fcmToken);
     }
 
     @Override

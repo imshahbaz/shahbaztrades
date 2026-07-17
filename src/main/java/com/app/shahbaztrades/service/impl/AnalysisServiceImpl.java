@@ -133,7 +133,8 @@ public class AnalysisServiceImpl implements AnalysisService {
     @Override
     @Async("taskExecutor")
     public void updateStrategyBacktestData() {
-        var body = strategyService.getAllStrategies().getBody();
+        var response = strategyService.getAllStrategies();
+        var body = response != null ? response.getBody() : null;
         var activeStrategies = body != null ? body.getData() : null;
         if (CollectionUtils.isEmpty(activeStrategies)) {
             return;

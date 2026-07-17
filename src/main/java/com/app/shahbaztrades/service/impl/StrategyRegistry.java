@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Collectors;
 
 @Service
 public class StrategyRegistry {
@@ -43,7 +42,7 @@ public class StrategyRegistry {
         return strategyTokenMap.values().stream()
                 .flatMap(List::stream)
                 .distinct()
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public TradingStrategy getStrategyInstance(String strategyName) {

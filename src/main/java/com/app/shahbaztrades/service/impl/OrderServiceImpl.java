@@ -75,7 +75,7 @@ public class OrderServiceImpl implements OrderService {
         LocalDate localDate;
         try {
             localDate = LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE);
-        } catch (Exception e) {
+        } catch (Exception _) {
             throw new BadRequestException("Invalid date format");
         }
         Instant startOfIstDay = localDate.atStartOfDay(DateUtil.IST_ZONE).toInstant();
@@ -107,7 +107,7 @@ public class OrderServiceImpl implements OrderService {
         OrderValidator.validateForCreateAndUpdate(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
         try {
             mongoTemplate.insert(entity);
-        } catch (DataIntegrityViolationException e) {
+        } catch (DataIntegrityViolationException _) {
             throw new ResourceAlreadyExistsException("Order already exists");
         }
     }
@@ -123,7 +123,7 @@ public class OrderServiceImpl implements OrderService {
         OrderValidator.validateForCreateAndUpdate(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
         try {
             orderRepo.save(entity);
-        } catch (DataIntegrityViolationException e) {
+        } catch (DataIntegrityViolationException _) {
             throw new ResourceAlreadyExistsException("Order already exists for this user on this date");
         }
     }
@@ -210,7 +210,7 @@ public class OrderServiceImpl implements OrderService {
             if (order.getEntry() == null || order.getEntry().getAveragePrice() <= 0) return;
             try {
                 angelOneService.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
-            } catch (Exception e) {
+            } catch (Exception _) {
                 log.error("WS Subscription failed for {}", order.getSymbol());
                 return;
             }
@@ -251,7 +251,7 @@ public class OrderServiceImpl implements OrderService {
             if (res != null) {
                 order.setAtr(res);
             }
-        } catch (Exception e) {
+        } catch (Exception _) {
             log.error("Error updating ATR for {} orderId {}", order.getSymbol(), order.getId());
         }
     }
