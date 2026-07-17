@@ -4,7 +4,7 @@ FROM --platform=linux/amd64 ibm-semeru-runtimes:open-25-jdk-jammy AS builder
 WORKDIR /app
 
 # Limit Maven memory (VERY IMPORTANT for 1GB VPS)
-ENV MAVEN_OPTS="-Xms128m -Xmx384m"
+#ENV MAVEN_OPTS="-Xms128m -Xmx384m"
 
 # Cache dependencies first
 COPY pom.xml .
