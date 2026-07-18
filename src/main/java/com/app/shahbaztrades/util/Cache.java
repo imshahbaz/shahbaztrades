@@ -38,6 +38,10 @@ public class Cache<K, V> {
         cache.put(key, new Holder<>(value, expiry.toNanos()));
     }
 
+    public boolean setIfAbsent(K key, V value, Duration expiry) {
+        return cache.asMap().putIfAbsent(key, new Holder<>(value, expiry.toNanos())) == null;
+    }
+
     public V get(K key) {
         var holder = cache.getIfPresent(key);
         return holder == null ? null : holder.data();

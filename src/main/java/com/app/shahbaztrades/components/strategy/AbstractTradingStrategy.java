@@ -31,7 +31,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
                     return matches(barSeries) ? margin : null;
                 })
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparingDouble(Margin::getRequiredMargin).reversed())
+                .sorted(Comparator.comparing(Margin::getRequiredMargin).reversed())
                 .toList();
     }
 

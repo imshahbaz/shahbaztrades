@@ -8,10 +8,12 @@ import com.app.shahbaztrades.service.AnalysisService;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/news")
@@ -22,13 +24,13 @@ public class NewsController {
     @PublicEndpoint
     @GetMapping("/{symbol}")
     public ResponseEntity<ApiResponse<List<TradingViewNewsResponse.NewsItem>>> getStockNews(@PathVariable @NotBlank String symbol) {
-        return analysisService.getStockNews(symbol);
+        return ResponseEntity.ok(ApiResponse.ok(analysisService.getStockNews(symbol), AnalysisService.NEWS_FETCHED_SUCCESS_MSG));
     }
 
     @PublicEndpoint
     @GetMapping("/ai/{symbol}")
     public ResponseEntity<ApiResponse<AIAnalysis>> getAiAnalysis(@PathVariable @NotBlank String symbol) {
-        return analysisService.getGenAiAnalysis(symbol);
+        return ResponseEntity.ok(ApiResponse.ok(analysisService.getGenAiAnalysis(symbol), "Ai Analysis Fetched Successfully"));
     }
 
     @PublicEndpoint

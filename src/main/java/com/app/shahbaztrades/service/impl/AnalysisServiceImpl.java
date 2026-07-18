@@ -4,7 +4,6 @@ import com.app.shahbaztrades.components.analysis.GenAiClient;
 import com.app.shahbaztrades.components.analysis.TradingViewClient;
 import com.app.shahbaztrades.components.yahoo.YahooClient;
 import com.app.shahbaztrades.exceptions.NotFoundException;
-import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.analysis.AIAnalysis;
 import com.app.shahbaztrades.model.dto.analysis.TradingViewNewsResponse;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
@@ -25,7 +24,6 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -43,8 +41,6 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class AnalysisServiceImpl implements AnalysisService {
 
-    private static final String NEWS_FETCHED_SUCCESS_MSG = "News Fetched Successfully";
-
     private final StringRedisTemplate stringRedisTemplate;
     private final GenAiClient genAiClient;
     private final YahooClient yahooClient;
@@ -56,32 +52,30 @@ public class AnalysisServiceImpl implements AnalysisService {
     private final MongoTemplate mongoTemplate;
 
     @Override
-    public ResponseEntity<ApiResponse<List<TradingViewNewsResponse.NewsItem>>> getStockNews(String symbol) {
+    public List<TradingViewNewsResponse.NewsItem> getStockNews(String symbol) {
         var cacheKey = "tv_news:" + symbol;
         var value = stringRedisTemplate.opsForValue().get(cacheKey);
         if (StringUtils.isNotBlank(value)) {
-            List<TradingViewNewsResponse.NewsItem> res = HelperUtil.GSON.fromJson(value, new TypeToken<List<TradingViewNewsResponse.NewsItem>>() {
+            return HelperUtil.GSON.fromJson(value, new TypeToken<List<TradingViewNewsResponse.NewsItem>>() {
             }.getType());
-            return ResponseEntity.ok(ApiResponse.ok(res, NEWS_FETCHED_SUCCESS_MSG));
         }
 
         var res = TradingViewClient.getStockNews(symbol);
         if (res != null && !CollectionUtils.isEmpty(res.items())) {
             stringRedisTemplate.opsForValue().set(cacheKey, HelperUtil.GSON.toJson(res.items()), Duration.ofMinutes(10));
-            return ResponseEntity.ok(ApiResponse.ok(res.items(), NEWS_FETCHED_SUCCESS_MSG));
+            return res.items();
         }
 
         throw new NotFoundException("News Not Found");
     }
 
     @Override
-    public ResponseEntity<ApiResponse<AIAnalysis>> getGenAiAnalysis(String symbol) {
+    public AIAnalysis getGenAiAnalysis(String symbol) {
         var cacheKey = "genai:" + symbol;
 
         var value = stringRedisTemplate.opsForValue().get(cacheKey);
         if (StringUtils.isNotBlank(value)) {
-            var res = HelperUtil.GSON.fromJson(value, AIAnalysis.class);
-            return ResponseEntity.ok(ApiResponse.ok(res, NEWS_FETCHED_SUCCESS_MSG));
+            return HelperUtil.GSON.fromJson(value, AIAnalysis.class);
         }
 
         var lockKey = "lock:genai_" + symbol;
@@ -92,8 +86,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                 try {
                     value = stringRedisTemplate.opsForValue().get(cacheKey);
                     if (StringUtils.isNotBlank(value)) {
-                        var res = HelperUtil.GSON.fromJson(value, AIAnalysis.class);
-                        return ResponseEntity.ok(ApiResponse.ok(res, NEWS_FETCHED_SUCCESS_MSG));
+                        return HelperUtil.GSON.fromJson(value, AIAnalysis.class);
                     }
 
                     var history = yahooClient.getHistoricalData(symbol, YahooTimeRange.RANGE_1MO.getValue());
@@ -106,10 +99,9 @@ public class AnalysisServiceImpl implements AnalysisService {
                         throw new NotFoundException("Analysis Not Found");
                     }
 
-                    var res = HelperUtil.GSON.fromJson(analysis, AIAnalysis.class);
                     stringRedisTemplate.opsForValue().set(cacheKey, analysis,
                             DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10)));
-                    return ResponseEntity.ok(ApiResponse.ok(res, "Ai Analysis Fetched Successfully"));
+                    return HelperUtil.GSON.fromJson(analysis, AIAnalysis.class);
                 } finally {
                     if (lock.isLocked() && lock.isHeldByCurrentThread()) {
                         lock.unlock();
@@ -133,9 +125,7 @@ public class AnalysisServiceImpl implements AnalysisService {
     @Override
     @Async("taskExecutor")
     public void updateStrategyBacktestData() {
-        var response = strategyService.getAllStrategies();
-        var body = response != null ? response.getBody() : null;
-        var activeStrategies = body != null ? body.getData() : null;
+        var activeStrategies = strategyService.getAllStrategies();
         if (CollectionUtils.isEmpty(activeStrategies)) {
             return;
         }
@@ -170,6 +160,11 @@ public class AnalysisServiceImpl implements AnalysisService {
             for (var trade : tradeData.getMargins()) {
                 evaluateTrade(trade, tradeDate, historicalData, stats);
             }
+        }
+
+        if (stats.tradeCount == 0) {
+            log.info("No trades evaluated for strategy {}; skipping success-rate update", strategy.getName());
+            return;
         }
 
         log.info("Trade Count: {} for Strategy: {} with Success: {}", stats.tradeCount, strategy.getName(), stats.success);

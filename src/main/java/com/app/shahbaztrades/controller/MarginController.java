@@ -8,12 +8,14 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Collection;
 
+@Validated
 @RestController
 @RequestMapping("/api/margin")
 @RequiredArgsConstructor
@@ -24,13 +26,13 @@ public class MarginController {
     @PublicEndpoint
     @GetMapping("/all")
     public ResponseEntity<ApiResponse<Collection<Margin>>> getAllMargins() {
-        return marginService.getAllMargins();
+        return ResponseEntity.ok(ApiResponse.ok(marginService.getAllMargins(), "Success"));
     }
 
     @PublicEndpoint
     @GetMapping("/symbol/{symbol}")
     public ResponseEntity<ApiResponse<Margin>> getMargin(@PathVariable @NotBlank String symbol) {
-        return marginService.getMargin(symbol.toUpperCase());
+        return ResponseEntity.ok(ApiResponse.ok(marginService.getMargin(symbol.toUpperCase()), "Success"));
     }
 
     @PublicEndpoint

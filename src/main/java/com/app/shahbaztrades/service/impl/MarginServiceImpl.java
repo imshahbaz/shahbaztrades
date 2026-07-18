@@ -3,7 +3,6 @@ package com.app.shahbaztrades.service.impl;
 import com.app.shahbaztrades.components.angelone.AngelOneClient;
 import com.app.shahbaztrades.components.rupeezy.RupeezyWebClient;
 import com.app.shahbaztrades.exceptions.NotFoundException;
-import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.repo.MarginRepo;
 import com.app.shahbaztrades.service.MarginService;
@@ -25,13 +24,13 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -72,17 +71,17 @@ public class MarginServiceImpl implements MarginService {
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Collection<Margin>>> getAllMargins() {
-        return ResponseEntity.ok(ApiResponse.ok(cachedMargins.values(), "Success"));
+    public Collection<Margin> getAllMargins() {
+        return cachedMargins.values();
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Margin>> getMargin(String symbol) {
+    public Margin getMargin(String symbol) {
         var margin = cachedMargins.get(symbol);
         if (margin == null) {
             throw new NotFoundException("Margin not found");
         }
-        return ResponseEntity.ok(ApiResponse.ok(margin, "Success"));
+        return margin;
     }
 
     @Override
@@ -107,7 +106,7 @@ public class MarginServiceImpl implements MarginService {
                     );
 
                     Update update = new Update();
-                    update.set(Margin.Fields.requiredMargin, raw.leverage);
+                    update.set(Margin.Fields.requiredMargin, BigDecimal.valueOf(raw.leverage));
                     update.set(Margin.Fields.name, raw.tradingSymbol);
 
                     bulkOperations.upsert(query, update);

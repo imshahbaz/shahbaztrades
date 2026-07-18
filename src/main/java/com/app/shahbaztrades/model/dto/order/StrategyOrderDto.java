@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
@@ -32,7 +33,7 @@ public class StrategyOrderDto {
     String date;
 
     @Min(1)
-    float amount;
+    BigDecimal amount;
 
     @NotNull
     BrokerType broker;

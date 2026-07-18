@@ -17,6 +17,8 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -136,21 +138,22 @@ public class HelperUtil {
     }
 
     public static double fixToTick(double price) {
-        double tick;
+        BigDecimal tick;
 
         if (price < 250) {
-            tick = 0.01;
+            tick = new BigDecimal("0.01");
         } else if (price < 1000) {
-            tick = 0.05;
+            tick = new BigDecimal("0.05");
         } else if (price < 5000) {
-            tick = 0.10;
+            tick = new BigDecimal("0.10");
         } else if (price < 10000) {
-            tick = 0.50;
+            tick = new BigDecimal("0.50");
         } else {
-            tick = 1.00;
+            tick = BigDecimal.ONE;
         }
 
-        return Math.round(price / tick) * tick;
+        BigDecimal exact = BigDecimal.valueOf(price);
+        return exact.divide(tick, 0, RoundingMode.HALF_UP).multiply(tick).doubleValue();
     }
 
     public static ResponseEntity<String> executeCallBack(SchedulerCallBackDto schedulerCallBackDto) {
@@ -193,7 +196,7 @@ public class HelperUtil {
                 }
 
                 if (NumberUtils.isCreatable(leverage)) {
-                    update.set(Margin.Fields.rupeezyMargin, Float.parseFloat(leverage));
+                    update.set(Margin.Fields.rupeezyMargin, new BigDecimal(leverage));
                 }
             }
         }
