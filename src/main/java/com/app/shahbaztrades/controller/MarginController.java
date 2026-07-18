@@ -27,13 +27,13 @@ public class MarginController {
     @PublicEndpoint
     @GetMapping("/all")
     public ResponseEntity<ApiResponse<Collection<Margin>>> getAllMargins() {
-        return marginService.getAllMargins();
+        return ResponseEntity.ok(ApiResponse.ok(marginService.getAllMargins(), "Success"));
     }
 
     @PublicEndpoint
     @GetMapping("/symbol/{symbol}")
     public ResponseEntity<ApiResponse<Margin>> getMargin(@PathVariable @NotBlank String symbol) {
-        return marginService.getMargin(symbol.toUpperCase());
+        return ResponseEntity.ok(ApiResponse.ok(marginService.getMargin(symbol.toUpperCase()), "Success"));
     }
 
     @PublicEndpoint

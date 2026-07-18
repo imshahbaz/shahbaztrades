@@ -36,13 +36,14 @@ public class UserController {
 
     @PatchMapping("/username")
     public ResponseEntity<ApiResponse<Void>> patchUsername(@RequestBody UserDto userDto) {
-        return userService.updateUserName(userDto);
+        userService.updateUserName(userDto);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Username updated successfully"));
     }
 
     @PatchMapping("/theme")
     public ResponseEntity<ApiResponse<UserTheme>> patchTheme(@RequestBody UserDto userDto, @RequestAttribute("user") UserDto currentUser) {
         userDto.setUserId(currentUser.getUserId());
-        return userService.updateUserTheme(userDto);
+        return ResponseEntity.ok(ApiResponse.ok(userService.updateUserTheme(userDto), "Theme synchronized"));
     }
 
     @PublicEndpoint

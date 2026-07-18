@@ -86,7 +86,7 @@ public class AngelOneController {
     @PublicEndpoint
     @GetMapping("/ltp")
     public ResponseEntity<ApiResponse<SmartApiLtpResponse.MarketTicker>> getMultipleLtp(@RequestParam @NotBlank String token) {
-        return angelOneService.getMarketTicker(token);
+        return ResponseEntity.ok(ApiResponse.ok(angelOneService.getMarketTicker(token), "Ltp Fetched Successfully"));
     }
 
 }

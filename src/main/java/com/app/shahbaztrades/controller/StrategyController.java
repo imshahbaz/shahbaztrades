@@ -26,31 +26,32 @@ public class StrategyController {
     @GetMapping
     @PublicEndpoint
     public ResponseEntity<ApiResponse<List<StrategyDto>>> getAllStrategies() {
-        return strategyService.getAllStrategies();
+        return ResponseEntity.ok(ApiResponse.ok(strategyService.getAllStrategies(), "Strategies fetched successfully"));
     }
 
     @AdminOnly
     @PostMapping
     public ResponseEntity<ApiResponse<StrategyDto>> createStrategy(@RequestBody @Valid StrategyDto strategyDto) {
-        return strategyService.createStrategy(strategyDto);
+        return ResponseEntity.ok(ApiResponse.ok(strategyService.createStrategy(strategyDto), "Strategy created successfully"));
     }
 
     @AdminOnly
     @PutMapping
     public ResponseEntity<ApiResponse<StrategyDto>> updateStrategy(@RequestBody @Valid StrategyDto strategyDto) {
-        return strategyService.updateStrategy(strategyDto);
+        return ResponseEntity.ok(ApiResponse.ok(strategyService.updateStrategy(strategyDto), "Strategy updated successfully"));
     }
 
     @AdminOnly
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> deleteStrategy(@RequestParam @NotBlank String id) {
-        return strategyService.deleteStrategy(id.toUpperCase());
+        strategyService.deleteStrategy(id.toUpperCase());
+        return ResponseEntity.ok(ApiResponse.ok(null, "Strategy deleted successfully"));
     }
 
     @AdminOnly
     @GetMapping("/admin")
     public ResponseEntity<ApiResponse<List<StrategyDto>>> getAllStrategiesAdmin() {
-        return strategyService.getAllStrategiesAdmin();
+        return ResponseEntity.ok(ApiResponse.ok(strategyService.getAllStrategiesAdmin(), "Strategies fetched successfully"));
     }
 
 }

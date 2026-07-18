@@ -22,16 +22,17 @@ public class RupeezyController {
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Void>> login(@RequestBody @Valid BrokerLoginDto request) {
-        return rupeezyService.login(request);
+        rupeezyService.login(request);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Flow invocation success"));
     }
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<String>> getAuth(@RequestAttribute("user") UserDto userDto) {
-        return rupeezyService.getAuth(userDto);
+        return ResponseEntity.ok(rupeezyService.getAuth(userDto));
     }
 
     @PostMapping("/config")
     public ResponseEntity<ApiResponse<Long>> setConfig(@RequestBody User.RupeezyConfig config, @RequestAttribute("user") UserDto userDto) {
-        return rupeezyService.setConfig(config, userDto);
+        return ResponseEntity.ok(ApiResponse.ok(rupeezyService.setConfig(config, userDto), "Rupeezy configuration updated successfully"));
     }
 }

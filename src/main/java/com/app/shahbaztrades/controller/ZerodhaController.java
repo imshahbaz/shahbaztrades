@@ -22,7 +22,8 @@ public class ZerodhaController {
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Void>> login(@RequestBody @Valid BrokerLoginDto request) {
-        return zerodhaService.login(request);
+        zerodhaService.login(request);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Flow invocation success"));
     }
 
     @GetMapping("/me")
@@ -32,7 +33,7 @@ public class ZerodhaController {
 
     @PostMapping("/config")
     public ResponseEntity<ApiResponse<Long>> setConfig(@RequestBody User.ZerodhaConfig config, @RequestAttribute("user") UserDto userDto) {
-        return zerodhaService.setConfig(config, userDto);
+        return ResponseEntity.ok(ApiResponse.ok(zerodhaService.setConfig(config, userDto), "Zerodha configuration updated successfully"));
     }
 
 }

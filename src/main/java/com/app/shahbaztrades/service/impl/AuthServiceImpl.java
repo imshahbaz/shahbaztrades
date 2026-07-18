@@ -6,8 +6,9 @@ import com.app.shahbaztrades.config.security.JwtService;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.UnauthorizedException;
-import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
+import com.app.shahbaztrades.model.dto.auth.AuthCallbackResponse;
+import com.app.shahbaztrades.model.dto.auth.AuthCookieResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthRequest;
 import com.app.shahbaztrades.model.dto.auth.SignUpResponse;
 import com.app.shahbaztrades.model.enums.CacheType;
@@ -23,9 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -48,33 +46,29 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
 
     @Override
-    public ResponseEntity<ApiResponse<SignUpResponse>> signUp(AuthRequest request) {
+    public SignUpResponse signUp(AuthRequest request) {
         var dto = request.toUserDto();
         var cacheConfig = CacheUtils.getKeyAndExpiry(dto.getEmail(), CacheType.SIGNUP);
         stringRedisTemplate.opsForValue().set(cacheConfig.key(), HelperUtil.GSON.toJson(dto), cacheConfig.expiry());
         var otp = HelperUtil.generateOtp();
         otpProviderFactory.sendOtp(OtpType.EMAIL, dto.getEmail(), otp, OtpFor.REGISTER);
-        return ResponseEntity.ok(ApiResponse.ok(SignUpResponse.builder()
+        return SignUpResponse.builder()
                 .otpSent(Boolean.TRUE)
                 .message("OTP sent to " + dto.getEmail())
-                .build(), "OTP sent to " + dto.getEmail()));
+                .build();
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Void>> logout() {
-        var cookie = HelperUtil.createAuthCookie("", -1, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie)
-                .body(ApiResponse.ok(null, "Logged out successfully"));
+    public String logout() {
+        return HelperUtil.createAuthCookie("", -1, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
     }
 
     @Override
-    public ResponseEntity<ApiResponse<UserDto>> getMe(UserDto dto) {
+    public UserDto getMe(UserDto dto) {
         var key = AUTH_KEY + dto.getUserId();
         var redisUser = stringRedisTemplate.opsForValue().get(key);
         if (!StringUtils.isEmpty(redisUser)) {
-            var newDto = HelperUtil.GSON.fromJson(redisUser, UserDto.class);
-            return ResponseEntity.ok(ApiResponse.ok(newDto, "User details fetched"));
+            return HelperUtil.GSON.fromJson(redisUser, UserDto.class);
         }
 
         var user = userService.findByUserIdOrEmailOrMobile(dto.getUserId(), dto.getEmail(), dto.getMobile());
@@ -84,11 +78,11 @@ public class AuthServiceImpl implements AuthService {
 
         var newDto = user.toDto();
         stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(newDto), Duration.ofHours(1));
-        return ResponseEntity.ok(ApiResponse.ok(newDto, "User details fetched"));
+        return newDto;
     }
 
     @Override
-    public ResponseEntity<ApiResponse<String>> validateGoogleToken(String code, boolean nativeFlow) {
+    public AuthCookieResponse<String> validateGoogleToken(String code, boolean nativeFlow) {
         String id = UUID.randomUUID().toString();
         String signedUuid = HelperUtil.signState(id, mongoConfigService.getConfig().getGoogleAuth().getEncryptionKey());
         if (nativeFlow) {
@@ -101,8 +95,7 @@ public class AuthServiceImpl implements AuthService {
             var user = userService.findOrCreateGoogleUser(gUser);
             String tokenStr = jwtService.generateToken(user.toDto());
             String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
-            return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie)
-                    .body(ApiResponse.ok(tokenStr, "Google Token"));
+            return new AuthCookieResponse<>(tokenStr, "Google Token", cookie);
         }
 
         HelperUtil.EXECUTOR.execute(() -> {
@@ -120,11 +113,11 @@ public class AuthServiceImpl implements AuthService {
             }
         });
 
-        return ResponseEntity.ok(ApiResponse.ok(signedUuid, "Processing token"));
+        return new AuthCookieResponse<>(signedUuid, "Processing token", null);
     }
 
     @Override
-    public ResponseEntity<?> googleAuthCallback(String code, String state) {
+    public AuthCallbackResponse googleAuthCallback(String code, String state) {
         if (state != null && state.startsWith("redirect|")) {
             return processRedirectCallback(code, state);
         }
@@ -136,7 +129,7 @@ public class AuthServiceImpl implements AuthService {
         throw new UnauthorizedException("Invalid state");
     }
 
-    private ResponseEntity<?> processRedirectCallback(String code, String state) {
+    private AuthCallbackResponse processRedirectCallback(String code, String state) {
         String[] parts = state.split("\\|");
         if (parts.length == 2) {
             String potentialTarget = parts[1];
@@ -163,14 +156,12 @@ public class AuthServiceImpl implements AuthService {
             });
 
             String targetURL = potentialTarget + "/google/callback?code=" + signedUuid + "&state=standard";
-            return ResponseEntity.status(HttpStatus.TEMPORARY_REDIRECT)
-                    .header(HttpHeaders.LOCATION, targetURL)
-                    .build();
+            return AuthCallbackResponse.redirect(targetURL);
         }
         throw new UnauthorizedException("Invalid state");
     }
 
-    private ResponseEntity<?> processStandardCallback(String code) {
+    private AuthCallbackResponse processStandardCallback(String code) {
         String id = HelperUtil.extractAndVerify(code,
                 mongoConfigService.getConfig().getGoogleAuth().getEncryptionKey());
 
@@ -192,13 +183,7 @@ public class AuthServiceImpl implements AuthService {
         stringRedisTemplate.opsForValue().set(AUTH_KEY + userDto.getUserId(), HelperUtil.GSON.toJson(userDto), Duration.ofHours(1));
         stringRedisTemplate.delete(cacheKey);
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie)
-                .body(ApiResponse.<UserDto>builder()
-                        .success(true)
-                        .message("User created")
-                        .data(userDto)
-                        .build());
+        return AuthCallbackResponse.session(cookie, userDto, "User created");
     }
 
 }

@@ -27,7 +27,7 @@ public class NseController {
     @PublicEndpoint
     @GetMapping("/history")
     public ResponseEntity<ApiResponse<List<NSEHistoricalData>>> getHistoricalData(@RequestParam @NotBlank String symbol) {
-        return nseService.getHistoricalData(symbol);
+        return ResponseEntity.ok(ApiResponse.ok(nseService.getHistoricalData(symbol), "Historical Data Fetched"));
     }
 
 }

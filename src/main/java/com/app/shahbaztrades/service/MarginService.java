@@ -1,8 +1,6 @@
 package com.app.shahbaztrades.service;
 
-import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.entity.Margin;
-import org.springframework.http.ResponseEntity;
 
 import java.util.Collection;
 import java.util.Map;
@@ -13,9 +11,9 @@ public interface MarginService {
 
     void refreshMargins();
 
-    ResponseEntity<ApiResponse<Collection<Margin>>> getAllMargins();
+    Collection<Margin> getAllMargins();
 
-    ResponseEntity<ApiResponse<Margin>> getMargin(String symbol);
+    Margin getMargin(String symbol);
 
     void syncMTF(byte[] fileBytes);
 

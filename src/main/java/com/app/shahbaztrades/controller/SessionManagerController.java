@@ -34,7 +34,7 @@ public class SessionManagerController {
 
     @PostMapping("/zerodha-auto-connect")
     public ResponseEntity<ApiResponse<Boolean>> autoConnectZerodhaSession(@RequestAttribute("user") UserDto userDto) {
-        return sessionManagerService.autoConnectZerodhaSession(userDto);
+        return ResponseEntity.ok(ApiResponse.ok(sessionManagerService.autoConnectZerodhaSession(userDto), "Token generation initiated successfully"));
     }
 
     @PublicEndpoint

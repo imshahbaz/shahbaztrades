@@ -5,7 +5,6 @@ import com.app.shahbaztrades.components.angelone.SmartApiFeignClient;
 import com.app.shahbaztrades.components.helper.MarketDataContainer;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
-import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpDto;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
@@ -25,7 +24,6 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.socket.*;
@@ -271,11 +269,11 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     }
 
     @Override
-    public ResponseEntity<ApiResponse<SmartApiLtpResponse.MarketTicker>> getMarketTicker(String token) {
+    public SmartApiLtpResponse.MarketTicker getMarketTicker(String token) {
         var key = "angel_one_ltp:" + token;
         var data = stringRedisTemplate.opsForValue().get(key);
         if (data != null) {
-            return ResponseEntity.ok(ApiResponse.ok(HelperUtil.GSON.fromJson(data, SmartApiLtpResponse.MarketTicker.class), "Ltp Fetched Successfully"));
+            return HelperUtil.GSON.fromJson(data, SmartApiLtpResponse.MarketTicker.class);
         }
 
         var jwt = mongoConfigService.getAngelOneJwtToken();
@@ -287,7 +285,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
 
         if (response != null && response.data() != null && !CollectionUtils.isEmpty(response.data().fetched())) {
             stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(response.data().fetched().getFirst()), DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(1)));
-            return ResponseEntity.ok(ApiResponse.ok(response.data().fetched().getFirst(), "Ltp Fetched Successfully"));
+            return response.data().fetched().getFirst();
         }
 
         throw new NotFoundException("Ltp not found");

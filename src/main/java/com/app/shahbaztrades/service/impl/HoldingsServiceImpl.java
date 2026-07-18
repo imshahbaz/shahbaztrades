@@ -2,7 +2,6 @@ package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
-import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.holdings.HoldingDto;
 import com.app.shahbaztrades.model.entity.Holdings;
@@ -22,7 +21,6 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -50,7 +48,7 @@ public class HoldingsServiceImpl implements HoldingsService {
     private final AngelOneService angelOneService;
 
     @Override
-    public ResponseEntity<ApiResponse<List<HoldingDto>>> getAllHoldings(BrokerType brokerType, UserDto userDto) {
+    public List<HoldingDto> getAllHoldings(BrokerType brokerType, UserDto userDto) {
         var key = HOLDING_KEY + userDto.getUserId();
         var redisHoldings = stringRedisTemplate.opsForValue().get(key);
         Holdings holdings;
@@ -66,12 +64,12 @@ public class HoldingsServiceImpl implements HoldingsService {
             throw new NotFoundException(HOLDINGS_NOT_FOUND);
         }
 
-        return ResponseEntity.ok(ApiResponse.ok(holdingInfo.stream()
-                .map(Holdings.HoldingInfo::toHoldingDto).toList(), "Holdings found"));
+        return holdingInfo.stream()
+                .map(Holdings.HoldingInfo::toHoldingDto).toList();
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Boolean>> createHoldings(BrokerType brokerType, UserDto userDto, HoldingDto holdingDto) {
+    public boolean createHoldings(BrokerType brokerType, UserDto userDto, HoldingDto holdingDto) {
         var holdings = getOrCreateHoldings(userDto.getUserId());
 
         var holdingInfo = getOrCreateHoldingInfo(
@@ -90,11 +88,11 @@ public class HoldingsServiceImpl implements HoldingsService {
         var key = HOLDING_KEY + userDto.getUserId();
         stringRedisTemplate.delete(key);
 
-        return ResponseEntity.ok(ApiResponse.ok(true, "Holdings added"));
+        return true;
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Boolean>> deleteHoldings(BrokerType brokerType, UserDto userDto, String symbol) {
+    public boolean deleteHoldings(BrokerType brokerType, UserDto userDto, String symbol) {
         var criteria = Criteria.where(Holdings.Fields.userId).is(userDto.getUserId())
                 .and(Holdings.Fields.brokerHoldingMap + Constants.DOT + brokerType.name()
                         + Constants.DOT + Holdings.HoldingInfo.Fields.symbol).is(symbol);
@@ -108,14 +106,14 @@ public class HoldingsServiceImpl implements HoldingsService {
         if (result.getModifiedCount() > 0) {
             var key = HOLDING_KEY + userDto.getUserId();
             stringRedisTemplate.delete(key);
-            return ResponseEntity.ok(ApiResponse.ok(true, "Holdings deleted"));
+            return true;
         }
 
         throw new NotFoundException(HOLDINGS_NOT_FOUND);
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Boolean>> updateHoldings(BrokerType brokerType, UserDto userDto, HoldingDto holdingDto) {
+    public boolean updateHoldings(BrokerType brokerType, UserDto userDto, HoldingDto holdingDto) {
         var detail = holdingDto.getHoldingDetails().getFirst().toHoldingDetail();
         if (detail.getId() <= 0) {
             throw new BadRequestException("Invalid Request");
@@ -148,11 +146,11 @@ public class HoldingsServiceImpl implements HoldingsService {
         holdingsRepo.save(holdings);
         var key = HOLDING_KEY + userDto.getUserId();
         stringRedisTemplate.delete(key);
-        return ResponseEntity.ok(ApiResponse.ok(true, "Holdings updated"));
+        return true;
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Boolean>> deleteHoldingDetail(BrokerType brokerType, UserDto userDto, String symbol, int id) {
+    public boolean deleteHoldingDetail(BrokerType brokerType, UserDto userDto, String symbol, int id) {
         var holdings = findHoldingsById(userDto.getUserId());
         var holdingInfos = holdings.getBrokerHoldingMap().get(brokerType);
         if (CollectionUtils.isEmpty(holdingInfos)) {
@@ -176,7 +174,7 @@ public class HoldingsServiceImpl implements HoldingsService {
         holdingsRepo.save(holdings);
         var key = HOLDING_KEY + userDto.getUserId();
         stringRedisTemplate.delete(key);
-        return ResponseEntity.ok(ApiResponse.ok(true, "Holding detail deleted"));
+        return true;
     }
 
     @Override
@@ -248,7 +246,7 @@ public class HoldingsServiceImpl implements HoldingsService {
 
     private Double fetchLtpFromAngelOne(String symbol, String token) {
         try {
-            return angelOneService.getMarketTicker(token).getBody().getData().ltp();
+            return angelOneService.getMarketTicker(token).ltp();
         } catch (Exception e) {
             log.error("Error while getting ltp for symbol {}", symbol, e);
             return null;
@@ -301,7 +299,7 @@ public class HoldingsServiceImpl implements HoldingsService {
 
         double ltp = 0;
         try {
-            ltp = angelOneService.getMarketTicker(margin.getToken()).getBody().getData().ltp();
+            ltp = angelOneService.getMarketTicker(margin.getToken()).ltp();
         } catch (Exception e) {
             log.error("Error while getting ltp for symbol {}", symbol, e);
         }

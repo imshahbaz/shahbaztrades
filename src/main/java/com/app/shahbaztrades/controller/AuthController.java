@@ -7,10 +7,14 @@ import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.auth.AuthRequest;
 import com.app.shahbaztrades.model.dto.auth.SignUpResponse;
+import com.app.shahbaztrades.model.dto.auth.AuthCallbackResponse;
+import com.app.shahbaztrades.model.dto.auth.AuthCookieResponse;
 import com.app.shahbaztrades.service.AuthService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,29 +29,45 @@ public class AuthController {
     @PublicEndpoint
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<SignUpResponse>> signUp(@RequestBody @Valid AuthRequest request) {
-        return authService.signUp(request);
+        var response = authService.signUp(request);
+        return ResponseEntity.ok(ApiResponse.ok(response, response.getMessage()));
     }
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout() {
-        return authService.logout();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, authService.logout())
+                .body(ApiResponse.ok(null, "Logged out successfully"));
     }
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserDto>> getCurrentUser(@RequestAttribute("user") UserDto userDto) {
-        return authService.getMe(userDto);
+        return ResponseEntity.ok(ApiResponse.ok(authService.getMe(userDto), "User details fetched"));
     }
 
     @PublicEndpoint
     @PostMapping("/google/token")
     public ResponseEntity<ApiResponse<String>> validateGoogleToken(@RequestParam @NotBlank String code, @RequestHeader(required = false) boolean nativeFlow) {
-        return authService.validateGoogleToken(code, nativeFlow);
+        AuthCookieResponse<String> result = authService.validateGoogleToken(code, nativeFlow);
+        ResponseEntity.BodyBuilder builder = ResponseEntity.ok();
+        if (result.cookie() != null) {
+            builder.header(HttpHeaders.SET_COOKIE, result.cookie());
+        }
+        return builder.body(ApiResponse.ok(result.data(), result.message()));
     }
 
     @PublicEndpoint
     @GetMapping("/google/callback")
     public ResponseEntity<?> getGoogleCallback(@RequestParam @NotBlank String code, @RequestParam @NotBlank String state) {
-        return authService.googleAuthCallback(code, state);
+        AuthCallbackResponse result = authService.googleAuthCallback(code, state);
+        if (result.isRedirect()) {
+            return ResponseEntity.status(HttpStatus.TEMPORARY_REDIRECT)
+                    .header(HttpHeaders.LOCATION, result.redirectUrl())
+                    .build();
+        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, result.cookie())
+                .body(ApiResponse.ok(result.user(), result.message()));
     }
 
 }
