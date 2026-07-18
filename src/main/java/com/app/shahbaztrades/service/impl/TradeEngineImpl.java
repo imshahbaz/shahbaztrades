@@ -149,7 +149,7 @@ public class TradeEngineImpl implements TradeEngine {
             }
 
             for (var margin : targetList) {
-                var target = processTargetMargin(margin, orderAmount);
+                var target = processTargetMargin(margin, orderAmount, brokerType);
                 if (target != null) {
                     return target;
                 }
@@ -164,7 +164,7 @@ public class TradeEngineImpl implements TradeEngine {
         return null;
     }
 
-    private TargetStockResult processTargetMargin(Margin target, BigDecimal orderAmount) throws Exception {
+    private TargetStockResult processTargetMargin(Margin target, BigDecimal orderAmount, BrokerType brokerType) throws Exception {
         var ltp = angelOneService.getLTP(target.getToken());
         if (ltp == -2) {
             return null;
@@ -178,12 +178,16 @@ public class TradeEngineImpl implements TradeEngine {
             }
         }
 
-        BigDecimal requiredMargin = target.getRequiredMargin();
+        BigDecimal requiredMargin = brokerType.equals(BrokerType.RUPEEZY) ? target.getRupeezyMargin() : target.getRequiredMargin();
         if (requiredMargin == null || requiredMargin.signum() <= 0) {
             return null;
         }
 
-        int quantity = orderAmount.divide(requiredMargin, 0, RoundingMode.DOWN).intValue();
+        int quantity = orderAmount.divide(BigDecimal.valueOf(ltp), 8, RoundingMode.HALF_UP)
+                .multiply(requiredMargin)
+                .setScale(0, RoundingMode.DOWN)
+                .intValue();
+
         if (quantity > 0) {
             return new TargetStockResult(target, quantity);
         }
