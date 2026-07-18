@@ -12,7 +12,7 @@ spring:
 
   threads:
     virtual:
-      enabled: true
+      enabled: false
 
   jmx:
     enabled: false
@@ -35,11 +35,13 @@ spring:
             logger-level: basic
 
 server:
+  address: 0.0.0.0
   port: ${PORT:8080}
   jetty:
     threads:
-      min: 8
-      max: 20
+      min: 32
+      max: 200
+      idle-timeout: 60000
 
 # Expose a lightweight health endpoint for readiness/liveness probes and deploy gating.
 management:

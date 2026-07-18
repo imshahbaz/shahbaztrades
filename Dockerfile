@@ -1,46 +1,60 @@
 # -------- BUILD STAGE --------
-FROM ibm-semeru-runtimes:open-21-jdk-jammy AS builder
+FROM --platform=linux/amd64 ibm-semeru-runtimes:open-25-jdk-jammy AS builder
 
 WORKDIR /app
 
-# Cache dependencies first to speed up rebuilds.
+# Copy configuration files first
 COPY pom.xml .
 COPY mvnw .
 COPY .mvn ./.mvn
-RUN chmod +x mvnw && ./mvnw dependency:go-offline -B
+RUN chmod +x mvnw
 
+# Copy source code files
 COPY src ./src
-# Build the Spring Boot application
-RUN ./mvnw clean package -DskipTests -B
+
+# Build app using a persistent Maven local repository cache mount.
+# This ensures GitHub Actions reuses downloaded jars across builds.
+RUN --mount=type=cache,target=/root/.m2 \
+    ./mvnw package -DskipTests -B
+
 
 # -------- RUNTIME STAGE --------
-FROM ibm-semeru-runtimes:open-21-jre-jammy
+FROM --platform=linux/amd64 ibm-semeru-runtimes:open-25-jre-jammy
 
 WORKDIR /app
 
-# Non-root user setup
-RUN useradd -m nonroot && chown nonroot:nonroot .
-RUN mkdir -p /app/scc && chown -R nonroot:nonroot /app/scc
+# Create non-root user for security
+RUN useradd -m nonroot && \
+    mkdir -p /app/scc && \
+    chown -R nonroot:nonroot /app
 
 USER nonroot
 
-# Copy jar
+# Copy the built jar from the builder stage
 COPY --chown=nonroot:nonroot --from=builder /app/target/*.jar app.jar
 
 EXPOSE 8080
 
-# Environment variables for OpenJ9 configuration to reduce RAM consumption
-# -Xshareclasses: Re-uses AOT compiled code memory across restarts
-# -Xgcpolicy:gencon: Great for short lived object throughput
-# -Xtune:virtualized: Reduces JVM thread footprint specifically for cloud/containers
-# IdleTuning flags: Forces JVM to return RAM back to OS (Render) during idle times!
-# -Xss256K: Slashes memory per thread from 1MB to 256KB
-# -Xquickstart: Prevents deep JIT compilation at boot, massively speeding up start time!
-ENV JAVA_OPTS="-Xshareclasses:name=appcache,cacheDir=/app/scc -Xscmx64M -Xgcpolicy:gencon -Xtune:virtualized -Xquickstart -Xmns8M -Xmnx32M -Xms48M -Xmx128M -Xss256K -XX:+IdleTuningGcOnIdle -XX:+IdleTuningCompactOnIdle -Xcpuweighted"
+# Optimized OpenJ9 settings specifically engineered for a 1GB VPS resource pool
+ENV JAVA_OPTS="\
+-Xshareclasses:name=appcache,cacheDir=/app/scc \
+-Xscmx64M \
+-Xgcpolicy:gencon \
+-Xtune:virtualized \
+-Xquickstart \
+-Xms128M \
+-Xmx384M \
+-Xss256K \
+-XX:+IdleTuningGcOnIdle \
+-XX:+IdleTuningCompactOnIdle \
+-Xcpuweighted"
 
-# Pre-populate the Shared Classes Cache (CDS equivalent)
-# Run once and exit to populate cache
-RUN /bin/bash -c 'java $JAVA_OPTS -jar app.jar & PID=$!; sleep 15; kill $PID 2>/dev/null || true'
+# Warm up the shared class cache to speed up subsequent container cold-starts
+RUN /bin/bash -c '\
+java $JAVA_OPTS -jar app.jar & \
+PID=$!; \
+sleep 15; \
+kill $PID 2>/dev/null || true'
 
-# Run with OpenJ9 optimizations 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+# Run the application
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
