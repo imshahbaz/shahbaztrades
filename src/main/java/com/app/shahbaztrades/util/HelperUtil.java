@@ -142,14 +142,16 @@ public class HelperUtil {
 
         if (price < 250) {
             tick = new BigDecimal("0.01");
-        } else if (price < 1000) {
+        } else if (price <= 1000) {
             tick = new BigDecimal("0.05");
-        } else if (price < 5000) {
+        } else if (price <= 5000) {
             tick = new BigDecimal("0.10");
-        } else if (price < 10000) {
+        } else if (price <= 10000) {
             tick = new BigDecimal("0.50");
-        } else {
+        } else if (price <= 20000) {
             tick = BigDecimal.ONE;
+        } else {
+            tick = new BigDecimal("5.00");
         }
 
         BigDecimal exact = BigDecimal.valueOf(price);
