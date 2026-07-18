@@ -55,13 +55,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
-    private static final String INITIATE_MTF = "Initiate MTF";
+    enum StopLossAction {NONE, SQUARE_OFF, PLACE_STOP_LOSS}
 
-    // Stop-loss / trailing thresholds, expressed as fractions of the entry or peak price.
-    private static final double PROFIT_ACTIVATION_MULTIPLIER = 1.004;   // +0.4% gain before trailing/square-off can trigger
-    private static final double STOP_LOSS_TRIGGER_MULTIPLIER = 1.006;   // +0.6% gain before a protective SL order is placed
-    private static final double PEAK_DROP_SQUARE_OFF_MULTIPLIER = 0.994; // -0.6% from peak squares off (fallback when no ATR)
-    private static final double ATR_TRAILING_MULTIPLIER = 0.4;          // trailing distance = 0.4 × daily ATR
+    private static final String INITIATE_MTF = "Initiate MTF";
+    private static final double PROFIT_ACTIVATION_MULTIPLIER = 1.004;
+    private static final double STOP_LOSS_TRIGGER_MULTIPLIER = 1.006;
+    private static final double PEAK_DROP_SQUARE_OFF_MULTIPLIER = 0.994;
+    private static final double ATR_TRAILING_MULTIPLIER = 0.4;
     private final OrderRepo orderRepo;
     private final MongoTemplate mongoTemplate;
     private final MarginService marginService;
@@ -453,10 +453,5 @@ public class OrderServiceImpl implements OrderService {
         return orderRepo.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Order not found"));
     }
-
-    /**
-     * Outcome of the stop-loss evaluation for a live position.
-     */
-    enum StopLossAction {NONE, SQUARE_OFF, PLACE_STOP_LOSS}
 
 }

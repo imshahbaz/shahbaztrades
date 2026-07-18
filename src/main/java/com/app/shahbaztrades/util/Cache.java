@@ -38,11 +38,6 @@ public class Cache<K, V> {
         cache.put(key, new Holder<>(value, expiry.toNanos()));
     }
 
-    /**
-     * Atomically associates {@code value} with {@code key} only if no live entry is present.
-     *
-     * @return {@code true} if the value was stored (caller won the claim), {@code false} if a value already existed.
-     */
     public boolean setIfAbsent(K key, V value, Duration expiry) {
         return cache.asMap().putIfAbsent(key, new Holder<>(value, expiry.toNanos())) == null;
     }

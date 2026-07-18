@@ -64,6 +64,7 @@ public class AuthController {
                     .header(HttpHeaders.LOCATION, result.redirectUrl())
                     .build();
         }
+
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, result.cookie())
                 .body(ApiResponse.ok(result.user(), result.message()));

@@ -133,9 +133,6 @@ public class AuthServiceImpl implements AuthService {
         String[] parts = state.split("\\|");
         if (parts.length == 2) {
             String potentialTarget = parts[1];
-            // Exact-match the redirect target against the allow-list. A startsWith check would let
-            // "https://trusted.com.evil.com" pass when "https://trusted.com" is allow-listed,
-            // leaking the Google auth code to an attacker-controlled origin.
             boolean isAllowed = mongoConfigService.getConfig().getFrontendUrls().stream()
                     .anyMatch(potentialTarget::equals);
 

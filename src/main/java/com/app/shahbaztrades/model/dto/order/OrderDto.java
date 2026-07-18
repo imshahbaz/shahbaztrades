@@ -47,7 +47,7 @@ public class OrderDto {
         } catch (DateTimeParseException e) {
             throw new BadRequestException("Invalid date format");
         }
-        // Kept outside the parse try/catch so its own BadRequestException message is not masked.
+
         OrderValidator.validateOrderDate(parsedDate);
 
         return Order.builder()

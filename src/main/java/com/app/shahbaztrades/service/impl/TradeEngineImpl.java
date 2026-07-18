@@ -118,16 +118,13 @@ public class TradeEngineImpl implements TradeEngine {
         if (targetStock == null)
             return;
 
-        // Atomically claim the order BEFORE routing so two concurrent signals for the same
-        // order can never both place a trade. Only one thread wins the claim.
         if (!activeOrders.setIfAbsent(order.getId(), Boolean.TRUE, DateUtil.getDurationUntilMarketClose())) {
-            log.debug("Order {} already being processed, skipping duplicate signal", order.getId());
+            log.info("Order {} already being processed, skipping duplicate signal", order.getId());
             return;
         }
 
         boolean entryPlaced = punchSingleTrade(targetStock.margin(), targetStock.qty(), order.getUserId(), order);
         if (!entryPlaced) {
-            // No position was opened: release the claim so a later valid signal can retry.
             activeOrders.remove(order.getId());
         }
     }
@@ -186,8 +183,6 @@ public class TradeEngineImpl implements TradeEngine {
             return null;
         }
 
-        // Exact integer division (floor) — how many whole shares the budget affords, with no
-        // binary-float rounding error that could flip the affordable quantity by a share.
         int quantity = orderAmount.divide(requiredMargin, 0, RoundingMode.DOWN).intValue();
         if (quantity > 0) {
             return new TargetStockResult(target, quantity);
@@ -205,12 +200,6 @@ public class TradeEngineImpl implements TradeEngine {
         return ltp;
     }
 
-    /**
-     * Places the entry order and its protective exit, and registers the position with the watchdog.
-     *
-     * @return {@code true} if the entry order was placed (position is now open — caller must retain the
-     * active-order claim). {@code false} if nothing was placed and the order may be safely retried.
-     */
     private boolean punchSingleTrade(Margin targetStock, int qty, long userId, StrategyOrder order) {
         log.info("Initiating trade for User: {} | Symbol: {} | Qty: {}", userId, targetStock.getSymbol(), qty);
 
@@ -227,8 +216,6 @@ public class TradeEngineImpl implements TradeEngine {
             HelperUtil.pollWait(1000);
 
             var orderDetails = orderRouter.getOrderDetails(order.getUserId(), orderResp.getOrderId());
-            // Stored fills are BigDecimal; the transient target/watchdog math runs against the
-            // inherently-double live price feed, so convert once here.
             double entryPrice = orderDetails.getAveragePrice().doubleValue();
 
             double targetPrice = HelperUtil.fixToTick(entryPrice * 1.004);
@@ -264,20 +251,18 @@ public class TradeEngineImpl implements TradeEngine {
         } catch (Exception e) {
             log.error("Error in punchSingleTrade for {}", targetStock.getSymbol(), e);
             if (entryPlaced) {
-                // CRITICAL: entry filled but we failed to set the exit / register monitoring.
-                // The position is live and unprotected — alert so it can be handled manually.
                 log.error("ORPHANED POSITION: entry placed for user {} symbol {} qty {} but exit/monitoring setup failed",
                         userId, targetStock.getSymbol(), qty);
+
                 eventPublisher.publishEvent(new NotificationRequest(
                         userId,
                         com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_BUY,
-                        String.format("ACTION REQUIRED: %d %s bought but exit order failed. Manage manually.",
+                        String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_ORPHANED_POSITION,
                                 qty, targetStock.getSymbol()),
                         Collections.emptyMap()
                 ));
             }
-            // Keep the claim when the entry was placed (never re-punch a live position);
-            // report entryPlaced so the caller can decide whether to release the claim.
+
             return entryPlaced;
         }
     }

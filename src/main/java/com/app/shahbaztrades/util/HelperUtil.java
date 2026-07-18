@@ -152,9 +152,6 @@ public class HelperUtil {
             tick = BigDecimal.ONE;
         }
 
-        // Round to the nearest exchange tick using exact decimal arithmetic so that, e.g.,
-        // 100.07 with a 0.05 tick snaps deterministically to 100.05 rather than drifting on
-        // binary-float error. HALF_UP matches the previous Math.round rounding direction.
         BigDecimal exact = BigDecimal.valueOf(price);
         return exact.divide(tick, 0, RoundingMode.HALF_UP).multiply(tick).doubleValue();
     }

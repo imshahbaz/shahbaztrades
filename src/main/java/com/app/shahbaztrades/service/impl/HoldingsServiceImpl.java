@@ -222,7 +222,6 @@ public class HoldingsServiceImpl implements HoldingsService {
                 continue;
             }
 
-            // Holdings.margin is a derived display value kept as float; convert at this boundary.
             det.setMargin(margin.getRequiredMargin().floatValue());
             updateLtpForHolding(det, margin.getToken(), ltpMap);
         }

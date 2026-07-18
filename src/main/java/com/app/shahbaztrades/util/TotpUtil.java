@@ -29,8 +29,6 @@ public class TotpUtil {
 
             return codeGenerator.generate(secret, currentBucket);
         } catch (Exception e) {
-            // Never return an empty code: a blank TOTP would be silently submitted as a broker
-            // 2FA code and mask the real misconfiguration. Fail loudly instead.
             throw new IllegalStateException("Failed to generate TOTP code", e);
         }
     }

@@ -34,8 +34,6 @@ public class StrategyServiceImpl implements StrategyService {
     @Override
     public void refreshStrategyCache() {
         var strategies = strategyRepository.findAll();
-        // Always rebuild the map (even when empty) so deletions are reflected, and key by a
-        // canonical upper-case name so writes and look-ups never diverge on casing.
         cachedStrategies = strategies.stream()
                 .collect(Collectors.toConcurrentMap(
                         s -> s.getName().toUpperCase(),
@@ -69,7 +67,6 @@ public class StrategyServiceImpl implements StrategyService {
     @Override
     public void deleteStrategy(String id) {
         strategyRepository.deleteById(id);
-        // The cache is keyed by strategy name, not id, so rebuild it from source to evict correctly.
         refreshStrategyCache();
     }
 
