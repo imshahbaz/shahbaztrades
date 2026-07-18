@@ -22,6 +22,7 @@ import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -45,6 +46,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     private final StringRedisTemplate stringRedisTemplate;
     private final MongoTemplate mongoTemplate;
     private final SessionManagerClient sessionManagerClient;
+    private final CacheManager cacheManager;
 
     @Override
     public KiteConnect initiateKiteConnect(String accessToken, Long userId) {
@@ -219,6 +221,10 @@ public class ZerodhaServiceImpl implements ZerodhaService {
             log.error("Session Manager callback exception {}", request.requestToken(), e);
         } finally {
             stringRedisTemplate.delete(Constants.ZERODHA_AUTO_LOGIN_KEY + request.userid());
+            var cache = cacheManager.getCache("zerodhaAuthCache");
+            if (cache != null) {
+                cache.evict(request.userid());
+            }
         }
     }
 
