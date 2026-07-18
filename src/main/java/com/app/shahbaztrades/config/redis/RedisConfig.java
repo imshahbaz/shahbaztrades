@@ -85,8 +85,6 @@ public class RedisConfig {
     public CacheManager cacheManager(RedissonClient redissonClient) {
         Map<String, CacheConfig> configMap = new ConcurrentHashMap<>();
 
-        // TTL and max-idle for the Zerodha auth/profile cache. A 1-second window made the cache
-        // effectively useless (nearly every call hit the broker); 5 minutes lets it actually dedupe.
         CacheConfig authCacheConfig = new org.redisson.spring.cache.CacheConfig(
                 Duration.ofMinutes(5).toMillis(),
                 Duration.ofMinutes(5).toMillis()

@@ -1,7 +1,5 @@
 package com.app.shahbaztrades.controller;
 
-import org.springframework.validation.annotation.Validated;
-
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.entity.Margin;
@@ -10,16 +8,17 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Collection;
 
+@Validated
 @RestController
 @RequestMapping("/api/margin")
 @RequiredArgsConstructor
-@Validated
 public class MarginController {
 
     private final MarginService marginService;

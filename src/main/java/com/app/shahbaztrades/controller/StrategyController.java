@@ -1,7 +1,5 @@
 package com.app.shahbaztrades.controller;
 
-import org.springframework.validation.annotation.Validated;
-
 import com.app.shahbaztrades.config.security.AdminOnly;
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
@@ -11,14 +9,15 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Validated
 @RestController
 @RequestMapping("/api/strategy")
 @RequiredArgsConstructor
-@Validated
 public class StrategyController {
 
     private final StrategyService strategyService;

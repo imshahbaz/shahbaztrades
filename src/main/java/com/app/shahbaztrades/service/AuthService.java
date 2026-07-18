@@ -12,7 +12,6 @@ public interface AuthService {
 
     SignUpResponse signUp(AuthRequest request);
 
-    /** @return the {@code Set-Cookie} value that clears the auth cookie. */
     String logout();
 
     UserDto getMe(UserDto dto);

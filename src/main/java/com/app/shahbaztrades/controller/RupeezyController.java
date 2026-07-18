@@ -1,7 +1,5 @@
 package com.app.shahbaztrades.controller;
 
-import org.springframework.validation.annotation.Validated;
-
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
@@ -10,12 +8,13 @@ import com.app.shahbaztrades.service.RupeezyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/rupeezy")
-@Validated
 public class RupeezyController {
 
     private final RupeezyService rupeezyService;

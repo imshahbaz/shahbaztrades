@@ -1,7 +1,5 @@
 package com.app.shahbaztrades.controller;
 
-import org.springframework.validation.annotation.Validated;
-
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
@@ -13,15 +11,16 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
+@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/angelone")
-@Validated
 public class AngelOneController {
 
     private final AngelOneService angelOneService;

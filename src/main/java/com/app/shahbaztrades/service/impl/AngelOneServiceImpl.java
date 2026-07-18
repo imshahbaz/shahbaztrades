@@ -57,8 +57,6 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    // A ReentrantLock (not `synchronized`) so holding it across the blocking WebSocket send does
-    // not pin the virtual thread's carrier — these methods run on virtual threads in the trade path.
     private final ReentrantLock wsLock = new ReentrantLock();
     private final StringRedisTemplate stringRedisTemplate;
     private final AngelOneClient angelOneClient;

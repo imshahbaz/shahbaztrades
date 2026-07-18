@@ -1,7 +1,5 @@
 package com.app.shahbaztrades.controller;
 
-import org.springframework.validation.annotation.Validated;
-
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
@@ -12,14 +10,15 @@ import com.app.shahbaztrades.util.Constants;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.concurrent.ExecutionException;
 
+@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/session-manager")
-@Validated
 public class SessionManagerController {
 
     private final SessionManagerService sessionManagerService;

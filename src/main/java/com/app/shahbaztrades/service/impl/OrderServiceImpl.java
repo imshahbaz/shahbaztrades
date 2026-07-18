@@ -62,10 +62,6 @@ public class OrderServiceImpl implements OrderService {
     private static final double STOP_LOSS_TRIGGER_MULTIPLIER = 1.006;   // +0.6% gain before a protective SL order is placed
     private static final double PEAK_DROP_SQUARE_OFF_MULTIPLIER = 0.994; // -0.6% from peak squares off (fallback when no ATR)
     private static final double ATR_TRAILING_MULTIPLIER = 0.4;          // trailing distance = 0.4 × daily ATR
-
-    /** Outcome of the stop-loss evaluation for a live position. */
-    enum StopLossAction {NONE, SQUARE_OFF, PLACE_STOP_LOSS}
-
     private final OrderRepo orderRepo;
     private final MongoTemplate mongoTemplate;
     private final MarginService marginService;
@@ -75,6 +71,29 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRouterFactory orderRouterFactory;
     private final YahooClient yahooClient;
     private final UserService userService;
+
+    static StopLossAction decideStopLossAction(double ltp, double buyPrice, double peakPrice,
+                                               Double atrValue, boolean hasNoExitOrder, boolean marketClosing) {
+        boolean reachedProfitThreshold = ltp > buyPrice * PROFIT_ACTIVATION_MULTIPLIER;
+
+        boolean squareOff;
+        if (atrValue != null) {
+            double stopLossFloor = peakPrice - (atrValue * ATR_TRAILING_MULTIPLIER);
+            squareOff = ltp <= stopLossFloor;
+        } else {
+            squareOff = ltp <= peakPrice * PEAK_DROP_SQUARE_OFF_MULTIPLIER;
+        }
+
+        if (reachedProfitThreshold && (squareOff || marketClosing)) {
+            return StopLossAction.SQUARE_OFF;
+        }
+
+        if (hasNoExitOrder && ltp >= buyPrice * STOP_LOSS_TRIGGER_MULTIPLIER) {
+            return StopLossAction.PLACE_STOP_LOSS;
+        }
+
+        return StopLossAction.NONE;
+    }
 
     @Override
     public OrderDto getById(String id) {
@@ -218,7 +237,8 @@ public class OrderServiceImpl implements OrderService {
         }
 
         orders.forEach(order -> {
-            if (order.getEntry() == null || order.getEntry().getAveragePrice() == null || order.getEntry().getAveragePrice().signum() <= 0) return;
+            if (order.getEntry() == null || order.getEntry().getAveragePrice() == null || order.getEntry().getAveragePrice().signum() <= 0)
+                return;
             try {
                 angelOneService.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
             } catch (Exception _) {
@@ -337,29 +357,6 @@ public class OrderServiceImpl implements OrderService {
         return 0;
     }
 
-    static StopLossAction decideStopLossAction(double ltp, double buyPrice, double peakPrice,
-                                               Double atrValue, boolean hasNoExitOrder, boolean marketClosing) {
-        boolean reachedProfitThreshold = ltp > buyPrice * PROFIT_ACTIVATION_MULTIPLIER;
-
-        boolean squareOff;
-        if (atrValue != null) {
-            double stopLossFloor = peakPrice - (atrValue * ATR_TRAILING_MULTIPLIER);
-            squareOff = ltp <= stopLossFloor;
-        } else {
-            squareOff = ltp <= peakPrice * PEAK_DROP_SQUARE_OFF_MULTIPLIER;
-        }
-
-        if (reachedProfitThreshold && (squareOff || marketClosing)) {
-            return StopLossAction.SQUARE_OFF;
-        }
-
-        if (hasNoExitOrder && ltp >= buyPrice * STOP_LOSS_TRIGGER_MULTIPLIER) {
-            return StopLossAction.PLACE_STOP_LOSS;
-        }
-
-        return StopLossAction.NONE;
-    }
-
     private short handleSquareOff(Order order, boolean hasNoExitOrder) {
         log.info("Symbol: {}. Stock price dropped more than 0.6% or Market is closing (3:25 PM). Squaring off...", order.getSymbol());
         if (hasNoExitOrder) {
@@ -456,5 +453,10 @@ public class OrderServiceImpl implements OrderService {
         return orderRepo.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Order not found"));
     }
+
+    /**
+     * Outcome of the stop-loss evaluation for a live position.
+     */
+    enum StopLossAction {NONE, SQUARE_OFF, PLACE_STOP_LOSS}
 
 }

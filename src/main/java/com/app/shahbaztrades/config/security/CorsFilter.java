@@ -29,8 +29,6 @@ public class CorsFilter implements Filter {
         boolean allowedOrigin = origin != null
                 && mongoConfigService.getConfig().getFrontendUrls().contains(origin);
 
-        // Only emit CORS headers (and especially Allow-Credentials) for allow-listed origins.
-        // Emitting them unconditionally exposes credentialed cross-site access to any origin.
         if (allowedOrigin) {
             response.setHeader("Access-Control-Allow-Origin", origin);
             response.setHeader("Vary", "Origin");
@@ -41,7 +39,6 @@ public class CorsFilter implements Filter {
         }
 
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            // Preflight: only a 200 for allow-listed origins, otherwise reject.
             response.setStatus(allowedOrigin ? HttpServletResponse.SC_OK : HttpServletResponse.SC_FORBIDDEN);
             return;
         }
