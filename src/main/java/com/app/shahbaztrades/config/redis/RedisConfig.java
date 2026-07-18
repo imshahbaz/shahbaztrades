@@ -85,9 +85,9 @@ public class RedisConfig {
     public CacheManager cacheManager(RedissonClient redissonClient) {
         Map<String, CacheConfig> configMap = new ConcurrentHashMap<>();
 
-        CacheConfig authCacheConfig = new org.redisson.spring.cache.CacheConfig(
-                Duration.ofMinutes(5).toMillis(),
-                Duration.ofMinutes(5).toMillis()
+        CacheConfig authCacheConfig = new CacheConfig(
+                Duration.ofSeconds(15).toMillis(),
+                Duration.ofSeconds(15).toMillis()
         );
 
         configMap.put("zerodhaAuthCache", authCacheConfig);
