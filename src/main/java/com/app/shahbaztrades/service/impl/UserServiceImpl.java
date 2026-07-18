@@ -3,7 +3,6 @@ package com.app.shahbaztrades.service.impl;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
-import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.auth.GoogleUser;
 import com.app.shahbaztrades.model.entity.User;
@@ -20,7 +19,6 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -116,7 +114,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Void>> updateUserName(UserDto userDto) {
+    public void updateUserName(UserDto userDto) {
         if (userDto.getUserId() <= 0 || StringUtils.isEmpty(userDto.getUsername())) {
             throw new BadRequestException("Invalid request!");
         }
@@ -128,11 +126,10 @@ public class UserServiceImpl implements UserService {
             throw new NotFoundException("User not found!");
         }
         stringRedisTemplate.delete(AuthService.AUTH_KEY + userDto.getUserId());
-        return ResponseEntity.ok(ApiResponse.ok(null, "Username updated successfully"));
     }
 
     @Override
-    public ResponseEntity<ApiResponse<UserTheme>> updateUserTheme(UserDto userDto) {
+    public UserTheme updateUserTheme(UserDto userDto) {
         if (userDto.getUserId() <= 0 || userDto.getTheme() == null) {
             throw new BadRequestException("Invalid request!");
         }
@@ -144,7 +141,7 @@ public class UserServiceImpl implements UserService {
             throw new NotFoundException("User not found!");
         }
         stringRedisTemplate.delete(AuthService.AUTH_KEY + userDto.getUserId());
-        return ResponseEntity.ok(ApiResponse.ok(userDto.getTheme(), "Theme synchronized"));
+        return userDto.getTheme();
     }
 
     @Override

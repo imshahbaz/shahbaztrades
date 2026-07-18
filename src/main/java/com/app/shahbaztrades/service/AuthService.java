@@ -1,22 +1,22 @@
 package com.app.shahbaztrades.service;
 
-import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
+import com.app.shahbaztrades.model.dto.auth.AuthCallbackResponse;
+import com.app.shahbaztrades.model.dto.auth.AuthCookieResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthRequest;
 import com.app.shahbaztrades.model.dto.auth.SignUpResponse;
-import org.springframework.http.ResponseEntity;
 
 public interface AuthService {
 
     String AUTH_KEY = "auth:";
 
-    ResponseEntity<ApiResponse<SignUpResponse>> signUp(AuthRequest request);
+    SignUpResponse signUp(AuthRequest request);
 
-    ResponseEntity<ApiResponse<Void>> logout();
+    String logout();
 
-    ResponseEntity<ApiResponse<UserDto>> getMe(UserDto dto);
+    UserDto getMe(UserDto dto);
 
-    ResponseEntity<ApiResponse<String>> validateGoogleToken(String code, boolean nativeFlow);
+    AuthCookieResponse<String> validateGoogleToken(String code, boolean nativeFlow);
 
-    ResponseEntity<?> googleAuthCallback(String code, String state);
+    AuthCallbackResponse googleAuthCallback(String code, String state);
 }

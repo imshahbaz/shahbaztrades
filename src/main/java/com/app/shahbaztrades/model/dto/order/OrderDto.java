@@ -14,6 +14,7 @@ import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 @Data
 @Builder
@@ -43,10 +44,11 @@ public class OrderDto {
         LocalDate parsedDate;
         try {
             parsedDate = LocalDate.parse(this.date, DateTimeFormatter.ISO_LOCAL_DATE);
-            OrderValidator.validateOrderDate(parsedDate);
-        } catch (Exception e) {
+        } catch (DateTimeParseException e) {
             throw new BadRequestException("Invalid date format");
         }
+
+        OrderValidator.validateOrderDate(parsedDate);
 
         return Order.builder()
                 .id(this.id)

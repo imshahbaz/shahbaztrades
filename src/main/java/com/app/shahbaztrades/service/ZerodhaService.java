@@ -7,7 +7,6 @@ import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.util.Cache;
 import com.zerodhatech.kiteconnect.KiteConnect;
-import org.springframework.http.ResponseEntity;
 
 import java.util.Set;
 
@@ -23,11 +22,11 @@ public interface ZerodhaService {
 
     KiteConnect getKiteClient(Long userId);
 
-    ResponseEntity<ApiResponse<Void>> login(BrokerLoginDto request);
+    void login(BrokerLoginDto request);
 
     ApiResponse<String> getAuth(UserDto userDto);
 
-    ResponseEntity<ApiResponse<Long>> setConfig(User.ZerodhaConfig config, UserDto userDto);
+    Long setConfig(User.ZerodhaConfig config, UserDto userDto);
 
     void autoLogin(Set<Long> userIds);
 

@@ -11,11 +11,13 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
+@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/angelone")
@@ -83,7 +85,7 @@ public class AngelOneController {
     @PublicEndpoint
     @GetMapping("/ltp")
     public ResponseEntity<ApiResponse<SmartApiLtpResponse.MarketTicker>> getMultipleLtp(@RequestParam @NotBlank String token) {
-        return angelOneService.getMarketTicker(token);
+        return ResponseEntity.ok(ApiResponse.ok(angelOneService.getMarketTicker(token), "Ltp Fetched Successfully"));
     }
 
 }

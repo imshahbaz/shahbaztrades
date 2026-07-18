@@ -6,7 +6,6 @@ import com.app.shahbaztrades.model.dto.rupeezy.RupeezyTokenCache;
 import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.util.Cache;
-import org.springframework.http.ResponseEntity;
 
 public interface RupeezyService {
 
@@ -14,11 +13,11 @@ public interface RupeezyService {
 
     Cache<Long, RupeezyTokenCache> rupeezyTokenCache = new Cache<>();
 
-    ResponseEntity<ApiResponse<Void>> login(BrokerLoginDto request);
+    void login(BrokerLoginDto request);
 
-    ResponseEntity<ApiResponse<String>> getAuth(UserDto userDto);
+    ApiResponse<String> getAuth(UserDto userDto);
 
-    ResponseEntity<ApiResponse<Long>> setConfig(User.RupeezyConfig config, UserDto userDto);
+    Long setConfig(User.RupeezyConfig config, UserDto userDto);
 
     RupeezyTokenCache getTokenCache(long userId);
 }

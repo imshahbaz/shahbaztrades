@@ -29,7 +29,6 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -109,11 +108,10 @@ public class ZerodhaServiceImpl implements ZerodhaService {
 
     @Override
     @CacheEvict(value = "zerodhaAuthCache", key = "#request.userId")
-    public ResponseEntity<ApiResponse<Void>> login(BrokerLoginDto request) {
+    public void login(BrokerLoginDto request) {
         var token = generateAccessToken(request.requestToken(), request.userId());
         stringRedisTemplate.opsForValue().set(ZERODHA_TOKEN_KEY + request.userId(), token, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
         kiteClientCache.remove(request.userId());
-        return ResponseEntity.ok(ApiResponse.ok(null, "Flow invocation success"));
     }
 
     @Override
@@ -147,7 +145,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Long>> setConfig(User.ZerodhaConfig config, UserDto userDto) {
+    public Long setConfig(User.ZerodhaConfig config, UserDto userDto) {
         if (!BrokerConfigValidator.validateZerodhaConfig(config)) {
             throw new BadRequestException("Invalid request");
         }
@@ -164,7 +162,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
             throw new UnauthorizedException("User not found");
         }
 
-        return ResponseEntity.ok(ApiResponse.ok(userDto.getUserId(), "Zerodha configuration updated successfully"));
+        return userDto.getUserId();
     }
 
     @Override

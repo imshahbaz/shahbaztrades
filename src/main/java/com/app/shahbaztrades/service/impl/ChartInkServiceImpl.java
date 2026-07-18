@@ -85,7 +85,7 @@ public class ChartInkServiceImpl implements ChartInkService {
                             .build();
                 })
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparingDouble(StockMarginDto::getMargin).reversed())
+                .sorted(Comparator.comparing(StockMarginDto::getMargin).reversed())
                 .toList();
 
         stringRedisTemplate.opsForValue().set(redisKey,
@@ -132,7 +132,7 @@ public class ChartInkServiceImpl implements ChartInkService {
         List<Margin> margins = dto.getStocks().stream()
                 .map(symbol -> marginService.getMarginCache().get(symbol))
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparingDouble(Margin::getRequiredMargin).reversed())
+                .sorted(Comparator.comparing(Margin::getRequiredMargin).reversed())
                 .toList();
 
         if (margins.isEmpty()) return null;
@@ -169,7 +169,8 @@ public class ChartInkServiceImpl implements ChartInkService {
     }
 
     private String getScanClauseOrThrow(String strategyName) {
-        var strategy = strategyService.getCachedStrategies().get(strategyName);
+        var strategy = strategyService.getCachedStrategies()
+                .get(strategyName == null ? null : strategyName.toUpperCase());
         if (strategy == null) throw new BadRequestException("Strategy " + strategyName + " not found");
         return strategy.getScanClause();
     }

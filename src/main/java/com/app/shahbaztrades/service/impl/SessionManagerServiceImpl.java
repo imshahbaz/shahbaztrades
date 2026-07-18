@@ -1,7 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
-import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.service.*;
@@ -10,7 +9,6 @@ import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -74,7 +72,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Boolean>> autoConnectZerodhaSession(UserDto userDto) {
+    public boolean autoConnectZerodhaSession(UserDto userDto) {
         Boolean isAbsent = stringRedisTemplate.opsForValue().setIfAbsent(
                 Constants.ZERODHA_AUTO_LOGIN_KEY + userDto.getUserId(),
                 "PENDING",
@@ -87,6 +85,6 @@ public class SessionManagerServiceImpl implements SessionManagerService {
         }
 
         zerodhaService.autoConnectZerodhaSession(userService.findByUserIdOrEmailOrMobile(userDto.getUserId(), "", 0L));
-        return ResponseEntity.ok(ApiResponse.ok(true, "Token generation initiated successfully"));
+        return true;
     }
 }

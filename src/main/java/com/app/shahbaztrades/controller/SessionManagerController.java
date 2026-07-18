@@ -10,10 +10,12 @@ import com.app.shahbaztrades.util.Constants;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.concurrent.ExecutionException;
 
+@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/session-manager")
@@ -31,7 +33,7 @@ public class SessionManagerController {
 
     @PostMapping("/zerodha-auto-connect")
     public ResponseEntity<ApiResponse<Boolean>> autoConnectZerodhaSession(@RequestAttribute("user") UserDto userDto) {
-        return sessionManagerService.autoConnectZerodhaSession(userDto);
+        return ResponseEntity.ok(ApiResponse.ok(sessionManagerService.autoConnectZerodhaSession(userDto), "Token generation initiated successfully"));
     }
 
     @PublicEndpoint

@@ -22,7 +22,6 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -39,7 +38,7 @@ public class RupeezyServiceImpl implements RupeezyService {
     private final MongoTemplate mongoTemplate;
 
     @Override
-    public ResponseEntity<ApiResponse<Void>> login(BrokerLoginDto request) {
+    public void login(BrokerLoginDto request) {
         var user = getUser(request.userId());
         var req = RupeezySessionRequest.builder()
                 .applicationId(user.getRupeezyConfig().getAppId())
@@ -55,11 +54,10 @@ public class RupeezyServiceImpl implements RupeezyService {
                 .accessToken(res.getData().getAccessToken()).build();
         rupeezyTokenCache.set(user.getUserId(), cache, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
         stringRedisTemplate.opsForValue().set(RUPEEZY_TOKEN_KEY + request.userId(), HelperUtil.GSON.toJson(cache), Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
-        return ResponseEntity.ok(ApiResponse.ok(null, "Flow invocation success"));
     }
 
     @Override
-    public ResponseEntity<ApiResponse<String>> getAuth(UserDto userDto) {
+    public ApiResponse<String> getAuth(UserDto userDto) {
         var user = getUser(userDto.getUserId());
 
         var config = user.getRupeezyConfig();
@@ -69,11 +67,11 @@ public class RupeezyServiceImpl implements RupeezyService {
 
         var cache = getTokenCache(user.getUserId());
         if (cache == null) {
-            return ResponseEntity.ok(ApiResponse.<String>builder()
+            return ApiResponse.<String>builder()
                     .success(Boolean.FALSE)
                     .data(config.getAppId())
                     .message("Token expired")
-                    .build());
+                    .build();
         }
 
         try {
@@ -82,18 +80,18 @@ public class RupeezyServiceImpl implements RupeezyService {
                 throw new UnauthorizedException("Access token expired");
             }
         } catch (Exception _) {
-            return ResponseEntity.ok(ApiResponse.<String>builder()
+            return ApiResponse.<String>builder()
                     .success(Boolean.FALSE)
                     .data(config.getAppId())
                     .message("Token expired")
-                    .build());
+                    .build();
         }
 
-        return ResponseEntity.ok(ApiResponse.ok(String.valueOf(user.getUserId()), "Token already exist"));
+        return ApiResponse.ok(String.valueOf(user.getUserId()), "Token already exist");
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Long>> setConfig(User.RupeezyConfig config, UserDto userDto) {
+    public Long setConfig(User.RupeezyConfig config, UserDto userDto) {
         if (!BrokerConfigValidator.validateRupeezyConfig(config)) {
             throw new BadRequestException("Invalid request");
         }
@@ -106,7 +104,7 @@ public class RupeezyServiceImpl implements RupeezyService {
             throw new UnauthorizedException("User not found");
         }
 
-        return ResponseEntity.ok(ApiResponse.ok(userDto.getUserId(), "Rupeezy configuration updated successfully"));
+        return userDto.getUserId();
     }
 
     @Override

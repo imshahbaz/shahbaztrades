@@ -287,17 +287,6 @@ public class MarketDataContainer {
         }
     }
 
-    private record WarmupContext(String jwt, String apiKey, String fromDate, String toDate) {
-    }
-
-    private static final class BarState {
-        private double open = -1;
-        private double high = -1;
-        private double low = -1;
-        private double close = -1;
-        private ZonedDateTime endTime = null;
-    }
-
     private Bar buildBar(BarSeries series, Instant endInstant, double o, double h, double l, double c) {
         return series.barBuilder()
                 .timePeriod(Duration.ofMinutes(15))
@@ -312,6 +301,17 @@ public class MarketDataContainer {
 
     public boolean checkActiveWorker(String token) {
         return activeWorkers.contains(token);
+    }
+
+    private record WarmupContext(String jwt, String apiKey, String fromDate, String toDate) {
+    }
+
+    private static final class BarState {
+        private double open = -1;
+        private double high = -1;
+        private double low = -1;
+        private double close = -1;
+        private ZonedDateTime endTime = null;
     }
 
 }

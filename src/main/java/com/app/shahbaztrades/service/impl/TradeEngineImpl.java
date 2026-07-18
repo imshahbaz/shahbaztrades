@@ -30,6 +30,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -68,7 +70,8 @@ public class TradeEngineImpl implements TradeEngine {
 
     private void processStrategyOrder(StrategyOrder order, Set<String> processedStrategies) {
         String strategyName = order.getStrategyName();
-        var strategy = strategyService.getCachedStrategies().get(strategyName);
+        var strategy = strategyService.getCachedStrategies()
+                .get(strategyName == null ? null : strategyName.toUpperCase());
 
         if (strategy == null) {
             log.error("Strategy configuration not found for {}", strategyName);
@@ -115,10 +118,18 @@ public class TradeEngineImpl implements TradeEngine {
         if (targetStock == null)
             return;
 
-        punchSingleTrade(targetStock.margin(), targetStock.qty(), order.getUserId(), order);
+        if (!activeOrders.setIfAbsent(order.getId(), Boolean.TRUE, DateUtil.getDurationUntilMarketClose())) {
+            log.info("Order {} already being processed, skipping duplicate signal", order.getId());
+            return;
+        }
+
+        boolean entryPlaced = punchSingleTrade(targetStock.margin(), targetStock.qty(), order.getUserId(), order);
+        if (!entryPlaced) {
+            activeOrders.remove(order.getId());
+        }
     }
 
-    private TargetStockResult findTargetStock(List<ChartInkBacktestMarginDto> signals, float orderAmount, BrokerType brokerType) {
+    private TargetStockResult findTargetStock(List<ChartInkBacktestMarginDto> signals, BigDecimal orderAmount, BrokerType brokerType) {
         var now = DateUtil.getCurrentDateTime();
         var latest = signals.getLast();
         if (now.isAfter(latest.getMarketTime().plusMinutes(15)) && now.isBefore(latest.getMarketTime().plusMinutes(23)) && !CollectionUtils.isEmpty(latest.getMargins())) {
@@ -127,18 +138,18 @@ public class TradeEngineImpl implements TradeEngine {
         return null;
     }
 
-    private TargetStockResult processSignal(ChartInkBacktestMarginDto signal, float orderAmount, BrokerType brokerType) {
+    private TargetStockResult processSignal(ChartInkBacktestMarginDto signal, BigDecimal orderAmount, BrokerType brokerType) {
         try {
             List<Margin> targetList;
             if (brokerType.equals(BrokerType.ZERODHA) || signal.getMargins().size() <= 1) {
                 targetList = signal.getMargins();
             } else {
-                targetList = signal.getMargins().stream().sorted(Comparator.comparingDouble(Margin::getRupeezyMargin).reversed())
+                targetList = signal.getMargins().stream().sorted(Comparator.comparing(Margin::getRupeezyMargin).reversed())
                         .toList();
             }
 
             for (var margin : targetList) {
-                var target = processTargetMargin(margin, orderAmount);
+                var target = processTargetMargin(margin, orderAmount, brokerType);
                 if (target != null) {
                     return target;
                 }
@@ -153,7 +164,7 @@ public class TradeEngineImpl implements TradeEngine {
         return null;
     }
 
-    private TargetStockResult processTargetMargin(Margin target, float orderAmount) throws Exception {
+    private TargetStockResult processTargetMargin(Margin target, BigDecimal orderAmount, BrokerType brokerType) throws Exception {
         var ltp = angelOneService.getLTP(target.getToken());
         if (ltp == -2) {
             return null;
@@ -167,7 +178,16 @@ public class TradeEngineImpl implements TradeEngine {
             }
         }
 
-        int quantity = (int) (orderAmount / target.getRequiredMargin());
+        BigDecimal requiredMargin = brokerType.equals(BrokerType.RUPEEZY) ? target.getRupeezyMargin() : target.getRequiredMargin();
+        if (requiredMargin == null || requiredMargin.signum() <= 0) {
+            return null;
+        }
+
+        int quantity = orderAmount.divide(BigDecimal.valueOf(ltp), 8, RoundingMode.HALF_UP)
+                .multiply(requiredMargin)
+                .setScale(0, RoundingMode.DOWN)
+                .intValue();
+
         if (quantity > 0) {
             return new TargetStockResult(target, quantity);
         }
@@ -184,9 +204,10 @@ public class TradeEngineImpl implements TradeEngine {
         return ltp;
     }
 
-    private void punchSingleTrade(Margin targetStock, int qty, long userId, StrategyOrder order) {
+    private boolean punchSingleTrade(Margin targetStock, int qty, long userId, StrategyOrder order) {
         log.info("Initiating trade for User: {} | Symbol: {} | Qty: {}", userId, targetStock.getSymbol(), qty);
 
+        boolean entryPlaced = false;
         try {
             var orderRouter = orderRouterFactory.getRouter(order.getBroker());
 
@@ -194,11 +215,12 @@ public class TradeEngineImpl implements TradeEngine {
                     .transactionType(Constants.TRANSACTION_TYPE_BUY).orderType(Constants.ORDER_TYPE_MARKET).build();
 
             var orderResp = orderRouter.placeMTFOrder(order.getUserId(), req);
+            entryPlaced = true;
 
             HelperUtil.pollWait(1000);
 
             var orderDetails = orderRouter.getOrderDetails(order.getUserId(), orderResp.getOrderId());
-            double entryPrice = orderDetails.getAveragePrice();
+            double entryPrice = orderDetails.getAveragePrice().doubleValue();
 
             double targetPrice = HelperUtil.fixToTick(entryPrice * 1.004);
 
@@ -228,10 +250,24 @@ public class TradeEngineImpl implements TradeEngine {
                     Collections.emptyMap()
             ));
 
-            activeOrders.set(order.getId(), Boolean.TRUE, DateUtil.getDurationUntilMarketClose());
+            return true;
 
         } catch (Exception e) {
             log.error("Error in punchSingleTrade for {}", targetStock.getSymbol(), e);
+            if (entryPlaced) {
+                log.error("ORPHANED POSITION: entry placed for user {} symbol {} qty {} but exit/monitoring setup failed",
+                        userId, targetStock.getSymbol(), qty);
+
+                eventPublisher.publishEvent(new NotificationRequest(
+                        userId,
+                        com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_BUY,
+                        String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_ORPHANED_POSITION,
+                                qty, targetStock.getSymbol()),
+                        Collections.emptyMap()
+                ));
+            }
+
+            return entryPlaced;
         }
     }
 

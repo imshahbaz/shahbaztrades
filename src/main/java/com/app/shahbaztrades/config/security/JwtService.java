@@ -19,9 +19,9 @@ import java.util.Date;
 @RequiredArgsConstructor
 public class JwtService {
 
+    private static final int MIN_SECRET_BYTES = 32;
     private final MongoConfigService mongoConfigService;
     private final JsonMapper jsonMapper;
-
     private volatile String cachedSecret;
     private volatile SecretKey cachedKey;
 
@@ -29,7 +29,13 @@ public class JwtService {
         String secret = mongoConfigService.getConfig().getJwtSecret();
         SecretKey local = cachedKey;
         if (!secret.equals(cachedSecret)) {
-            local = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+            byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+            if (secretBytes.length < MIN_SECRET_BYTES) {
+                throw new IllegalStateException(
+                        "Configured JWT secret is too short; require at least " + MIN_SECRET_BYTES + " bytes for HS256");
+            }
+
+            local = Keys.hmacShaKeyFor(secretBytes);
             cachedKey = local;
             cachedSecret = secret;
         }

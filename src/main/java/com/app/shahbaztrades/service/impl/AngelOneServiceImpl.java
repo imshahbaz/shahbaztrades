@@ -5,7 +5,6 @@ import com.app.shahbaztrades.components.angelone.SmartApiFeignClient;
 import com.app.shahbaztrades.components.helper.MarketDataContainer;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
-import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpDto;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
@@ -25,7 +24,6 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.socket.*;
@@ -43,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static com.app.shahbaztrades.util.Constants.AO_DATE_FORMATTER;
 import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
@@ -58,13 +57,14 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final ReentrantLock wsLock = new ReentrantLock();
     private final StringRedisTemplate stringRedisTemplate;
     private final AngelOneClient angelOneClient;
     private final MongoConfigService mongoConfigService;
     private final SmartApiFeignClient smartApiFeignClient;
     private final MarketDataContainer marketDataContainer;
-    private WebSocketSession session;
-    private ScheduledFuture<?> heartbeatTask;
+    private volatile WebSocketSession session;
+    private volatile ScheduledFuture<?> heartbeatTask;
 
     @Override
     public void startWebSocket() {
@@ -119,7 +119,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     }
 
     @Override
-    public synchronized void subscribe(String token, int exchangeType) {
+    public void subscribe(String token, int exchangeType) {
         ltpCache.putIfAbsent(token, -1.0);
 
         var request = new SmartStreamRequest(
@@ -131,7 +131,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     }
 
     @Override
-    public synchronized void unsubscribe(String token, int exchangeType) {
+    public void unsubscribe(String token, int exchangeType) {
         var request = new SmartStreamRequest(
                 "shahbaz_trades",
                 2,
@@ -142,23 +142,32 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     }
 
     private void send(Object obj) {
-        if (session != null && session.isOpen()) {
-            try {
-                String json = objectMapper.writeValueAsString(obj);
-                log.info("Sending Subscription Request: {}", json);
-                session.sendMessage(new TextMessage(json));
-            } catch (IOException e) {
-                log.error("WebSocket Write Error", e);
-            }
-        } else throw new BadRequestException("Websocket is closed");
+        WebSocketSession local = session;
+        if (local == null || !local.isOpen()) {
+            throw new BadRequestException("Websocket is closed");
+        }
+        wsLock.lock();
+        try {
+            String json = objectMapper.writeValueAsString(obj);
+            log.info("Sending Subscription Request: {}", json);
+            local.sendMessage(new TextMessage(json));
+        } catch (IOException e) {
+            log.error("WebSocket Write Error", e);
+        } finally {
+            wsLock.unlock();
+        }
     }
 
     private void sendHeartbeat() {
-        if (connected.get() && session.isOpen()) {
+        WebSocketSession local = session;
+        if (connected.get() && local != null && local.isOpen()) {
+            wsLock.lock();
             try {
-                session.sendMessage(new TextMessage("ping"));
+                local.sendMessage(new TextMessage("ping"));
             } catch (IOException e) {
                 log.error("Heartbeat failed", e);
+            } finally {
+                wsLock.unlock();
             }
         }
     }
@@ -226,15 +235,17 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     public void disconnect() {
         connected.set(false);
 
-        synchronized (this) {
+        wsLock.lock();
+        try {
             if (heartbeatTask != null) {
                 heartbeatTask.cancel(false);
                 heartbeatTask = null;
             }
 
-            if (session != null && session.isOpen()) {
+            WebSocketSession local = session;
+            if (local != null && local.isOpen()) {
                 try {
-                    session.close(CloseStatus.NORMAL);
+                    local.close(CloseStatus.NORMAL);
                     log.info("AngelOne WebSocket connection closed gracefully");
                 } catch (IOException e) {
                     log.error("Error while closing WebSocket session", e);
@@ -242,6 +253,8 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
                     session = null;
                 }
             }
+        } finally {
+            wsLock.unlock();
         }
 
         ltpCache.clear();
@@ -254,11 +267,11 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     }
 
     @Override
-    public ResponseEntity<ApiResponse<SmartApiLtpResponse.MarketTicker>> getMarketTicker(String token) {
+    public SmartApiLtpResponse.MarketTicker getMarketTicker(String token) {
         var key = "angel_one_ltp:" + token;
         var data = stringRedisTemplate.opsForValue().get(key);
         if (data != null) {
-            return ResponseEntity.ok(ApiResponse.ok(HelperUtil.GSON.fromJson(data, SmartApiLtpResponse.MarketTicker.class), "Ltp Fetched Successfully"));
+            return HelperUtil.GSON.fromJson(data, SmartApiLtpResponse.MarketTicker.class);
         }
 
         var jwt = mongoConfigService.getAngelOneJwtToken();
@@ -270,7 +283,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
 
         if (response != null && response.data() != null && !CollectionUtils.isEmpty(response.data().fetched())) {
             stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(response.data().fetched().getFirst()), DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(1)));
-            return ResponseEntity.ok(ApiResponse.ok(response.data().fetched().getFirst(), "Ltp Fetched Successfully"));
+            return response.data().fetched().getFirst();
         }
 
         throw new NotFoundException("Ltp not found");

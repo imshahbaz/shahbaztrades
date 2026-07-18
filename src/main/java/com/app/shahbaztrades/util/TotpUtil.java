@@ -28,8 +28,8 @@ public class TotpUtil {
             long currentBucket = timeProvider.getTime() / 30;
 
             return codeGenerator.generate(secret, currentBucket);
-        } catch (Exception _) {
-            return "";
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to generate TOTP code", e);
         }
     }
 

@@ -12,10 +12,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/holdings")
@@ -25,28 +27,28 @@ public class HoldingsControllers {
 
     @GetMapping("/all")
     public ResponseEntity<ApiResponse<List<HoldingDto>>> getAllHoldings(@RequestParam @NotNull BrokerType brokerType, @RequestAttribute("user") UserDto userDto) {
-        return holdingsService.getAllHoldings(brokerType, userDto);
+        return ResponseEntity.ok(ApiResponse.ok(holdingsService.getAllHoldings(brokerType, userDto), "Holdings found"));
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<Boolean>> createHoldings(@RequestParam @NotNull BrokerType brokerType, @RequestAttribute("user") UserDto userDto, @RequestBody @Valid HoldingDto holdingDto) {
-        return holdingsService.createHoldings(brokerType, userDto, holdingDto);
+        return ResponseEntity.ok(ApiResponse.ok(holdingsService.createHoldings(brokerType, userDto, holdingDto), "Holdings added"));
     }
 
     @DeleteMapping("/{symbol}")
     public ResponseEntity<ApiResponse<Boolean>> deleteHoldings(@RequestParam @NotNull BrokerType brokerType, @RequestAttribute("user") UserDto userDto, @PathVariable @NotBlank String symbol) {
-        return holdingsService.deleteHoldings(brokerType, userDto, symbol);
+        return ResponseEntity.ok(ApiResponse.ok(holdingsService.deleteHoldings(brokerType, userDto, symbol), "Holdings deleted"));
     }
 
     @PutMapping
     public ResponseEntity<ApiResponse<Boolean>> updateHoldings(@RequestParam @NotNull BrokerType brokerType, @RequestAttribute("user") UserDto userDto, @RequestBody @Valid HoldingDto holdingDto) {
-        return holdingsService.updateHoldings(brokerType, userDto, holdingDto);
+        return ResponseEntity.ok(ApiResponse.ok(holdingsService.updateHoldings(brokerType, userDto, holdingDto), "Holdings updated"));
     }
 
     @DeleteMapping("detail/{symbol}/{id}")
     public ResponseEntity<ApiResponse<Boolean>> deleteHoldingDetail(@RequestParam @NotNull BrokerType brokerType, @RequestAttribute("user") UserDto userDto,
                                                                     @PathVariable @NotBlank String symbol, @PathVariable @Min(1) int id) {
-        return holdingsService.deleteHoldingDetail(brokerType, userDto, symbol, id);
+        return ResponseEntity.ok(ApiResponse.ok(holdingsService.deleteHoldingDetail(brokerType, userDto, symbol, id), "Holding detail deleted"));
     }
 
     @PublicEndpoint

@@ -22,6 +22,7 @@ public class Constants {
     public static final String NOTIFICATION_MESSAGE_SELL = "Sold %d shares of %s at ₹%.2f.";
     public static final String NOTIFICATION_MESSAGE_SELL_MARKET = "Your market sell order for %d shares of %s has been submitted successfully.";
     public static final String NOTIFICATION_MESSAGE_SELL_SL = "Your stop-loss sell order for %d shares of %s at ₹%.2f has been submitted successfully.";
+    public static final String NOTIFICATION_MESSAGE_ORPHANED_POSITION = "ACTION REQUIRED: %d %s bought but exit order failed. Manage manually.";
     public static final String BEARER_PREFIX = "Bearer ";
 
     public static final String DOT = ".";
