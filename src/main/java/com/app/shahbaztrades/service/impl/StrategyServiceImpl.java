@@ -10,7 +10,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -37,13 +36,13 @@ public class StrategyServiceImpl implements StrategyService {
     @Override
     public void refreshStrategyCache() {
         var strategies = strategyRepository.findAll();
-        if (!CollectionUtils.isEmpty(strategies)) {
-            cachedStrategies = strategies.stream()
-                    .collect(Collectors.toMap(
-                            Strategy::getName,
-                            Strategy::toDto
-                    ));
-        }
+        // Always rebuild the map (even when empty) so deletions are reflected, and key by a
+        // canonical upper-case name so writes and look-ups never diverge on casing.
+        cachedStrategies = strategies.stream()
+                .collect(Collectors.toConcurrentMap(
+                        s -> s.getName().toUpperCase(),
+                        Strategy::toDto
+                ));
     }
 
     @Override
@@ -72,7 +71,8 @@ public class StrategyServiceImpl implements StrategyService {
     @Override
     public ResponseEntity<ApiResponse<Void>> deleteStrategy(String id) {
         strategyRepository.deleteById(id);
-        cachedStrategies.remove(id);
+        // The cache is keyed by strategy name, not id, so rebuild it from source to evict correctly.
+        refreshStrategyCache();
         return ResponseEntity.ok(ApiResponse.ok(null, "Strategy deleted successfully"));
     }
 

@@ -1,5 +1,7 @@
 package com.app.shahbaztrades.controller;
 
+import org.springframework.validation.annotation.Validated;
+
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/zerodha")
+@Validated
 public class ZerodhaController {
 
     private final ZerodhaService zerodhaService;

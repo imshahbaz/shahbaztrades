@@ -24,9 +24,31 @@ spring:
     session-manager:
       url: ${SESSION_MANAGER_URI}
 
+  # Bound every broker/HTTP Feign call so a slow upstream can't hang a (virtual) thread forever.
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 5000
+            read-timeout: 15000
+            logger-level: basic
+
 server:
   port: ${PORT:8080}
   jetty:
     threads:
       min: 8
       max: 20
+
+# Expose a lightweight health endpoint for readiness/liveness probes and deploy gating.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never

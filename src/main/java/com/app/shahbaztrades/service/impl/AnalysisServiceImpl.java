@@ -172,6 +172,11 @@ public class AnalysisServiceImpl implements AnalysisService {
             }
         }
 
+        if (stats.tradeCount == 0) {
+            log.info("No trades evaluated for strategy {}; skipping success-rate update", strategy.getName());
+            return;
+        }
+
         log.info("Trade Count: {} for Strategy: {} with Success: {}", stats.tradeCount, strategy.getName(), stats.success);
         float successRate = ((float) stats.success / stats.tradeCount) * 100;
         Query query = new Query(Criteria.where(Strategy.Fields.name).is(strategy.getName()));

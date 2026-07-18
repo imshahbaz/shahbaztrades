@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -16,9 +18,9 @@ public class StockMarginDto {
 
     String symbol;
 
-    float margin;
+    BigDecimal margin;
 
-    float rupeezyMargin;
+    BigDecimal rupeezyMargin;
 
     float close;
 }

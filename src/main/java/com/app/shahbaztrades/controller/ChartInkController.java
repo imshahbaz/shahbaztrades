@@ -1,5 +1,7 @@
 package com.app.shahbaztrades.controller;
 
+import org.springframework.validation.annotation.Validated;
+
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestDto;
@@ -20,6 +22,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/chartink")
 @RequiredArgsConstructor
+@Validated
 public class ChartInkController {
 
     private static final String SUCCESS_MSG = "Success";

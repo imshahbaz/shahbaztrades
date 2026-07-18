@@ -25,11 +25,21 @@ public class JwtService {
     private volatile String cachedSecret;
     private volatile SecretKey cachedKey;
 
+    // HS256 requires a key of at least 256 bits (32 bytes). A shorter secret is brute-forceable,
+    // which would let an attacker forge admin tokens — so fail closed if it is too weak.
+    private static final int MIN_SECRET_BYTES = 32;
+
     private SecretKey key() {
         String secret = mongoConfigService.getConfig().getJwtSecret();
         SecretKey local = cachedKey;
         if (!secret.equals(cachedSecret)) {
-            local = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+            byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+            if (secretBytes.length < MIN_SECRET_BYTES) {
+                throw new IllegalStateException(
+                        "Configured JWT secret is too short; require at least " + MIN_SECRET_BYTES + " bytes for HS256");
+            }
+            
+            local = Keys.hmacShaKeyFor(secretBytes);
             cachedKey = local;
             cachedSecret = secret;
         }

@@ -10,6 +10,7 @@ import lombok.experimental.FieldNameConstants;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 
@@ -62,6 +63,6 @@ public class Order {
     public static class ExecutionRecord {
         String brokerOrderId;
         String orderStatus;
-        double averagePrice;
+        BigDecimal averagePrice;
     }
 }

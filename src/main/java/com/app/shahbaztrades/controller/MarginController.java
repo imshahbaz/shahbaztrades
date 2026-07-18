@@ -1,5 +1,7 @@
 package com.app.shahbaztrades.controller;
 
+import org.springframework.validation.annotation.Validated;
+
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.entity.Margin;
@@ -17,6 +19,7 @@ import java.util.Collection;
 @RestController
 @RequestMapping("/api/margin")
 @RequiredArgsConstructor
+@Validated
 public class MarginController {
 
     private final MarginService marginService;

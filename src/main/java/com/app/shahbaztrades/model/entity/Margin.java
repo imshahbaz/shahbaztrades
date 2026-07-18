@@ -7,6 +7,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
+import java.math.BigDecimal;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -22,9 +24,9 @@ public class Margin {
     String name;
 
     @Field("margin")
-    float requiredMargin;
+    BigDecimal requiredMargin;
 
     String token;
 
-    float rupeezyMargin;
+    BigDecimal rupeezyMargin;
 }

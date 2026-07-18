@@ -38,6 +38,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -187,7 +188,7 @@ public class OrderServiceImpl implements OrderService {
                 order.getEntry().setAveragePrice(orderDetails.getAveragePrice());
                 log.info("MTF status updated for user {} symbol {} at update", order.getUserId(), order.getSymbol());
                 eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_BUY,
-                        String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_BUY, order.getQuantity(), order.getSymbol(), orderDetails.getAveragePrice()),
+                        String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_BUY, order.getQuantity(), order.getSymbol(), orderDetails.getAveragePrice().doubleValue()),
                         Collections.emptyMap()));
             } catch (Exception e) {
                 log.error("Failed to update MTF status for user {} symbol {} error {} at update", order.getUserId(), order.getSymbol(), e.getMessage());
@@ -207,7 +208,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         orders.forEach(order -> {
-            if (order.getEntry() == null || order.getEntry().getAveragePrice() <= 0) return;
+            if (order.getEntry() == null || order.getEntry().getAveragePrice() == null || order.getEntry().getAveragePrice().signum() <= 0) return;
             try {
                 angelOneService.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
             } catch (Exception _) {
@@ -217,7 +218,7 @@ public class OrderServiceImpl implements OrderService {
 
             tradeWatchdog.watchMtfTrade(ActiveMtfTrade.builder()
                     .order(order)
-                    .peakPrice(order.getEntry().getAveragePrice())
+                    .peakPrice(order.getEntry().getAveragePrice().doubleValue())
                     .build());
         });
     }
@@ -299,11 +300,11 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private short processOrder(Order order, double ltp, double peakPrice) {
-        if (order.getEntry() == null || order.getEntry().getAveragePrice() == 0) {
+        if (order.getEntry() == null || order.getEntry().getAveragePrice() == null || order.getEntry().getAveragePrice().signum() == 0) {
             return -1;
         }
 
-        return addStopLoss(order, ltp, order.getEntry().getAveragePrice(), peakPrice);
+        return addStopLoss(order, ltp, order.getEntry().getAveragePrice().doubleValue(), peakPrice);
     }
 
     private short addStopLoss(Order order, double ltp, double buyPrice, double peakPrice) {
@@ -402,7 +403,7 @@ public class OrderServiceImpl implements OrderService {
             var req = TradeOrderRequest.builder().symbol(order.getSymbol()).quantity(order.getQuantity())
                     .price(sl).triggerPrice(sl).build();
             var res = orderRouter.placeMTFStopLossOrder(order.getUserId(), req);
-            order.setExit(Order.ExecutionRecord.builder().brokerOrderId(res.getOrderId()).averagePrice((float) sl).build());
+            order.setExit(Order.ExecutionRecord.builder().brokerOrderId(res.getOrderId()).averagePrice(BigDecimal.valueOf(sl)).build());
             eventPublisher.publishEvent(order);
             eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_PLACED,
                     String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_SELL_SL, order.getQuantity(), order.getSymbol(), sl),

@@ -32,6 +32,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -107,7 +108,7 @@ public class MarginServiceImpl implements MarginService {
                     );
 
                     Update update = new Update();
-                    update.set(Margin.Fields.requiredMargin, raw.leverage);
+                    update.set(Margin.Fields.requiredMargin, BigDecimal.valueOf(raw.leverage));
                     update.set(Margin.Fields.name, raw.tradingSymbol);
 
                     bulkOperations.upsert(query, update);

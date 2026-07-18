@@ -26,17 +26,23 @@ public class CorsFilter implements Filter {
         HttpServletRequest request = (HttpServletRequest) req;
 
         String origin = request.getHeader("Origin");
-        if (origin != null && mongoConfigService.getConfig().getFrontendUrls().contains(origin)) {
+        boolean allowedOrigin = origin != null
+                && mongoConfigService.getConfig().getFrontendUrls().contains(origin);
+
+        // Only emit CORS headers (and especially Allow-Credentials) for allow-listed origins.
+        // Emitting them unconditionally exposes credentialed cross-site access to any origin.
+        if (allowedOrigin) {
             response.setHeader("Access-Control-Allow-Origin", origin);
+            response.setHeader("Vary", "Origin");
+            response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+            response.setHeader("Access-Control-Allow-Credentials", "true");
+            response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+            response.setHeader("Access-Control-Max-Age", "3600");
         }
 
-        response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-        response.setHeader("Access-Control-Allow-Credentials", "true");
-        response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie, X-Requested-With");
-        response.setHeader("Access-Control-Max-Age", "3600");
-
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            response.setStatus(HttpServletResponse.SC_OK);
+            // Preflight: only a 200 for allow-listed origins, otherwise reject.
+            response.setStatus(allowedOrigin ? HttpServletResponse.SC_OK : HttpServletResponse.SC_FORBIDDEN);
             return;
         }
 

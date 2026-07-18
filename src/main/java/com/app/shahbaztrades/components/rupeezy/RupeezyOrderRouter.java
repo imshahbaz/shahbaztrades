@@ -17,6 +17,8 @@ import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+
 import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
 
 @Component
@@ -109,7 +111,7 @@ public class RupeezyOrderRouter implements OrderRoutingStrategy {
         return TradeOrderResponse.builder()
                 .orderId(orderData.getOrderId())
                 .status(orderData.getStatus())
-                .averagePrice(orderData.getAveragePrice())
+                .averagePrice(BigDecimal.valueOf(orderData.getAveragePrice()))
                 .pendingQuantity(orderData.getPendingQuantity())
                 .build();
     }

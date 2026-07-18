@@ -1,5 +1,7 @@
 package com.app.shahbaztrades.controller;
 
+import org.springframework.validation.annotation.Validated;
+
 import com.app.shahbaztrades.config.security.AdminOnly;
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
@@ -16,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/strategy")
 @RequiredArgsConstructor
+@Validated
 public class StrategyController {
 
     private final StrategyService strategyService;

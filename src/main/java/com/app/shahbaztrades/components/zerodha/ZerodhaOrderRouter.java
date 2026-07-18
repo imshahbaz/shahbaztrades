@@ -17,6 +17,7 @@ import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Component
@@ -152,7 +153,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         return TradeOrderResponse.builder()
                 .orderId(detail.orderId)
                 .status(detail.status)
-                .averagePrice(NumberUtils.isCreatable(detail.averagePrice) ? Double.parseDouble(detail.averagePrice) : 0)
+                .averagePrice(NumberUtils.isCreatable(detail.averagePrice) ? new BigDecimal(detail.averagePrice) : BigDecimal.ZERO)
                 .pendingQuantity(NumberUtils.isCreatable(detail.pendingQuantity) ? Integer.parseInt(detail.pendingQuantity) : 0)
                 .build();
     }

@@ -30,6 +30,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -68,7 +70,8 @@ public class TradeEngineImpl implements TradeEngine {
 
     private void processStrategyOrder(StrategyOrder order, Set<String> processedStrategies) {
         String strategyName = order.getStrategyName();
-        var strategy = strategyService.getCachedStrategies().get(strategyName);
+        var strategy = strategyService.getCachedStrategies()
+                .get(strategyName == null ? null : strategyName.toUpperCase());
 
         if (strategy == null) {
             log.error("Strategy configuration not found for {}", strategyName);
@@ -115,10 +118,21 @@ public class TradeEngineImpl implements TradeEngine {
         if (targetStock == null)
             return;
 
-        punchSingleTrade(targetStock.margin(), targetStock.qty(), order.getUserId(), order);
+        // Atomically claim the order BEFORE routing so two concurrent signals for the same
+        // order can never both place a trade. Only one thread wins the claim.
+        if (!activeOrders.setIfAbsent(order.getId(), Boolean.TRUE, DateUtil.getDurationUntilMarketClose())) {
+            log.debug("Order {} already being processed, skipping duplicate signal", order.getId());
+            return;
+        }
+
+        boolean entryPlaced = punchSingleTrade(targetStock.margin(), targetStock.qty(), order.getUserId(), order);
+        if (!entryPlaced) {
+            // No position was opened: release the claim so a later valid signal can retry.
+            activeOrders.remove(order.getId());
+        }
     }
 
-    private TargetStockResult findTargetStock(List<ChartInkBacktestMarginDto> signals, float orderAmount, BrokerType brokerType) {
+    private TargetStockResult findTargetStock(List<ChartInkBacktestMarginDto> signals, BigDecimal orderAmount, BrokerType brokerType) {
         var now = DateUtil.getCurrentDateTime();
         var latest = signals.getLast();
         if (now.isAfter(latest.getMarketTime().plusMinutes(15)) && now.isBefore(latest.getMarketTime().plusMinutes(23)) && !CollectionUtils.isEmpty(latest.getMargins())) {
@@ -127,13 +141,13 @@ public class TradeEngineImpl implements TradeEngine {
         return null;
     }
 
-    private TargetStockResult processSignal(ChartInkBacktestMarginDto signal, float orderAmount, BrokerType brokerType) {
+    private TargetStockResult processSignal(ChartInkBacktestMarginDto signal, BigDecimal orderAmount, BrokerType brokerType) {
         try {
             List<Margin> targetList;
             if (brokerType.equals(BrokerType.ZERODHA) || signal.getMargins().size() <= 1) {
                 targetList = signal.getMargins();
             } else {
-                targetList = signal.getMargins().stream().sorted(Comparator.comparingDouble(Margin::getRupeezyMargin).reversed())
+                targetList = signal.getMargins().stream().sorted(Comparator.comparing(Margin::getRupeezyMargin).reversed())
                         .toList();
             }
 
@@ -153,7 +167,7 @@ public class TradeEngineImpl implements TradeEngine {
         return null;
     }
 
-    private TargetStockResult processTargetMargin(Margin target, float orderAmount) throws Exception {
+    private TargetStockResult processTargetMargin(Margin target, BigDecimal orderAmount) throws Exception {
         var ltp = angelOneService.getLTP(target.getToken());
         if (ltp == -2) {
             return null;
@@ -167,7 +181,14 @@ public class TradeEngineImpl implements TradeEngine {
             }
         }
 
-        int quantity = (int) (orderAmount / target.getRequiredMargin());
+        BigDecimal requiredMargin = target.getRequiredMargin();
+        if (requiredMargin == null || requiredMargin.signum() <= 0) {
+            return null;
+        }
+
+        // Exact integer division (floor) — how many whole shares the budget affords, with no
+        // binary-float rounding error that could flip the affordable quantity by a share.
+        int quantity = orderAmount.divide(requiredMargin, 0, RoundingMode.DOWN).intValue();
         if (quantity > 0) {
             return new TargetStockResult(target, quantity);
         }
@@ -184,9 +205,16 @@ public class TradeEngineImpl implements TradeEngine {
         return ltp;
     }
 
-    private void punchSingleTrade(Margin targetStock, int qty, long userId, StrategyOrder order) {
+    /**
+     * Places the entry order and its protective exit, and registers the position with the watchdog.
+     *
+     * @return {@code true} if the entry order was placed (position is now open — caller must retain the
+     * active-order claim). {@code false} if nothing was placed and the order may be safely retried.
+     */
+    private boolean punchSingleTrade(Margin targetStock, int qty, long userId, StrategyOrder order) {
         log.info("Initiating trade for User: {} | Symbol: {} | Qty: {}", userId, targetStock.getSymbol(), qty);
 
+        boolean entryPlaced = false;
         try {
             var orderRouter = orderRouterFactory.getRouter(order.getBroker());
 
@@ -194,11 +222,14 @@ public class TradeEngineImpl implements TradeEngine {
                     .transactionType(Constants.TRANSACTION_TYPE_BUY).orderType(Constants.ORDER_TYPE_MARKET).build();
 
             var orderResp = orderRouter.placeMTFOrder(order.getUserId(), req);
+            entryPlaced = true;
 
             HelperUtil.pollWait(1000);
 
             var orderDetails = orderRouter.getOrderDetails(order.getUserId(), orderResp.getOrderId());
-            double entryPrice = orderDetails.getAveragePrice();
+            // Stored fills are BigDecimal; the transient target/watchdog math runs against the
+            // inherently-double live price feed, so convert once here.
+            double entryPrice = orderDetails.getAveragePrice().doubleValue();
 
             double targetPrice = HelperUtil.fixToTick(entryPrice * 1.004);
 
@@ -228,10 +259,26 @@ public class TradeEngineImpl implements TradeEngine {
                     Collections.emptyMap()
             ));
 
-            activeOrders.set(order.getId(), Boolean.TRUE, DateUtil.getDurationUntilMarketClose());
+            return true;
 
         } catch (Exception e) {
             log.error("Error in punchSingleTrade for {}", targetStock.getSymbol(), e);
+            if (entryPlaced) {
+                // CRITICAL: entry filled but we failed to set the exit / register monitoring.
+                // The position is live and unprotected — alert so it can be handled manually.
+                log.error("ORPHANED POSITION: entry placed for user {} symbol {} qty {} but exit/monitoring setup failed",
+                        userId, targetStock.getSymbol(), qty);
+                eventPublisher.publishEvent(new NotificationRequest(
+                        userId,
+                        com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_BUY,
+                        String.format("ACTION REQUIRED: %d %s bought but exit order failed. Manage manually.",
+                                qty, targetStock.getSymbol()),
+                        Collections.emptyMap()
+                ));
+            }
+            // Keep the claim when the entry was placed (never re-punch a live position);
+            // report entryPlaced so the caller can decide whether to release the claim.
+            return entryPlaced;
         }
     }
 
