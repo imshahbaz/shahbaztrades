@@ -86,8 +86,8 @@ public class RedisConfig {
         Map<String, CacheConfig> configMap = new ConcurrentHashMap<>();
 
         CacheConfig authCacheConfig = new CacheConfig(
-                Duration.ofSeconds(15).toMillis(),
-                Duration.ofSeconds(15).toMillis()
+                Duration.ofSeconds(1).toMillis(),
+                Duration.ofSeconds(1).toMillis()
         );
 
         configMap.put("zerodhaAuthCache", authCacheConfig);
