@@ -31,8 +31,8 @@ public class YahooClient {
     private final StringRedisTemplate stringRedisTemplate;
     private final RedissonClient redissonClient;
 
-    public YahooClient(RestClient.Builder restClientBuilder, StringRedisTemplate stringRedisTemplate, RedissonClient redissonClient) {
-        this.restClient = restClientBuilder
+    public YahooClient(StringRedisTemplate stringRedisTemplate, RedissonClient redissonClient) {
+        this.restClient = RestClient.builder()
                 .baseUrl(BASE_URL)
                 .requestFactory(HelperUtil.requestFactory(Duration.ofSeconds(15)))
                 .defaultHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36")
