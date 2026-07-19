@@ -24,7 +24,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -170,10 +169,6 @@ public class HelperUtil {
         var method = HttpMethod.valueOf(schedulerCallBackDto.httpMethod());
         if (method == HttpMethod.POST || method == HttpMethod.PUT || method == HttpMethod.PATCH) {
             body = schedulerCallBackDto.body();
-        }
-
-        if (body == null) {
-            body = Collections.emptyMap();
         }
 
         HttpEntity<Object> entity = new HttpEntity<>(body, headers);
