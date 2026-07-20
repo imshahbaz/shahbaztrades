@@ -167,6 +167,7 @@ public class MarketDataContainer {
             if (angelOneResp == null) {
                 return false;
             }
+
             var series = getSeries(token);
             ReentrantLock lock = getLock(token);
             lock.lock();
@@ -178,9 +179,10 @@ public class MarketDataContainer {
             } finally {
                 lock.unlock();
             }
+
             return true;
         } catch (Exception e) {
-            log.error(e.getMessage(), e);
+            log.error(e.getMessage());
             return false;
         }
     }
