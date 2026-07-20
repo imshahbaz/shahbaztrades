@@ -28,7 +28,6 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
@@ -42,7 +41,6 @@ public class HelperUtil {
             .connectTimeout(Duration.ofSeconds(5))
             .build();
     public static final RestTemplate REST_TEMPLATE = new RestTemplate(requestFactory(Duration.ofSeconds(15)));
-    public static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(5);
     private static final String ALPHA_NUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final int OTP_LENGTH = 6;
     private static final String HMAC_ALGO = "HmacSHA256";

@@ -58,7 +58,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
             throw new NotFoundException("Zerodha API configuration is missing for this user");
         }
 
-        KiteConnect kc = new KiteConnect(user.getZerodhaConfig().getApiKey(), true);
+        KiteConnect kc = new KiteConnect(user.getZerodhaConfig().getApiKey());
         kc.setAccessToken(accessToken);
         return kc;
     }
@@ -73,7 +73,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
             throw new BadRequestException("Zerodha config not found");
         }
 
-        try (KiteConnect kc = new KiteConnect(user.getZerodhaConfig().getApiKey(), true)) {
+        try (KiteConnect kc = new KiteConnect(user.getZerodhaConfig().getApiKey())) {
 
             var userSession = kc.generateSession(requestToken, user.getZerodhaConfig().getApiSecret());
 
