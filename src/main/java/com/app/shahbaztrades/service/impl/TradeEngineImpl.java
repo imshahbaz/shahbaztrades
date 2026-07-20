@@ -104,17 +104,33 @@ public class TradeEngineImpl implements TradeEngine {
             return;
         }
 
+        var now = DateUtil.getCurrentDateTime();
+        ChartInkBacktestMarginDto matched = null;
+        for (int i = event.signals().size() - 1; i >= 0; i--) {
+            var signal = event.signals().get(i);
+            if (now.isAfter(signal.getMarketTime().plusMinutes(15)) && now.isBefore(signal.getMarketTime().plusMinutes(23))) {
+                matched = signal;
+                break;
+            }
+        }
+
+        if (matched == null || CollectionUtils.isEmpty(matched.getMargins())) {
+            log.info("No signal found for strategy {} at {}", event.strategyName(), now);
+            return;
+        }
+
+        final ChartInkBacktestMarginDto finalSignal = matched;
         for (var order : list) {
-            HelperUtil.EXECUTOR.execute(() -> processSignalForOrder(order, event.signals()));
+            HelperUtil.EXECUTOR.execute(() -> processSignalForOrder(order, finalSignal));
         }
     }
 
-    private void processSignalForOrder(StrategyOrder order, List<ChartInkBacktestMarginDto> signals) {
+    private void processSignalForOrder(StrategyOrder order, ChartInkBacktestMarginDto signal) {
         Boolean active = activeOrders.get(order.getId());
         if (active != null && active)
             return;
 
-        var targetStock = findTargetStock(signals, order.getAmount(), order.getBroker());
+        var targetStock = findTargetStock(signal, order.getAmount(), order.getBroker());
         if (targetStock == null)
             return;
 
@@ -129,16 +145,7 @@ public class TradeEngineImpl implements TradeEngine {
         }
     }
 
-    private TargetStockResult findTargetStock(List<ChartInkBacktestMarginDto> signals, BigDecimal orderAmount, BrokerType brokerType) {
-        var now = DateUtil.getCurrentDateTime();
-        var latest = signals.getLast();
-        if (now.isAfter(latest.getMarketTime().plusMinutes(15)) && now.isBefore(latest.getMarketTime().plusMinutes(23)) && !CollectionUtils.isEmpty(latest.getMargins())) {
-            return processSignal(latest, orderAmount, brokerType);
-        }
-        return null;
-    }
-
-    private TargetStockResult processSignal(ChartInkBacktestMarginDto signal, BigDecimal orderAmount, BrokerType brokerType) {
+    private TargetStockResult findTargetStock(ChartInkBacktestMarginDto signal, BigDecimal orderAmount, BrokerType brokerType) {
         try {
             List<Margin> targetList;
             if (brokerType.equals(BrokerType.ZERODHA) || signal.getMargins().size() <= 1) {
