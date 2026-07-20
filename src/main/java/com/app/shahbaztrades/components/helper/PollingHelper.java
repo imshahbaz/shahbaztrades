@@ -5,15 +5,14 @@ import com.app.shahbaztrades.model.dto.chartink.ChartInkSignalEvent;
 import com.app.shahbaztrades.service.ChartInkService;
 import com.app.shahbaztrades.service.impl.StrategyRegistry;
 import com.app.shahbaztrades.util.DateUtil;
-import com.app.shahbaztrades.util.HelperUtil;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import java.time.Duration;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,22 +22,24 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class PollingHelper {
 
-    private static final DateTimeFormatter HOUR_MIN_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
-    private static final Set<String> FIFTEEN_MIN_DELAYED_TARGETS = Set.of(
-            "09:35", "09:50", "10:05", "10:20", "10:35", "10:50",
-            "11:05", "11:20", "11:35", "11:50", "12:05", "12:20",
-            "12:35", "12:50", "13:05", "13:20", "13:35", "13:50",
-            "14:05", "14:20", "14:35", "14:50", "15:05"
+    private static final Set<LocalTime> FIFTEEN_MIN_DELAYED_TARGETS = Set.of(
+            LocalTime.of(9, 35), LocalTime.of(9, 50), LocalTime.of(10, 5), LocalTime.of(10, 20),
+            LocalTime.of(10, 35), LocalTime.of(10, 50), LocalTime.of(11, 5), LocalTime.of(11, 20),
+            LocalTime.of(11, 35), LocalTime.of(11, 50), LocalTime.of(12, 5), LocalTime.of(12, 20),
+            LocalTime.of(12, 35), LocalTime.of(12, 50), LocalTime.of(13, 5), LocalTime.of(13, 20),
+            LocalTime.of(13, 35), LocalTime.of(13, 50), LocalTime.of(14, 5), LocalTime.of(14, 20),
+            LocalTime.of(14, 35), LocalTime.of(14, 50), LocalTime.of(15, 5)
     );
 
-    private static final Set<String> FIFTEEN_MIN_TARGETS = Set.of(
-            "09:15", "09:30", "09:45", "10:00", "10:15", "10:30",
-            "10:45", "11:00", "11:15", "11:30", "11:45", "12:00",
-            "12:15", "12:30", "12:45", "13:00", "13:15", "13:30",
-            "13:45", "14:00", "14:15", "14:30", "14:45", "15:00"
+    private static final Set<LocalTime> FIFTEEN_MIN_TARGETS = Set.of(
+            LocalTime.of(9, 15), LocalTime.of(9, 30), LocalTime.of(9, 45), LocalTime.of(10, 0),
+            LocalTime.of(10, 15), LocalTime.of(10, 30), LocalTime.of(10, 45), LocalTime.of(11, 0),
+            LocalTime.of(11, 15), LocalTime.of(11, 30), LocalTime.of(11, 45), LocalTime.of(12, 0),
+            LocalTime.of(12, 15), LocalTime.of(12, 30), LocalTime.of(12, 45), LocalTime.of(13, 0),
+            LocalTime.of(13, 15), LocalTime.of(13, 30), LocalTime.of(13, 45), LocalTime.of(14, 0),
+            LocalTime.of(14, 15), LocalTime.of(14, 30), LocalTime.of(14, 45), LocalTime.of(15, 0)
     );
 
     private final Map<String, ScheduledFuture<?>> runningPollers = new ConcurrentHashMap<>();
@@ -46,17 +47,33 @@ public class PollingHelper {
     private final ApplicationEventPublisher eventPublisher;
     private final StrategyRegistry strategyRegistry;
     private final MarketDataContainer marketDataContainer;
+    private final ThreadPoolTaskScheduler taskScheduler;
+
+    public PollingHelper(ChartInkService chartInkService, ApplicationEventPublisher eventPublisher,
+                         StrategyRegistry strategyRegistry, MarketDataContainer marketDataContainer) {
+        this.chartInkService = chartInkService;
+        this.eventPublisher = eventPublisher;
+        this.strategyRegistry = strategyRegistry;
+        this.marketDataContainer = marketDataContainer;
+        this.taskScheduler = dynamicTaskScheduler();
+    }
 
     public void runPollerTask(String name, boolean isDelayed) {
         runningPollers.computeIfAbsent(name, strategyName -> {
             log.info("Manual Watchdog Poller started for strategy {}", strategyName);
-            return HelperUtil.SCHEDULER.scheduleAtFixedRate(() -> HelperUtil.EXECUTOR.execute(() -> {
-                if (isDelayed) {
-                    chartInkPoller(name);
-                } else {
-                    manualPoller(name);
+            Runnable task = () -> {
+                try {
+                    if (isDelayed) {
+                        chartInkPoller(name);
+                    } else {
+                        manualPoller(name);
+                    }
+                } catch (Exception e) {
+                    log.error("Execution failed for poller {} isDelayed {}", strategyName, isDelayed, e);
                 }
-            }), 1, 1, TimeUnit.MINUTES);
+            };
+
+            return taskScheduler.scheduleAtFixedRate(task, Duration.ofMinutes(1));
         });
     }
 
@@ -70,9 +87,9 @@ public class PollingHelper {
             return;
         }
 
-        String currentTime = LocalTime.now(DateUtil.IST_ZONE).format(HOUR_MIN_FORMATTER);
-        if (FIFTEEN_MIN_DELAYED_TARGETS.contains(currentTime)) {
-            log.info("Target match at time {} ! Fetching signals...", currentTime);
+        LocalTime now = LocalTime.now(DateUtil.IST_ZONE).withSecond(0).withNano(0);
+        if (FIFTEEN_MIN_DELAYED_TARGETS.contains(now)) {
+            log.info("Target match at time {} ! Fetching signals...", now);
 
             try {
                 var signals = chartInkService.fetchTodayBacktestDataWithMargin(name);
@@ -98,10 +115,9 @@ public class PollingHelper {
             return;
         }
 
-        var now = DateUtil.getCurrentDateTime();
-        String currentTime = now.format(HOUR_MIN_FORMATTER);
-        if (FIFTEEN_MIN_TARGETS.contains(currentTime)) {
-            log.info("Target match at time {} ! Fetching manual signals...", currentTime);
+        LocalTime now = LocalTime.now(DateUtil.IST_ZONE).withSecond(0).withNano(0);
+        if (FIFTEEN_MIN_TARGETS.contains(now)) {
+            log.info("Target match at time {} ! Fetching manual signals...", now);
 
             try {
                 var tokens = strategyRegistry.getTokensForStrategy(name);
@@ -119,7 +135,7 @@ public class PollingHelper {
 
                 log.info("Complete manual signals list: {}", signals);
                 eventPublisher.publishEvent(new ChartInkSignalEvent(name, List.of(ChartInkBacktestMarginDto.builder()
-                        .marketTime(now.minusMinutes(15))
+                        .marketTime(DateUtil.getCurrentDateTime().minusMinutes(15))
                         .margins(signals)
                         .build())));
             } catch (InterruptedException e) {
@@ -129,6 +145,14 @@ public class PollingHelper {
                 log.error("Manual fetch failed", e);
             }
         }
+    }
+
+    private ThreadPoolTaskScheduler dynamicTaskScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(5);
+        scheduler.setThreadNamePrefix("WatchdogPoller-");
+        scheduler.initialize();
+        return scheduler;
     }
 
 }
