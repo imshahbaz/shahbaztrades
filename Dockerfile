@@ -1,60 +1,47 @@
-# -------- BUILD STAGE --------
-FROM --platform=linux/amd64 ibm-semeru-runtimes:open-25-jdk-jammy AS builder
+# =====================================================
+# Build Stage
+# =====================================================
+FROM eclipse-temurin:25-jdk-jammy AS builder
 
 WORKDIR /app
 
-# Copy configuration files first
 COPY pom.xml .
 COPY mvnw .
 COPY .mvn ./.mvn
+
 RUN chmod +x mvnw
 
-# Copy source code files
 COPY src ./src
 
-# Build app using a persistent Maven local repository cache mount.
-# This ensures GitHub Actions reuses downloaded jars across builds.
 RUN --mount=type=cache,target=/root/.m2 \
-    ./mvnw package -DskipTests -B
+    ./mvnw clean package -DskipTests -B
 
 
-# -------- RUNTIME STAGE --------
-FROM --platform=linux/amd64 ibm-semeru-runtimes:open-25-jre-jammy
+# =====================================================
+# Runtime Stage
+# =====================================================
+FROM eclipse-temurin:25-jre-jammy
 
 WORKDIR /app
 
-# Create non-root user for security
-RUN useradd -m nonroot && \
-    mkdir -p /app/scc && \
-    chown -R nonroot:nonroot /app
+RUN useradd --create-home --shell /bin/bash nonroot
 
 USER nonroot
 
-# Copy the built jar from the builder stage
-COPY --chown=nonroot:nonroot --from=builder /app/target/*.jar app.jar
+COPY --from=builder --chown=nonroot:nonroot /app/target/*.jar app.jar
 
 EXPOSE 8080
 
-# Optimized OpenJ9 settings specifically engineered for a 1GB VPS resource pool
 ENV JAVA_OPTS="\
--Xshareclasses:name=appcache,cacheDir=/app/scc \
--Xscmx64M \
--Xgcpolicy:gencon \
--Xtune:virtualized \
--Xquickstart \
--Xms128M \
--Xmx384M \
--Xss256K \
--XX:+IdleTuningGcOnIdle \
--XX:+IdleTuningCompactOnIdle \
--Xcpuweighted"
+-XX:+UseG1GC \
+-XX:+UseStringDeduplication \
+-XX:+AlwaysPreTouch \
+-XX:MaxRAMPercentage=60 \
+-XX:InitialRAMPercentage=10 \
+-XX:+HeapDumpOnOutOfMemoryError \
+-XX:HeapDumpPath=/tmp \
+-Djava.security.egd=file:/dev/urandom \
+-Dfile.encoding=UTF-8 \
+-Djava.awt.headless=true"
 
-# Warm up the shared class cache to speed up subsequent container cold-starts
-RUN /bin/bash -c '\
-java $JAVA_OPTS -jar app.jar & \
-PID=$!; \
-sleep 15; \
-kill $PID 2>/dev/null || true'
-
-# Run the application
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

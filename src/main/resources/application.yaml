@@ -8,7 +8,7 @@ spring:
       accept-empty-string-as-null-object: true
 
   main:
-    lazy-initialization: true
+    lazy-initialization: false
 
   threads:
     virtual:
@@ -27,6 +27,11 @@ spring:
   # Bound every broker/HTTP Feign call so a slow upstream can't hang a (virtual) thread forever.
   cloud:
     openfeign:
+      compression:
+        request:
+          enabled: true
+        response:
+          enabled: true
       client:
         config:
           default:
