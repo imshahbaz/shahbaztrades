@@ -121,10 +121,13 @@ public class MarketDataContainer {
         loadStrategyTokens("MACD15MINLOCAL", "MACD15MIN", ctx, processedTokens, failedTokens);
 
         for (var token : failedTokens) {
-            loadHistoricalBars(token, ctx);
+            if (loadHistoricalBars(token, ctx)) {
+                processedTokens.add(token);
+                failedTokens.remove(token);
+            }
         }
 
-        log.info("Container Warm Up Completed");
+        log.info("Container Warm Up Completed with success {} failed {}", processedTokens.size(), failedTokens.size());
     }
 
     private void loadStrategyTokens(String chartInkKey, String strategyName, WarmupContext ctx,
