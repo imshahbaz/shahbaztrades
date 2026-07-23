@@ -3,7 +3,7 @@ name: Build and Deploy 1Klik App
 on:
   push:
     branches:
-      - web-eye-soft
+      - oracle-vm
 
 jobs:
   build-and-push:
