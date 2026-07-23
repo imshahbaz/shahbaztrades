@@ -206,13 +206,9 @@ public class AnalysisServiceImpl implements AnalysisService {
         }
 
         try {
-            Thread.sleep(Duration.ofSeconds(1).toMillis());
             Map<LocalDate, SmartApiLtpResponse.CandleDetail> stockHistory =
                     angelOneService.getHistoricalData(token, symbol);
             historicalData.put(symbol, stockHistory != null ? stockHistory : Collections.emptyMap());
-        } catch (InterruptedException _) {
-            Thread.currentThread().interrupt();
-            log.warn("Sleep interrupted");
         } catch (Exception e) {
             log.error("Failed fetching data for {}: {}", symbol, e.getMessage());
             historicalData.put(symbol, Collections.emptyMap());
