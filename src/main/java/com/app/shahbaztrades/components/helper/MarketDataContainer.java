@@ -127,7 +127,7 @@ public class MarketDataContainer {
             }
         }
 
-        log.info("Container Warm Up Completed Successfully with success {} failed {}", processedTokens.size(), failedTokens.size());
+        log.info("Container Warm Up Completed with success {} failed {}", processedTokens.size(), failedTokens.size());
     }
 
     private void loadStrategyTokens(String chartInkKey, String strategyName, WarmupContext ctx,
