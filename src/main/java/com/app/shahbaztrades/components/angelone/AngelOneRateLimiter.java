@@ -11,7 +11,7 @@ public class AngelOneRateLimiter {
 
     private static final RateLimiterConfig HISTORICAL_DATA_CONFIG = RateLimiterConfig.custom()
             .limitForPeriod(1)
-            .limitRefreshPeriod(Duration.ofSeconds(1))
+            .limitRefreshPeriod(Duration.ofMillis(1500))
             .timeoutDuration(Duration.ofMinutes(10))
             .build();
 
