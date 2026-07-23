@@ -1,6 +1,7 @@
 package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.angelone.AngelOneClient;
+import com.app.shahbaztrades.components.angelone.AngelOneRateLimiter;
 import com.app.shahbaztrades.components.angelone.SmartApiFeignClient;
 import com.app.shahbaztrades.components.helper.MarketDataContainer;
 import com.app.shahbaztrades.exceptions.BadRequestException;
@@ -62,6 +63,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     private final AngelOneClient angelOneClient;
     private final MongoConfigService mongoConfigService;
     private final SmartApiFeignClient smartApiFeignClient;
+    private final AngelOneRateLimiter angelOneRateLimiter;
     private final MarketDataContainer marketDataContainer;
     private volatile WebSocketSession session;
     private volatile ScheduledFuture<?> heartbeatTask;
@@ -321,6 +323,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
                 .toDate(toDateStr)
                 .build();
 
+        angelOneRateLimiter.acquireHistoricalData();
         var response = smartApiFeignClient.getHistoricalData(BEARER_PREFIX + jwt, mongoConfigService.getConfig().getAngelOneConfig().getApiKey(), request);
 
         if (response != null) {

@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.components.helper;
 
+import com.app.shahbaztrades.components.angelone.AngelOneRateLimiter;
 import com.app.shahbaztrades.components.angelone.SmartApiFeignClient;
 import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
 import com.app.shahbaztrades.model.dto.angelone.websocket.LiveTick;
@@ -47,6 +48,7 @@ public class MarketDataContainer {
     private final Set<String> activeWorkers = ConcurrentHashMap.newKeySet();
     private final StrategyRegistry strategyRegistry;
     private final SmartApiFeignClient smartApiFeignClient;
+    private final AngelOneRateLimiter angelOneRateLimiter;
     private final ChartInkService chartInkService;
     private final MarginService marginService;
     private final MongoConfigService mongoConfigService;
@@ -120,7 +122,6 @@ public class MarketDataContainer {
 
         for (var token : failedTokens) {
             loadHistoricalBars(token, ctx);
-            sleepOneSecond();
         }
 
         log.info("Container Warm Up Completed");
@@ -140,7 +141,6 @@ public class MarketDataContainer {
             }
 
             if (!processedTokens.contains(margin.getToken())) {
-                sleepOneSecond();
                 if (loadHistoricalBars(margin.getToken(), ctx)) {
                     processedTokens.add(margin.getToken());
                     failedTokens.remove(margin.getToken());
@@ -154,6 +154,8 @@ public class MarketDataContainer {
     }
 
     private boolean loadHistoricalBars(String token, WarmupContext ctx) {
+        angelOneRateLimiter.acquireHistoricalData();
+
         var request = HistoricalDataRequest.builder()
                 .exchange("NSE")
                 .symbolToken(token)
@@ -184,15 +186,6 @@ public class MarketDataContainer {
         } catch (Exception e) {
             log.error(e.getMessage());
             return false;
-        }
-    }
-
-    private void sleepOneSecond() {
-        try {
-            Thread.sleep(Duration.ofSeconds(1));
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.warn(e.getMessage(), e);
         }
     }
 
