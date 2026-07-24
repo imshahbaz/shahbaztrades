@@ -13,6 +13,7 @@ import com.app.shahbaztrades.model.dto.order.OrderDto;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.ExchangeType;
+import com.app.shahbaztrades.model.enums.OrderStatus;
 import com.app.shahbaztrades.model.enums.YahooTimeRange;
 import com.app.shahbaztrades.repo.OrderRepo;
 import com.app.shahbaztrades.service.AngelOneService;
@@ -93,6 +94,19 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return StopLossAction.NONE;
+    }
+
+    static OrderStatus mapEntryStatus(String brokerStatus) {
+        if (StringUtils.isBlank(brokerStatus)) {
+            return OrderStatus.PLACED;
+        }
+
+        return switch (brokerStatus.toUpperCase()) {
+            case Constants.ORDER_COMPLETE, "EXECUTED" -> OrderStatus.BOUGHT;
+            case Constants.ORDER_REJECTED -> OrderStatus.REJECTED;
+            case Constants.ORDER_CANCELLED -> OrderStatus.FAILED;
+            default -> OrderStatus.PLACED;
+        };
     }
 
     @Override
@@ -180,7 +194,7 @@ public class OrderServiceImpl implements OrderService {
     @Async("taskExecutor")
     public void initiateMtfOrders() {
         processTodayOrders(INITIATE_MTF, (order) -> {
-            if (order.getEntry() != null && StringUtils.isNotBlank(order.getEntry().getBrokerOrderId())) {
+            if (order.getOrderStatus() != OrderStatus.PENDING || (order.getEntry() != null && StringUtils.isNotBlank(order.getEntry().getBrokerOrderId()))) {
                 log.warn("MTF order exists for user {} symbol {}", order.getUserId(), order.getSymbol());
                 return null;
             }
@@ -191,11 +205,13 @@ public class OrderServiceImpl implements OrderService {
                         .transactionType(Constants.TRANSACTION_TYPE_BUY).orderType(Constants.ORDER_TYPE_MARKET).build();
                 var res = orderRouter.placeMTFOrder(order.getUserId(), req);
                 order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.getOrderId()).build());
+                order.setOrderStatus(OrderStatus.PLACED);
                 log.info("MTF order placed for user {} symbol {} at init", order.getUserId(), order.getSymbol());
                 eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_PLACED,
                         String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_PLACED, order.getQuantity(), order.getSymbol()),
                         Collections.emptyMap()));
             } catch (Exception e) {
+                order.setOrderStatus(OrderStatus.FAILED);
                 log.error("Failed to place MTF order for user {} symbol {} error {} at init", order.getUserId(), order.getSymbol(), e.getMessage());
             }
             return null;
@@ -205,7 +221,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public void updateMtfOrderStatus() {
         processTodayOrders("Update MTF Status", ((order) -> {
-            if (order.getEntry() == null || StringUtils.isEmpty(order.getEntry().getBrokerOrderId())) {
+            if (order.getOrderStatus() != OrderStatus.PLACED || !order.hasEntryOrder()) {
                 log.info("Mtf order not found for userId {} symbol {} skipping status update", order.getUserId(), order.getSymbol());
                 throw new NotFoundException("Mtf order not found");
             }
@@ -215,10 +231,14 @@ public class OrderServiceImpl implements OrderService {
                 var orderDetails = orderRouter.getOrderDetails(order.getUserId(), order.getEntry().getBrokerOrderId());
                 order.getEntry().setOrderStatus(orderDetails.getStatus());
                 order.getEntry().setAveragePrice(orderDetails.getAveragePrice());
-                log.info("MTF status updated for user {} symbol {} at update", order.getUserId(), order.getSymbol());
-                eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_BUY,
-                        String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_BUY, order.getQuantity(), order.getSymbol(), orderDetails.getAveragePrice().doubleValue()),
-                        Collections.emptyMap()));
+                order.setOrderStatus(mapEntryStatus(orderDetails.getStatus()));
+                log.info("MTF status updated for user {} symbol {} status {} at update", order.getUserId(), order.getSymbol(), order.getOrderStatus());
+
+                if (order.getOrderStatus() == OrderStatus.BOUGHT && orderDetails.getAveragePrice() != null) {
+                    eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_BUY,
+                            String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_BUY, order.getQuantity(), order.getSymbol(), orderDetails.getAveragePrice().doubleValue()),
+                            Collections.emptyMap()));
+                }
             } catch (Exception e) {
                 log.error("Failed to update MTF status for user {} symbol {} error {} at update", order.getUserId(), order.getSymbol(), e.getMessage());
                 throw new BadRequestException("Invalid MTF order or kite exception " + e.getMessage());
@@ -237,8 +257,11 @@ public class OrderServiceImpl implements OrderService {
         }
 
         orders.forEach(order -> {
-            if (order.getEntry() == null || order.getEntry().getAveragePrice() == null || order.getEntry().getAveragePrice().signum() <= 0)
+            if (!order.hasEntryPrice()) {
+                log.info("Watchdog skipped order {} doesn't have entry price for user {} symbol {}", order.getId(), order.getUserId(), order.getSymbol());
                 return;
+            }
+
             try {
                 angelOneService.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
             } catch (Exception _) {
@@ -325,12 +348,14 @@ public class OrderServiceImpl implements OrderService {
         Update update = new Update()
                 .set(Order.Fields.entry, order.getEntry())
                 .set(Order.Fields.exit, order.getExit())
-                .set(Order.Fields.atr, order.getAtr());
+                .set(Order.Fields.atr, order.getAtr())
+                .set(Order.Fields.orderStatus, order.getOrderStatus());
         mongoTemplate.updateFirst(query, update, Order.class);
     }
 
     private short processOrder(Order order, double ltp, double peakPrice) {
-        if (order.getEntry() == null || order.getEntry().getAveragePrice() == null || order.getEntry().getAveragePrice().signum() == 0) {
+        if (!order.hasEntryPrice()) {
+            log.info("Skipped processing order {} doesn't have entry price for user {} symbol {}", order.getId(), order.getUserId(), order.getSymbol());
             return -1;
         }
 
@@ -339,9 +364,7 @@ public class OrderServiceImpl implements OrderService {
 
     private short addStopLoss(Order order, double ltp, double buyPrice, double peakPrice) {
         boolean marketClosing = DateUtil.isPastClosingGrace();
-
-        Order.ExecutionRecord exitRecord = order.getExit();
-        boolean hasNoExitOrder = (exitRecord == null || StringUtils.isEmpty(exitRecord.getBrokerOrderId()));
+        boolean hasNoExitOrder = !order.hasExitOrder();
 
         Double atrValue = order.getAtr() != null ? order.getAtr().getAtrValue() : null;
 
@@ -373,6 +396,8 @@ public class OrderServiceImpl implements OrderService {
                     .transactionType(Constants.TRANSACTION_TYPE_SELL).orderType(Constants.ORDER_TYPE_MARKET).build();
             orderRouter.placeMTFOrder(order.getUserId(), req);
             log.info("Successfully placed MTF sell order for user {} symbol {}", order.getUserId(), order.getSymbol());
+            order.setOrderStatus(OrderStatus.COMPLETED);
+            eventPublisher.publishEvent(order);
             eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_PLACED,
                     String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_SELL_MARKET, order.getQuantity(), order.getSymbol()),
                     Collections.emptyMap()));
@@ -407,6 +432,8 @@ public class OrderServiceImpl implements OrderService {
 
                 orderRouter.convertSLToMarket(order.getUserId(), req);
                 log.info("MTF SL order converted to market for user {} symbol {}", order.getUserId(), order.getSymbol());
+                order.setOrderStatus(OrderStatus.COMPLETED);
+                eventPublisher.publishEvent(order);
                 eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_PLACED,
                         String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_SELL_MARKET, pendingQty, order.getSymbol()),
                         Collections.emptyMap()));
@@ -426,6 +453,7 @@ public class OrderServiceImpl implements OrderService {
                     .price(sl).triggerPrice(sl).build();
             var res = orderRouter.placeMTFStopLossOrder(order.getUserId(), req);
             order.setExit(Order.ExecutionRecord.builder().brokerOrderId(res.getOrderId()).averagePrice(BigDecimal.valueOf(sl)).build());
+            order.setOrderStatus(OrderStatus.STOP_LOSS_ACTIVE);
             eventPublisher.publishEvent(order);
             eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_PLACED,
                     String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_SELL_SL, order.getQuantity(), order.getSymbol(), sl),

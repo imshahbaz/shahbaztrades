@@ -3,10 +3,12 @@ package com.app.shahbaztrades.model.entity;
 import com.app.shahbaztrades.model.dto.analysis.TechnicalMetrics;
 import com.app.shahbaztrades.model.dto.order.OrderDto;
 import com.app.shahbaztrades.model.enums.BrokerType;
+import com.app.shahbaztrades.model.enums.OrderStatus;
 import com.app.shahbaztrades.util.DateUtil;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.FieldNameConstants;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
@@ -42,6 +44,8 @@ public class Order {
 
     BrokerType broker;
 
+    OrderStatus orderStatus = OrderStatus.PENDING;
+
     TechnicalMetrics atr;
 
     public OrderDto toDto() {
@@ -52,6 +56,7 @@ public class Order {
                 .quantity(this.quantity)
                 .date(DateTimeFormatter.ISO_LOCAL_DATE.withZone(DateUtil.IST_ZONE).format(this.date))
                 .broker(this.broker)
+                .orderStatus(this.orderStatus)
                 .build();
     }
 
@@ -65,4 +70,17 @@ public class Order {
         String orderStatus;
         BigDecimal averagePrice;
     }
+
+    public boolean hasEntryOrder() {
+        return this.entry != null && StringUtils.isNotEmpty(this.entry.getBrokerOrderId());
+    }
+
+    public boolean hasExitOrder() {
+        return this.exit != null && StringUtils.isNotEmpty(this.exit.getBrokerOrderId());
+    }
+
+    public boolean hasEntryPrice() {
+        return this.entry != null && this.entry.averagePrice != null && this.entry.getAveragePrice().signum() > 0;
+    }
+
 }
