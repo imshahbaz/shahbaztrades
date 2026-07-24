@@ -8,6 +8,7 @@ import com.app.shahbaztrades.util.DateUtil;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.FieldNameConstants;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
@@ -69,4 +70,17 @@ public class Order {
         String orderStatus;
         BigDecimal averagePrice;
     }
+
+    public boolean hasEntryOrder() {
+        return this.entry != null && StringUtils.isNotEmpty(this.entry.getBrokerOrderId());
+    }
+
+    public boolean hasExitOrder() {
+        return this.exit != null && StringUtils.isNotEmpty(this.exit.getBrokerOrderId());
+    }
+
+    public boolean hasEntryPrice() {
+        return this.entry != null && this.entry.averagePrice != null && this.entry.getAveragePrice().signum() > 0;
+    }
+
 }

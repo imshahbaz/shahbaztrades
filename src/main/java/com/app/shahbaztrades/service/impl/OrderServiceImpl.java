@@ -194,7 +194,7 @@ public class OrderServiceImpl implements OrderService {
     @Async("taskExecutor")
     public void initiateMtfOrders() {
         processTodayOrders(INITIATE_MTF, (order) -> {
-            if (order.getEntry() != null && StringUtils.isNotBlank(order.getEntry().getBrokerOrderId())) {
+            if (order.getOrderStatus() != OrderStatus.PENDING || (order.getEntry() != null && StringUtils.isNotBlank(order.getEntry().getBrokerOrderId()))) {
                 log.warn("MTF order exists for user {} symbol {}", order.getUserId(), order.getSymbol());
                 return null;
             }
@@ -221,7 +221,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public void updateMtfOrderStatus() {
         processTodayOrders("Update MTF Status", ((order) -> {
-            if (order.getEntry() == null || StringUtils.isEmpty(order.getEntry().getBrokerOrderId())) {
+            if (order.getOrderStatus() != OrderStatus.PLACED || !order.hasEntryOrder()) {
                 log.info("Mtf order not found for userId {} symbol {} skipping status update", order.getUserId(), order.getSymbol());
                 throw new NotFoundException("Mtf order not found");
             }
@@ -257,8 +257,11 @@ public class OrderServiceImpl implements OrderService {
         }
 
         orders.forEach(order -> {
-            if (order.getEntry() == null || order.getEntry().getAveragePrice() == null || order.getEntry().getAveragePrice().signum() <= 0)
+            if (!order.hasEntryPrice()) {
+                log.info("Watchdog skipped order {} doesn't have entry price for user {} symbol {}", order.getId(), order.getUserId(), order.getSymbol());
                 return;
+            }
+
             try {
                 angelOneService.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
             } catch (Exception _) {
@@ -351,7 +354,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private short processOrder(Order order, double ltp, double peakPrice) {
-        if (order.getEntry() == null || order.getEntry().getAveragePrice() == null || order.getEntry().getAveragePrice().signum() == 0) {
+        if (!order.hasEntryPrice()) {
+            log.info("Skipped processing order {} doesn't have entry price for user {} symbol {}", order.getId(), order.getUserId(), order.getSymbol());
             return -1;
         }
 
@@ -360,9 +364,7 @@ public class OrderServiceImpl implements OrderService {
 
     private short addStopLoss(Order order, double ltp, double buyPrice, double peakPrice) {
         boolean marketClosing = DateUtil.isPastClosingGrace();
-
-        Order.ExecutionRecord exitRecord = order.getExit();
-        boolean hasNoExitOrder = (exitRecord == null || StringUtils.isEmpty(exitRecord.getBrokerOrderId()));
+        boolean hasNoExitOrder = !order.hasExitOrder();
 
         Double atrValue = order.getAtr() != null ? order.getAtr().getAtrValue() : null;
 
