@@ -55,6 +55,7 @@ public class Order {
                 .quantity(this.quantity)
                 .date(DateTimeFormatter.ISO_LOCAL_DATE.withZone(DateUtil.IST_ZONE).format(this.date))
                 .broker(this.broker)
+                .orderStatus(this.orderStatus)
                 .build();
     }
 
