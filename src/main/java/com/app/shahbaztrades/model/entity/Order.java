@@ -44,6 +44,7 @@ public class Order {
 
     BrokerType broker;
 
+    @Builder.Default
     OrderStatus orderStatus = OrderStatus.PENDING;
 
     TechnicalMetrics atr;
