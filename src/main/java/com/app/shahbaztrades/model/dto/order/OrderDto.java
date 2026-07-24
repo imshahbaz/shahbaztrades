@@ -4,6 +4,8 @@ import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.BrokerType;
+import com.app.shahbaztrades.model.enums.OrderStatus;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.validator.OrderValidator;
 import jakarta.validation.constraints.Min;
@@ -39,6 +41,18 @@ public class OrderDto {
 
     @NotNull
     BrokerType broker;
+
+    OrderStatus orderStatus;
+
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    public String getStatusLabel() {
+        return this.orderStatus == null ? null : this.orderStatus.getLabel();
+    }
+
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    public String getStatusColor() {
+        return this.orderStatus == null ? null : this.orderStatus.getColor();
+    }
 
     public Order toEntity(Margin margin) {
         LocalDate parsedDate;
