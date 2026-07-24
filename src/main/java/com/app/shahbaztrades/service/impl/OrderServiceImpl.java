@@ -13,6 +13,7 @@ import com.app.shahbaztrades.model.dto.order.OrderDto;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.ExchangeType;
+import com.app.shahbaztrades.model.enums.OrderStatus;
 import com.app.shahbaztrades.model.enums.YahooTimeRange;
 import com.app.shahbaztrades.repo.OrderRepo;
 import com.app.shahbaztrades.service.AngelOneService;
@@ -191,6 +192,7 @@ public class OrderServiceImpl implements OrderService {
                         .transactionType(Constants.TRANSACTION_TYPE_BUY).orderType(Constants.ORDER_TYPE_MARKET).build();
                 var res = orderRouter.placeMTFOrder(order.getUserId(), req);
                 order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.getOrderId()).build());
+                order.setOrderStatus(OrderStatus.PLACED);
                 log.info("MTF order placed for user {} symbol {} at init", order.getUserId(), order.getSymbol());
                 eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_PLACED,
                         String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_PLACED, order.getQuantity(), order.getSymbol()),
@@ -215,6 +217,7 @@ public class OrderServiceImpl implements OrderService {
                 var orderDetails = orderRouter.getOrderDetails(order.getUserId(), order.getEntry().getBrokerOrderId());
                 order.getEntry().setOrderStatus(orderDetails.getStatus());
                 order.getEntry().setAveragePrice(orderDetails.getAveragePrice());
+                order.setOrderStatus(OrderStatus.PARTIALLY_EXECUTED);
                 log.info("MTF status updated for user {} symbol {} at update", order.getUserId(), order.getSymbol());
                 eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_BUY,
                         String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_BUY, order.getQuantity(), order.getSymbol(), orderDetails.getAveragePrice().doubleValue()),
@@ -373,6 +376,8 @@ public class OrderServiceImpl implements OrderService {
                     .transactionType(Constants.TRANSACTION_TYPE_SELL).orderType(Constants.ORDER_TYPE_MARKET).build();
             orderRouter.placeMTFOrder(order.getUserId(), req);
             log.info("Successfully placed MTF sell order for user {} symbol {}", order.getUserId(), order.getSymbol());
+            order.setOrderStatus(OrderStatus.COMPLETED);
+            eventPublisher.publishEvent(order);
             eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_PLACED,
                     String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_SELL_MARKET, order.getQuantity(), order.getSymbol()),
                     Collections.emptyMap()));
@@ -407,6 +412,8 @@ public class OrderServiceImpl implements OrderService {
 
                 orderRouter.convertSLToMarket(order.getUserId(), req);
                 log.info("MTF SL order converted to market for user {} symbol {}", order.getUserId(), order.getSymbol());
+                order.setOrderStatus(OrderStatus.COMPLETED);
+                eventPublisher.publishEvent(order);
                 eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_PLACED,
                         String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_SELL_MARKET, pendingQty, order.getSymbol()),
                         Collections.emptyMap()));
