@@ -13,5 +13,4 @@ public interface FcmTokenRepository extends MongoRepository<FcmToken, String> {
 
     void deleteByToken(String token);
 
-    void deleteByTokenAndUserIdNot(String token, long userId);
 }
