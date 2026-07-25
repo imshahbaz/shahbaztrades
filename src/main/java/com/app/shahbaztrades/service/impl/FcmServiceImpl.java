@@ -63,9 +63,9 @@ public class FcmServiceImpl implements FcmService {
 
         Query query = Query.query(Criteria.where("token").is(token));
         Update update = new Update()
-                .set("userId", userId)
-                .set("lastSeenAt", now)
-                .setOnInsert("createdAt", now);
+                .set(FcmToken.Fields.userId, userId)
+                .set(FcmToken.Fields.lastSeenAt, now)
+                .setOnInsert(FcmToken.Fields.createdAt, now);
 
         mongoTemplate.upsert(query, update, FcmToken.class);
     }
@@ -92,7 +92,7 @@ public class FcmServiceImpl implements FcmService {
         List<String> tokenStrings = tokens.stream().map(FcmToken::getToken).toList();
 
         MulticastMessage message = MulticastMessage.builder()
-                .addAllTokens(tokenStrings)
+                .addAllFids(tokenStrings)
                 .putAllData(payload)
                 .setNotification(Notification.builder()
                         .setTitle(title)
