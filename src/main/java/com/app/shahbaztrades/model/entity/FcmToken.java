@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.FieldNameConstants;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
@@ -13,6 +14,7 @@ import java.time.ZonedDateTime;
 
 @Data
 @Builder
+@FieldNameConstants
 @Document(collection = "fcm_tokens")
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class FcmToken {
@@ -28,12 +30,4 @@ public class FcmToken {
     private Instant createdAt = ZonedDateTime.now(DateUtil.IST_ZONE).toInstant();
 
     private Instant lastSeenAt;
-
-    public static FcmToken createEntity(long userId, String token) {
-        return FcmToken.builder()
-                .userId(userId)
-                .token(token)
-                .lastSeenAt(ZonedDateTime.now(DateUtil.IST_ZONE).toInstant())
-                .build();
-    }
 }
