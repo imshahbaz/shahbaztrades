@@ -104,7 +104,7 @@ public class OrderServiceImpl implements OrderService {
         return switch (brokerStatus.toUpperCase()) {
             case Constants.ORDER_COMPLETE, "EXECUTED" -> OrderStatus.BOUGHT;
             case Constants.ORDER_REJECTED -> OrderStatus.REJECTED;
-            case Constants.ORDER_CANCELLED -> OrderStatus.FAILED;
+            case Constants.ORDER_CANCELLED, "CANCELLED AMO" -> OrderStatus.FAILED;
             default -> OrderStatus.PLACED;
         };
     }
