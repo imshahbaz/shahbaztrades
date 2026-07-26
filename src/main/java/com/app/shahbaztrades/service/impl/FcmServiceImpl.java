@@ -92,7 +92,7 @@ public class FcmServiceImpl implements FcmService {
         List<String> tokenStrings = tokens.stream().map(FcmToken::getToken).toList();
 
         MulticastMessage message = MulticastMessage.builder()
-                .addAllFids(tokenStrings)
+                .addAllTokens(tokenStrings)
                 .putAllData(payload)
                 .setNotification(Notification.builder()
                         .setTitle(title)
