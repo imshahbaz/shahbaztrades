@@ -30,18 +30,21 @@ public class Rsi15Strategy extends AbstractTradingStrategy {
         int safeClosedIndex = lastClosedIndex(series);
         if (safeClosedIndex < 14) return false;
 
-        return getEntryRule(series).isSatisfied(safeClosedIndex);
+        return getEntryRule(series, safeClosedIndex);
     }
 
-    private Rule getEntryRule(BarSeries series) {
+    private boolean getEntryRule(BarSeries series, int safeClosedIndex) {
         ClosePriceIndicator close = new ClosePriceIndicator(series);
         OpenPriceIndicator open = new OpenPriceIndicator(series);
-        RSIIndicator rsi = new RSIIndicator(close, 14);
 
-        Rule isOversold = new UnderIndicatorRule(rsi, 35.0);
         Rule isGreenCandle = new OverIndicatorRule(close, open);
+        if (!isGreenCandle.isSatisfied(safeClosedIndex)) {
+            return false;
+        }
 
-        return isOversold.and(isGreenCandle);
+        RSIIndicator rsi = new RSIIndicator(close, 14);
+        Rule isOversold = new UnderIndicatorRule(rsi, 35.0);
+        return isOversold.isSatisfied(safeClosedIndex);
     }
 
 }

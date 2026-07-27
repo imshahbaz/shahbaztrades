@@ -33,27 +33,37 @@ public class Macd15Strategy extends AbstractTradingStrategy {
         int safeClosedIndex = lastClosedIndex(series);
         if (safeClosedIndex < 20) return false;
 
-        return getEntryRule(series).isSatisfied(safeClosedIndex);
+        return applyEntryRule(series, safeClosedIndex);
     }
 
-    private Rule getEntryRule(BarSeries series) {
+    private boolean applyEntryRule(BarSeries series, int safeClosedIndex) {
         ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
         OpenPriceIndicator openPrice = new OpenPriceIndicator(series);
+
+        Rule isGreenCandle = new OverIndicatorRule(closePrice, openPrice);
+        if (!isGreenCandle.isSatisfied(safeClosedIndex)) {
+            return false;
+        }
+
         MACDIndicator macdLine = new MACDIndicator(closePrice, 5, 13);
         EMAIndicator signalLine = new EMAIndicator(macdLine, 8);
-        Indicator<Num> histogram = BinaryOperationIndicator.difference(macdLine, signalLine);
-        PreviousValueIndicator histMinus1 = new PreviousValueIndicator(histogram, 1);
-        PreviousValueIndicator histMinus2 = new PreviousValueIndicator(histogram, 2);
 
         Rule isMacdUnderSignal = new UnderIndicatorRule(macdLine, signalLine);
-        Rule isHistTurningUp = new OverIndicatorRule(histogram, histMinus1);
-        Rule wasHistFalling = new UnderIndicatorRule(histMinus1, histMinus2);
-        Rule isGreenCandle = new OverIndicatorRule(closePrice, openPrice);
+        if (!isMacdUnderSignal.isSatisfied(safeClosedIndex)) {
+            return false;
+        }
 
-        return isMacdUnderSignal
-                .and(isHistTurningUp)
-                .and(wasHistFalling)
-                .and(isGreenCandle);
+        Indicator<Num> histogram = BinaryOperationIndicator.difference(macdLine, signalLine);
+        PreviousValueIndicator histMinus1 = new PreviousValueIndicator(histogram, 1);
+
+        Rule isHistTurningUp = new OverIndicatorRule(histogram, histMinus1);
+        if (!isHistTurningUp.isSatisfied(safeClosedIndex)) {
+            return false;
+        }
+
+        PreviousValueIndicator histMinus2 = new PreviousValueIndicator(histogram, 2);
+        Rule wasHistFalling = new UnderIndicatorRule(histMinus1, histMinus2);
+        return wasHistFalling.isSatisfied(safeClosedIndex);
     }
 
 }
