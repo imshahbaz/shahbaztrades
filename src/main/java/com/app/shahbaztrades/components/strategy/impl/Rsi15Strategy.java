@@ -4,8 +4,12 @@ import com.app.shahbaztrades.components.strategy.AbstractTradingStrategy;
 import com.app.shahbaztrades.service.MarginService;
 import org.springframework.stereotype.Component;
 import org.ta4j.core.BarSeries;
+import org.ta4j.core.Rule;
 import org.ta4j.core.indicators.RSIIndicator;
 import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
+import org.ta4j.core.indicators.helpers.OpenPriceIndicator;
+import org.ta4j.core.rules.OverIndicatorRule;
+import org.ta4j.core.rules.UnderIndicatorRule;
 
 @Component("RSI15MIN")
 public class Rsi15Strategy extends AbstractTradingStrategy {
@@ -26,15 +30,18 @@ public class Rsi15Strategy extends AbstractTradingStrategy {
         int safeClosedIndex = lastClosedIndex(series);
         if (safeClosedIndex < 14) return false;
 
-        ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
-        RSIIndicator rsi = new RSIIndicator(closePrice, 14);
-
-        double confirmedRsi = rsi.getValue(safeClosedIndex).doubleValue();
-        boolean isOversold = confirmedRsi < 35.0;
-
-        var closedBar = series.getBar(safeClosedIndex);
-        boolean isGreenCandle = closedBar.getClosePrice().isGreaterThan(closedBar.getOpenPrice());
-
-        return isOversold && isGreenCandle;
+        return getEntryRule(series).isSatisfied(safeClosedIndex);
     }
+
+    private Rule getEntryRule(BarSeries series) {
+        ClosePriceIndicator close = new ClosePriceIndicator(series);
+        OpenPriceIndicator open = new OpenPriceIndicator(series);
+        RSIIndicator rsi = new RSIIndicator(close, 14);
+
+        Rule isOversold = new UnderIndicatorRule(rsi, 35.0);
+        Rule isGreenCandle = new OverIndicatorRule(close, open);
+
+        return isOversold.and(isGreenCandle);
+    }
+
 }
