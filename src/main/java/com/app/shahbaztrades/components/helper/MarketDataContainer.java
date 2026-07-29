@@ -197,9 +197,7 @@ public class MarketDataContainer {
         BarSeries series = getSeries(token);
 
         log.info("🚀 Started dedicated Virtual Thread loop for token: {}", token);
-
         ReentrantLock lock = getLock(token);
-        BarState state = new BarState();
 
         while (!DateUtil.isMarketClosedForTrading()) {
             LiveTick tick = pollNextTick(queue);
@@ -209,7 +207,7 @@ public class MarketDataContainer {
                 }
                 continue;
             }
-            processTick(series, lock, state, tick);
+            processTick(series, lock, tick);
         }
 
         activeWorkers.remove(token);
@@ -225,64 +223,33 @@ public class MarketDataContainer {
         }
     }
 
-    private void processTick(BarSeries series, ReentrantLock lock, BarState state, LiveTick tick) {
+    private void processTick(BarSeries series, ReentrantLock lock, LiveTick tick) {
         ZonedDateTime tickTimeIST = tick.arrivalTime();
         if (tickTimeIST.getHour() == 9 && tickTimeIST.getMinute() < 15) {
             return;
         }
 
         double ltp = tick.price();
-        ZonedDateTime expectedEndTime = computeBarEndTime(tickTimeIST);
+        Instant barEndTime = computeBarEndTime(tickTimeIST);
 
-        if (state.endTime != null && !expectedEndTime.equals(state.endTime)) {
-            flushBar(series, lock, state);
-        }
-
-        if (state.endTime == null) {
-            startBar(series, lock, state, expectedEndTime, ltp);
-        } else {
-            state.high = Math.max(state.high, ltp);
-            state.low = Math.min(state.low, ltp);
-        }
-
-        state.close = ltp;
-    }
-
-    private ZonedDateTime computeBarEndTime(ZonedDateTime tickTimeIST) {
-        int startMinute = (tickTimeIST.getMinute() / 15) * 15;
-        return tickTimeIST.truncatedTo(ChronoUnit.HOURS)
-                .withMinute(startMinute)
-                .plusMinutes(15);
-    }
-
-    private void flushBar(BarSeries series, ReentrantLock lock, BarState state) {
         lock.lock();
         try {
-            Bar finalBar = buildBar(series, state.endTime.toInstant(), state.open, state.high, state.low, state.close);
-            series.addBar(finalBar, !series.isEmpty() && series.getLastBar().getEndTime().equals(state.endTime.toInstant()));
-        } finally {
-            lock.unlock();
-        }
-        state.endTime = null;
-    }
-
-    private void startBar(BarSeries series, ReentrantLock lock, BarState state, ZonedDateTime expectedEndTime, double ltp) {
-        state.endTime = expectedEndTime;
-        lock.lock();
-        try {
-            if (!series.isEmpty() && series.getLastBar().getEndTime().equals(expectedEndTime.toInstant())) {
-                Bar existing = series.getLastBar();
-                state.open = existing.getOpenPrice().doubleValue();
-                state.high = Math.max(existing.getHighPrice().doubleValue(), ltp);
-                state.low = Math.min(existing.getLowPrice().doubleValue(), ltp);
+            if (series.isEmpty() || !series.getLastBar().getEndTime().equals(barEndTime)) {
+                series.addBar(buildBar(series, barEndTime, ltp, ltp, ltp, ltp), false);
             } else {
-                state.open = ltp;
-                state.high = ltp;
-                state.low = ltp;
+                series.addPrice(ltp);
             }
         } finally {
             lock.unlock();
         }
+    }
+
+    private Instant computeBarEndTime(ZonedDateTime tickTimeIST) {
+        int startMinute = (tickTimeIST.getMinute() / 15) * 15;
+        return tickTimeIST.truncatedTo(ChronoUnit.HOURS)
+                .withMinute(startMinute)
+                .plusMinutes(15)
+                .toInstant();
     }
 
     private Bar buildBar(BarSeries series, Instant endInstant, double o, double h, double l, double c) {
@@ -302,14 +269,6 @@ public class MarketDataContainer {
     }
 
     private record WarmupContext(String jwt, String apiKey, String fromDate, String toDate) {
-    }
-
-    private static final class BarState {
-        private double open = -1;
-        private double high = -1;
-        private double low = -1;
-        private double close = -1;
-        private ZonedDateTime endTime = null;
     }
 
 }
