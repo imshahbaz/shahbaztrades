@@ -9,7 +9,6 @@ import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.impl.StrategyRegistry;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,12 +30,11 @@ public class MarketDataController {
     @GetMapping("/bar-series/{symbol}")
     private ResponseEntity<ApiResponse<List<SmartApiLtpResponse.CandleDetail>>> getBarSeries(@PathVariable @NotBlank String symbol) {
         var margin = marginService.getMargin(symbol);
-        var token = strategyRegistry.getTokenSymbolMap().get(margin.getToken());
-        if (StringUtils.isEmpty(token)) {
+        if (strategyRegistry.getTokenSymbolMap().get(margin.getToken()) == null) {
             throw new NotFoundException("Bar Series Not Found");
         }
 
-        var response = marketDataContainer.snapshotSeries(token).getBarData().stream()
+        var response = marketDataContainer.snapshotSeries(margin.getToken()).getBarData().stream()
                 .map(bar -> SmartApiLtpResponse.CandleDetail.builder().timestamp(bar.getSystemZonedBeginTime())
                         .open(bar.getOpenPrice().doubleValue())
                         .high(bar.getHighPrice().doubleValue())
