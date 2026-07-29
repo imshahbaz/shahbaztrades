@@ -117,7 +117,7 @@ public class PollingHelper {
 
         LocalTime now = LocalTime.now(DateUtil.IST_ZONE).withSecond(0).withNano(0);
         if (FIFTEEN_MIN_TARGETS.contains(now)) {
-            log.info("Target match at time {} ! Fetching manual signals...", now);
+            log.info("Target match at time {} ! Fetching manual signals for {}", now, name);
 
             try {
                 var tokens = strategyRegistry.getTokensForStrategy(name);
@@ -133,7 +133,7 @@ public class PollingHelper {
                     return;
                 }
 
-                log.info("Complete manual signals list: {}", signals);
+                log.info("Complete manual signals list: {} for strategy: {}", signals, name);
                 eventPublisher.publishEvent(new ChartInkSignalEvent(name, List.of(ChartInkBacktestMarginDto.builder()
                         .marketTime(DateUtil.getCurrentDateTime().minusMinutes(15))
                         .margins(signals)
