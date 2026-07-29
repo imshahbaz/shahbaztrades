@@ -10,13 +10,14 @@ import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpDto;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
 import com.app.shahbaztrades.model.dto.angelone.websocket.*;
+import com.app.shahbaztrades.model.entity.redis.AngelOneHistoricalDataRedis;
 import com.app.shahbaztrades.model.enums.ExchangeType;
+import com.app.shahbaztrades.repo.redis.AngelOneHistoricalDataRedisRepo;
 import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.reflect.TypeToken;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,23 +38,23 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 import static com.app.shahbaztrades.util.Constants.AO_DATE_FORMATTER;
 import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
-
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
 
-    private static final String WS_URL = "wss://smartapisocket.angelone.in/smart-stream";
+    private volatile WebSocketSession session;
+    private volatile ScheduledFuture<?> heartbeatTask;
     private final ConcurrentHashMap<String, Double> ltpCache = new ConcurrentHashMap<>();
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -65,8 +66,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     private final SmartApiFeignClient smartApiFeignClient;
     private final AngelOneRateLimiter angelOneRateLimiter;
     private final MarketDataContainer marketDataContainer;
-    private volatile WebSocketSession session;
-    private volatile ScheduledFuture<?> heartbeatTask;
+    private final AngelOneHistoricalDataRedisRepo angelOneHistoricalDataRedisRepo;
 
     @Override
     public void startWebSocket() {
@@ -293,18 +293,15 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
 
     @Override
     public Map<LocalDate, SmartApiLtpResponse.CandleDetail> getHistoricalData(String token, String symbol) {
-        var key = "angel_one_historical_data:" + symbol;
-        var data = stringRedisTemplate.opsForValue().get(key);
-        if (data != null) {
-            Map<String, SmartApiLtpResponse.CandleDetail> stringKeyMap = HelperUtil.GSON.fromJson(
-                    data,
-                    new TypeToken<Map<String, SmartApiLtpResponse.CandleDetail>>() {
-                    }.getType()
-            );
-
-            Map<LocalDate, SmartApiLtpResponse.CandleDetail> cachedResult = new HashMap<>();
-            stringKeyMap.forEach((dateStr, candle) -> cachedResult.put(LocalDate.parse(dateStr), candle));
-            return cachedResult;
+        var optionalData = angelOneHistoricalDataRedisRepo.findById(symbol);
+        if (optionalData.isPresent()) {
+            var historicalData = optionalData.get();
+            if (!CollectionUtils.isEmpty(historicalData.getDailyHistoricalData())) {
+                return historicalData.getDailyHistoricalData().stream().collect(Collectors.toMap(
+                        candle -> candle.timestamp().toLocalDate(),
+                        candle -> candle
+                ));
+            }
         }
 
         var jwt = mongoConfigService.getAngelOneJwtToken();
@@ -316,9 +313,9 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
         String toDateStr = today.atTime(23, 59).format(AO_DATE_FORMATTER);
 
         var request = HistoricalDataRequest.builder()
-                .exchange("NSE")
+                .exchange(ExchangeType.NSE.name())
                 .symbolToken(token)
-                .interval("ONE_DAY")
+                .interval(ONE_DAY_INTERVAL)
                 .fromDate(fromDateStr)
                 .toDate(toDateStr)
                 .build();
@@ -328,15 +325,21 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
 
         if (response != null) {
             var candles = response.getHistoricalCandles();
-            Map<LocalDate, SmartApiLtpResponse.CandleDetail> candleDetails = new HashMap<>();
-            Map<String, SmartApiLtpResponse.CandleDetail> cachePersistenceMap = new HashMap<>();
-            for (var candle : candles) {
-                cachePersistenceMap.put(candle.timestamp().toLocalDate().toString(), candle);
-                candleDetails.put(candle.timestamp().toLocalDate(), candle);
-            }
 
-            stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(cachePersistenceMap), DateUtil.getDurationUntilMarketOpen(Duration.ofHours(1)));
-            return candleDetails;
+            AngelOneHistoricalDataRedis data;
+            if (optionalData.isPresent()) {
+                data = optionalData.get();
+                data.setDailyHistoricalData(candles);
+            } else {
+                data = AngelOneHistoricalDataRedis.builder().id(symbol).dailyHistoricalData(candles)
+                        .ttl(DateUtil.getDurationUntilMarketOpen(Duration.ofHours(1)).getSeconds()).build();
+            }
+            angelOneHistoricalDataRedisRepo.save(data);
+
+            return candles.stream().collect(Collectors.toMap(
+                    candle -> candle.timestamp().toLocalDate(),
+                    candle -> candle
+            ));
         }
 
         throw new NotFoundException("Historical data not found");

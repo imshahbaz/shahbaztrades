@@ -3,8 +3,12 @@ package com.app.shahbaztrades.components.helper;
 import com.app.shahbaztrades.components.angelone.AngelOneRateLimiter;
 import com.app.shahbaztrades.components.angelone.SmartApiFeignClient;
 import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
+import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
 import com.app.shahbaztrades.model.dto.angelone.websocket.LiveTick;
+import com.app.shahbaztrades.model.entity.redis.AngelOneHistoricalDataRedis;
 import com.app.shahbaztrades.model.enums.ExchangeType;
+import com.app.shahbaztrades.repo.redis.AngelOneHistoricalDataRedisRepo;
+import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.ChartInkService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.MongoConfigService;
@@ -26,6 +30,7 @@ import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,6 +57,7 @@ public class MarketDataContainer {
     private final ChartInkService chartInkService;
     private final MarginService marginService;
     private final MongoConfigService mongoConfigService;
+    private final AngelOneHistoricalDataRedisRepo angelOneHistoricalDataRedisRepo;
 
     public BarSeries getSeries(String token) {
         return tokenSeriesMap.computeIfAbsent(token, k -> {
@@ -121,7 +127,7 @@ public class MarketDataContainer {
         loadStrategyTokens("MACD15MINLOCAL", "MACD15MIN", ctx, processedTokens, failedTokens);
 
         for (var token : failedTokens) {
-            if (loadHistoricalBars(token, ctx)) {
+            if (loadHistoricalBars(token, strategyRegistry.getTokenSymbolMap().get(token), ctx)) {
                 processedTokens.add(token);
                 failedTokens.remove(token);
             }
@@ -144,7 +150,7 @@ public class MarketDataContainer {
             }
 
             if (!processedTokens.contains(margin.getToken())) {
-                if (loadHistoricalBars(margin.getToken(), ctx)) {
+                if (loadHistoricalBars(margin.getToken(), margin.getSymbol(), ctx)) {
                     processedTokens.add(margin.getToken());
                     failedTokens.remove(margin.getToken());
                 } else {
@@ -156,28 +162,49 @@ public class MarketDataContainer {
         });
     }
 
-    private boolean loadHistoricalBars(String token, WarmupContext ctx) {
-        angelOneRateLimiter.acquireHistoricalData();
-
-        var request = HistoricalDataRequest.builder()
-                .exchange("NSE")
-                .symbolToken(token)
-                .interval("FIFTEEN_MINUTE")
-                .fromDate(ctx.fromDate())
-                .toDate(ctx.toDate())
-                .build();
-
+    private boolean loadHistoricalBars(String token, String symbol, WarmupContext ctx) {
         try {
-            var angelOneResp = smartApiFeignClient.getHistoricalData(BEARER_PREFIX + ctx.jwt(), ctx.apiKey(), request);
-            if (angelOneResp == null) {
-                return false;
+            var optionalData = angelOneHistoricalDataRedisRepo.findById(symbol);
+            List<SmartApiLtpResponse.CandleDetail> historicalCandles = null;
+            if (optionalData.isPresent()) {
+                historicalCandles = optionalData.get().getFifteenMinuteHistoricalData();
+            }
+
+            if (CollectionUtils.isEmpty(historicalCandles)) {
+                angelOneRateLimiter.acquireHistoricalData();
+                var request = HistoricalDataRequest.builder()
+                        .exchange(ExchangeType.NSE.name())
+                        .symbolToken(token)
+                        .interval(AngelOneService.FIFTEEN_MINUTE_INTERVAL)
+                        .fromDate(ctx.fromDate())
+                        .toDate(ctx.toDate())
+                        .build();
+
+                var angelOneResp = smartApiFeignClient.getHistoricalData(BEARER_PREFIX + ctx.jwt(), ctx.apiKey(), request);
+                if (angelOneResp == null) {
+                    return false;
+                }
+
+                historicalCandles = angelOneResp.getHistoricalCandles();
+                AngelOneHistoricalDataRedis data;
+                if (optionalData.isPresent()) {
+                    data = optionalData.get();
+                    data.setFifteenMinuteHistoricalData(historicalCandles);
+                } else {
+                    data = AngelOneHistoricalDataRedis.builder().id(symbol)
+                            .fifteenMinuteHistoricalData(historicalCandles)
+                            .ttl(DateUtil.getDurationUntilMarketOpen(Duration.ofHours(1)).getSeconds())
+                            .build();
+                }
+
+                angelOneHistoricalDataRedisRepo.save(data);
             }
 
             var series = getSeries(token);
             ReentrantLock lock = getLock(token);
             lock.lock();
             try {
-                for (var candle : angelOneResp.getHistoricalCandles()) {
+                for (var candle : historicalCandles) {
                     series.addBar(buildBar(series, candle.timestamp().plusMinutes(15).toInstant(),
                             candle.open(), candle.high(), candle.low(), candle.close()), false);
                 }
