@@ -9,7 +9,7 @@ import com.app.shahbaztrades.util.Cache;
 
 public interface RupeezyService {
 
-    String RUPEEZY_TOKEN_KEY = "rupeezy_token_";
+    String RUPEEZY_TOKEN_KEY = "rupeezy_token:";
 
     Cache<Long, RupeezyTokenCache> rupeezyTokenCache = new Cache<>();
 
