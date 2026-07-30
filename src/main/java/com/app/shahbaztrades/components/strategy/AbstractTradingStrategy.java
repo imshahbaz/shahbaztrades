@@ -36,12 +36,20 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     }
 
     protected int lastClosedIndex(BarSeries series) {
+        if (series.isEmpty())
+            return -1;
+
         var now = DateUtil.getCurrentDateTime().atZone(DateUtil.IST_ZONE).toInstant();
         for (int i = series.getEndIndex(); i >= series.getBeginIndex(); i--) {
-            if (series.getBar(i).getEndTime().isBefore(now)) {
-                return i;
+            var bar = series.getBar(i);
+            if (bar.getEndTime().isBefore(now)) {
+                if (now.isBefore(bar.getEndTime().plus(bar.getTimePeriod()))) {
+                    return i;
+                }
+                return -1;
             }
         }
+
         return -1;
     }
 
