@@ -57,8 +57,6 @@ public class AngelOneServiceImpl implements AngelOneService {
 
     private static final long RECONNECT_MAX_DELAY_SECONDS = 30;
     private static final int HEARTBEAT_INTERVAL_SECONDS = 20;
-    // The tyrus-standalone-client-jdk bundle ships the JDK client container, not Grizzly, so it
-    // must be selected explicitly — the no-arg ClientManager.createClient() defaults to Grizzly.
     private static final String JDK_CLIENT_CONTAINER = "org.glassfish.tyrus.container.jdk.client.JdkClientContainer";
 
     private volatile Session session;
