@@ -19,19 +19,21 @@ import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
+import jakarta.websocket.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.jspecify.annotations.NonNull;
+import org.glassfish.tyrus.client.ClientManager;
+import org.glassfish.tyrus.client.ClientProperties;
+import org.glassfish.tyrus.container.jdk.client.JdkClientContainer;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-import org.springframework.web.socket.*;
-import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
@@ -51,12 +54,17 @@ import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
+public class AngelOneServiceImpl implements AngelOneService {
 
-    private volatile WebSocketSession session;
+    private static final long RECONNECT_MAX_DELAY_SECONDS = 30;
+    private static final int HEARTBEAT_INTERVAL_SECONDS = 20;
+
+    private volatile Session session;
     private volatile ScheduledFuture<?> heartbeatTask;
     private final ConcurrentHashMap<String, Double> ltpCache = new ConcurrentHashMap<>();
     private final AtomicBoolean connected = new AtomicBoolean(false);
+    private final AtomicBoolean intentionalDisconnect = new AtomicBoolean(false);
+    private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final ReentrantLock wsLock = new ReentrantLock();
@@ -66,33 +74,114 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     private final SmartApiFeignClient smartApiFeignClient;
     private final AngelOneRateLimiter angelOneRateLimiter;
     private final MarketDataContainer marketDataContainer;
+    private final StrategyRegistry strategyRegistry;
     private final AngelOneHistoricalDataRedisRepo angelOneHistoricalDataRedisRepo;
 
     @Override
     public void startWebSocket() {
         if (connected.get() || mongoConfigService.getAngelOneJwtToken() == null) return;
 
-        StandardWebSocketClient client = new StandardWebSocketClient();
-        WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
-        headers.add("Authorization", BEARER_PREFIX + mongoConfigService.getAngelOneJwtToken());
-        headers.add("x-api-key", mongoConfigService.getConfig().getAngelOneConfig().getApiKey());
-        headers.add("x-client-code", mongoConfigService.getConfig().getAngelOneConfig().getClientId());
-        headers.add("x-feed-token", mongoConfigService.getAngelOneFeedToken());
+        intentionalDisconnect.set(false);
+        reconnectAttempts.set(0);
+
+        ClientManager client = ClientManager.createClient(JdkClientContainer.class.getName());
+        client.getProperties().put(ClientProperties.RECONNECT_HANDLER, reconnectHandler);
+
+        ClientEndpointConfig config = ClientEndpointConfig.Builder.create()
+                .configurator(new AngelOneHeaderConfigurator())
+                .build();
 
         try {
-            session = client.execute(this, headers, java.net.URI.create(WS_URL)).get();
+            client.connectToServer(new AngelOneEndpoint(), config, URI.create(WS_URL));
         } catch (Exception e) {
             log.error("WebSocket Connection Error", e);
         }
     }
 
-    @Override
-    public void handleMessage(@NonNull WebSocketSession session, @NonNull WebSocketMessage<?> message) {
-        if (message instanceof BinaryMessage binaryMessage) {
-            handleBinaryTick(binaryMessage.getPayload());
-        } else if (message instanceof TextMessage textMessage && "pong".equals(textMessage.getPayload())) {
-            log.trace("Received keep-alive pong");
+    private class AngelOneHeaderConfigurator extends ClientEndpointConfig.Configurator {
+        @Override
+        public void beforeRequest(Map<String, List<String>> headers) {
+            var angelOneConfig = mongoConfigService.getConfig().getAngelOneConfig();
+            headers.put("Authorization", List.of(BEARER_PREFIX + mongoConfigService.getAngelOneJwtToken()));
+            headers.put("x-api-key", List.of(angelOneConfig.getApiKey()));
+            headers.put("x-client-code", List.of(angelOneConfig.getClientId()));
+            headers.put("x-feed-token", List.of(mongoConfigService.getAngelOneFeedToken()));
         }
+    }
+
+    private class AngelOneEndpoint extends Endpoint {
+        @Override
+        public void onOpen(Session sess, EndpointConfig config) {
+            session = sess;
+            connected.set(true);
+            reconnectAttempts.set(0);
+
+            sess.addMessageHandler(ByteBuffer.class, AngelOneServiceImpl.this::handleBinaryTick);
+            sess.addMessageHandler(String.class, msg -> {
+                if ("pong".equals(msg)) {
+                    log.trace("Received keep-alive pong");
+                }
+            });
+
+            startHeartbeat();
+            resubscribeActiveTokens();
+            log.info("Smart Stream Connected and Heartbeat started");
+        }
+
+        @Override
+        public void onClose(Session sess, CloseReason closeReason) {
+            connected.set(false);
+            log.warn("Smart Stream Connection Closed: {}", closeReason);
+        }
+
+        @Override
+        public void onError(Session sess, Throwable thr) {
+            connected.set(false);
+            log.error("Transport Error", thr);
+        }
+    }
+
+    private final ClientManager.ReconnectHandler reconnectHandler = new ClientManager.ReconnectHandler() {
+        @Override
+        public boolean onDisconnect(CloseReason closeReason) {
+            connected.set(false);
+            if (intentionalDisconnect.get()) {
+                log.info("Smart Stream closed intentionally; not reconnecting");
+                return false;
+            }
+            int attempt = reconnectAttempts.incrementAndGet();
+            log.warn("Smart Stream disconnected ({}). Scheduling reconnect attempt {}", closeReason, attempt);
+            return true;
+        }
+
+        @Override
+        public boolean onConnectFailure(Exception exception) {
+            if (intentionalDisconnect.get()) return false;
+            int attempt = reconnectAttempts.incrementAndGet();
+            log.warn("Smart Stream reconnect attempt {} failed: {}", attempt, exception.getMessage());
+            return true;
+        }
+
+        @Override
+        public long getDelay() {
+            int attempt = Math.max(1, reconnectAttempts.get());
+            // 1s, 2s, 4s, 8s, 16s, then capped at 30s.
+            long delay = 1L << Math.min(attempt - 1, 5);
+            return Math.min(delay, RECONNECT_MAX_DELAY_SECONDS);
+        }
+    };
+
+    private void resubscribeActiveTokens() {
+        var tokens = strategyRegistry.getAllActiveTokens();
+        if (CollectionUtils.isEmpty(tokens)) return;
+        for (String token : tokens) {
+            try {
+                subscribe(token, ExchangeType.NSE.getValue());
+            } catch (Exception e) {
+                log.error("Resubscribe failed for token: {}", token, e);
+            }
+        }
+        log.info("Resubscribed {} active token(s) after connect", tokens.size());
     }
 
     private void handleBinaryTick(ByteBuffer buffer) {
@@ -144,7 +233,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     }
 
     private void send(Object obj) {
-        WebSocketSession local = session;
+        Session local = session;
         if (local == null || !local.isOpen()) {
             throw new BadRequestException("Websocket is closed");
         }
@@ -152,7 +241,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
         try {
             String json = objectMapper.writeValueAsString(obj);
             log.info("Sending Subscription Request: {}", json);
-            local.sendMessage(new TextMessage(json));
+            local.getBasicRemote().sendText(json);
         } catch (IOException e) {
             log.error("WebSocket Write Error", e);
         } finally {
@@ -160,12 +249,20 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
         }
     }
 
+    private void startHeartbeat() {
+        if (heartbeatTask != null) {
+            heartbeatTask.cancel(false);
+        }
+        heartbeatTask = scheduler.scheduleAtFixedRate(
+                this::sendHeartbeat, HEARTBEAT_INTERVAL_SECONDS, HEARTBEAT_INTERVAL_SECONDS, TimeUnit.SECONDS);
+    }
+
     private void sendHeartbeat() {
-        WebSocketSession local = session;
+        Session local = session;
         if (connected.get() && local != null && local.isOpen()) {
             wsLock.lock();
             try {
-                local.sendMessage(new TextMessage("ping"));
+                local.getBasicRemote().sendText("ping");
             } catch (IOException e) {
                 log.error("Heartbeat failed", e);
             } finally {
@@ -178,35 +275,6 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
     public double getLTP(String token) {
         if (!connected.get()) return -2;
         return ltpCache.getOrDefault(token, -1.0);
-    }
-
-    @Override
-    public void afterConnectionEstablished(@NonNull WebSocketSession session) {
-        this.session = session;
-        this.connected.set(true);
-        if (heartbeatTask != null) {
-            heartbeatTask.cancel(false);
-        }
-        heartbeatTask = scheduler.scheduleAtFixedRate(this::sendHeartbeat, 20, 20, TimeUnit.SECONDS);
-        log.info("Smart Stream Connected and Heartbeat started");
-    }
-
-    @Override
-    public void handleTransportError(@NonNull WebSocketSession session, @NonNull Throwable exception) {
-        this.connected.set(false);
-        log.error("Transport Error", exception);
-    }
-
-    @Override
-    public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus closeStatus) {
-        this.connected.set(false);
-        this.ltpCache.clear();
-        log.warn("Smart Stream Connection Closed");
-    }
-
-    @Override
-    public boolean supportsPartialMessages() {
-        return false;
     }
 
     @Override
@@ -235,6 +303,7 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
 
     @Override
     public void disconnect() {
+        intentionalDisconnect.set(true);
         connected.set(false);
 
         wsLock.lock();
@@ -244,10 +313,10 @@ public class AngelOneServiceImpl implements WebSocketHandler, AngelOneService {
                 heartbeatTask = null;
             }
 
-            WebSocketSession local = session;
+            Session local = session;
             if (local != null && local.isOpen()) {
                 try {
-                    local.close(CloseStatus.NORMAL);
+                    local.close(new CloseReason(CloseReason.CloseCodes.NORMAL_CLOSURE, "client disconnect"));
                     log.info("AngelOne WebSocket connection closed gracefully");
                 } catch (IOException e) {
                     log.error("Error while closing WebSocket session", e);

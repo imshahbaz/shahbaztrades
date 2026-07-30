@@ -8,7 +8,9 @@ import org.ta4j.core.Indicator;
 import org.ta4j.core.Rule;
 import org.ta4j.core.indicators.MACDIndicator;
 import org.ta4j.core.indicators.averages.EMAIndicator;
-import org.ta4j.core.indicators.helpers.*;
+import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
+import org.ta4j.core.indicators.helpers.OpenPriceIndicator;
+import org.ta4j.core.indicators.helpers.PreviousValueIndicator;
 import org.ta4j.core.indicators.numeric.BinaryOperationIndicator;
 import org.ta4j.core.num.Num;
 import org.ta4j.core.rules.OverIndicatorRule;
@@ -28,8 +30,6 @@ public class Macd15Strategy extends AbstractTradingStrategy {
 
     @Override
     protected boolean matches(BarSeries series) {
-        if (series.isEmpty()) return false;
-
         int safeClosedIndex = lastClosedIndex(series);
         if (safeClosedIndex < 20) return false;
 
