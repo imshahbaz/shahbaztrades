@@ -9,7 +9,6 @@ import com.app.shahbaztrades.service.SchedulerService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.websocket.server.PathParam;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -57,7 +56,7 @@ public class SchedulerController {
 
     @PublicEndpoint
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Object>> getTaskById(@PathParam("id") @NotBlank String id, @RequestParam @NotNull SchedulerTaskType taskType) {
+    public ResponseEntity<ApiResponse<Object>> getTaskById(@PathVariable("id") @NotBlank String id, @RequestParam @NotNull SchedulerTaskType taskType) {
         return ResponseEntity.ok(ApiResponse.ok(schedulerService.getTask(id, taskType), "Task fetched successfully"));
     }
 
