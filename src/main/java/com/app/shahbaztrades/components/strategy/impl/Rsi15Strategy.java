@@ -25,8 +25,6 @@ public class Rsi15Strategy extends AbstractTradingStrategy {
 
     @Override
     protected boolean matches(BarSeries series) {
-        if (series.getBarCount() < 14) return false;
-
         int safeClosedIndex = lastClosedIndex(series);
         if (safeClosedIndex < 14) return false;
 
