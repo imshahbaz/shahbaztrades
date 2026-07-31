@@ -8,6 +8,7 @@ import com.app.shahbaztrades.model.dto.auth.AuthCookieResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthRequest;
 import com.app.shahbaztrades.model.dto.auth.SignUpResponse;
 import com.app.shahbaztrades.service.AuthService;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -68,6 +69,12 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, result.cookie())
                 .body(ApiResponse.ok(result.user(), result.message()));
+    }
+
+    @PublicEndpoint
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<UserDto>> login(@RequestBody @Valid AuthRequest request, HttpServletResponse servletResponse) {
+        return authService.login(request, servletResponse);
     }
 
 }
