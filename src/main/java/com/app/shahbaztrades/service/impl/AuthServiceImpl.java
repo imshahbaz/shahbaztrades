@@ -6,6 +6,7 @@ import com.app.shahbaztrades.config.security.JwtService;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.UnauthorizedException;
+import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.auth.AuthCallbackResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthCookieResponse;
@@ -19,11 +20,14 @@ import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.util.CacheUtils;
 import com.app.shahbaztrades.util.HelperUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -127,6 +131,24 @@ public class AuthServiceImpl implements AuthService {
         }
 
         throw new UnauthorizedException("Invalid state");
+    }
+
+    @Override
+    public ResponseEntity<ApiResponse<UserDto>> login(AuthRequest request, HttpServletResponse servletResponse) {
+        var user = userService.findByUserIdOrEmailOrMobile(0L, request.getEmail(), 0L);
+        if (user == null) {
+            throw new NotFoundException("User not found");
+        }
+
+        if (HelperUtil.ENCODER.matches(request.getPassword(), user.getPassword())) {
+            var dto = user.toDto();
+            var tokenStr = jwtService.generateToken(dto);
+            var cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
+            servletResponse.addHeader(HttpHeaders.SET_COOKIE, cookie);
+            return ResponseEntity.ok(ApiResponse.ok(dto, "Login Success"));
+        }
+
+        throw new BadRequestException("Invalid credentials");
     }
 
     private AuthCallbackResponse processRedirectCallback(String code, String state) {
