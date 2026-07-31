@@ -4,6 +4,7 @@ import com.app.shahbaztrades.config.security.AdminOnly;
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
+import com.app.shahbaztrades.model.enums.TimeFrame;
 import com.app.shahbaztrades.service.StrategyService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -24,8 +25,8 @@ public class StrategyController {
 
     @GetMapping
     @PublicEndpoint
-    public ResponseEntity<ApiResponse<List<StrategyDto>>> getAllStrategies() {
-        return ResponseEntity.ok(ApiResponse.ok(strategyService.getAllStrategies(), "Strategies fetched successfully"));
+    public ResponseEntity<ApiResponse<List<StrategyDto>>> getAllStrategies(@RequestParam(defaultValue = "DAILY", required = false) TimeFrame timeFrame) {
+        return ResponseEntity.ok(ApiResponse.ok(strategyService.getAllStrategies(timeFrame), "Strategies fetched successfully"));
     }
 
     @AdminOnly

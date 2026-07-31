@@ -10,6 +10,7 @@ import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.Strategy;
+import com.app.shahbaztrades.model.enums.TimeFrame;
 import com.app.shahbaztrades.model.enums.YahooTimeRange;
 import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.DateUtil;
@@ -125,7 +126,7 @@ public class AnalysisServiceImpl implements AnalysisService {
     @Override
     @Async("taskExecutor")
     public void updateStrategyBacktestData() {
-        var activeStrategies = strategyService.getAllStrategies();
+        var activeStrategies = strategyService.getAllStrategies(TimeFrame.DAILY);
         if (CollectionUtils.isEmpty(activeStrategies)) {
             return;
         }
