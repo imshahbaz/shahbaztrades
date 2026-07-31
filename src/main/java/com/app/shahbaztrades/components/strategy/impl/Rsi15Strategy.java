@@ -26,12 +26,13 @@ public class Rsi15Strategy extends AbstractTradingStrategy {
     @Override
     protected boolean matches(BarSeries series) {
         int safeClosedIndex = lastClosedIndex(series);
-        if (safeClosedIndex < 14) return false;
+        int availableBars = safeClosedIndex - series.getBeginIndex() + 1;
+        if (availableBars < 14) return false;
 
-        return getEntryRule(series, safeClosedIndex);
+        return applyEntryRule(series, safeClosedIndex);
     }
 
-    private boolean getEntryRule(BarSeries series, int safeClosedIndex) {
+    private boolean applyEntryRule(BarSeries series, int safeClosedIndex) {
         ClosePriceIndicator close = new ClosePriceIndicator(series);
         OpenPriceIndicator open = new OpenPriceIndicator(series);
 

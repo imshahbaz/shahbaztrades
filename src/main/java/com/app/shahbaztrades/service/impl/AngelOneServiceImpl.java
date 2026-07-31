@@ -114,7 +114,6 @@ public class AngelOneServiceImpl implements AngelOneService {
         public void onOpen(Session sess, EndpointConfig config) {
             session = sess;
             connected.set(true);
-            reconnectAttempts.set(0);
 
             sess.addMessageHandler(ByteBuffer.class, AngelOneServiceImpl.this::handleBinaryTick);
             sess.addMessageHandler(String.class, msg -> {
@@ -124,7 +123,8 @@ public class AngelOneServiceImpl implements AngelOneService {
             });
 
             startHeartbeat();
-            resubscribeActiveTokens();
+            if (reconnectAttempts.get() > 0) resubscribeActiveTokens();
+            reconnectAttempts.set(0);
             log.info("Smart Stream Connected and Heartbeat started");
         }
 

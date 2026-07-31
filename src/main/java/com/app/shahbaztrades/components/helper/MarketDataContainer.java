@@ -123,8 +123,8 @@ public class MarketDataContainer {
         var processedTokens = new HashSet<String>();
         var failedTokens = new HashSet<String>();
 
-        loadStrategyTokens("RSI15MINLOCAL", "RSI15MIN", ctx, processedTokens, failedTokens);
-        loadStrategyTokens("MACD15MINLOCAL", "MACD15MIN", ctx, processedTokens, failedTokens);
+        loadStrategyTokens("RSI15MINLOCAL", List.of("RSI15MIN"), ctx, processedTokens, failedTokens);
+        loadStrategyTokens("MACD15MINLOCAL", List.of("MACD15MIN", "ADX15MIN"), ctx, processedTokens, failedTokens);
 
         for (var token : failedTokens) {
             if (loadHistoricalBars(token, strategyRegistry.getTokenSymbolMap().get(token), ctx)) {
@@ -136,7 +136,7 @@ public class MarketDataContainer {
         log.info("Container Warm Up Completed with success {} failed {}", processedTokens.size(), failedTokens.size());
     }
 
-    private void loadStrategyTokens(String chartInkKey, String strategyName, WarmupContext ctx,
+    private void loadStrategyTokens(String chartInkKey, List<String> strategyNames, WarmupContext ctx,
                                     HashSet<String> processedTokens, HashSet<String> failedTokens) {
         var chartInkResult = chartInkService.fetchData(chartInkKey);
         if (chartInkResult == null || CollectionUtils.isEmpty(chartInkResult.getData())) {
@@ -158,7 +158,7 @@ public class MarketDataContainer {
                 }
             }
 
-            strategyRegistry.assignTokenToStrategy(strategyName, margin.getToken(), margin.getSymbol());
+            strategyNames.forEach(strategyName -> strategyRegistry.assignTokenToStrategy(strategyName, margin.getToken(), margin.getSymbol()));
         });
     }
 
