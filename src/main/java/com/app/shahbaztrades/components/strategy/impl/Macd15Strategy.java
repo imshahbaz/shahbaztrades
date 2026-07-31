@@ -31,7 +31,8 @@ public class Macd15Strategy extends AbstractTradingStrategy {
     @Override
     protected boolean matches(BarSeries series) {
         int safeClosedIndex = lastClosedIndex(series);
-        if (safeClosedIndex < 20) return false;
+        int availableBars = safeClosedIndex - series.getBeginIndex() + 1;
+        if (availableBars < 28) return false;
 
         return applyEntryRule(series, safeClosedIndex);
     }
