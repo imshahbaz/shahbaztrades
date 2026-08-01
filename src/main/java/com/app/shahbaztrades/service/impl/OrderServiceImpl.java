@@ -57,8 +57,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
-    enum StopLossAction {NONE, SQUARE_OFF, PLACE_STOP_LOSS}
-
     private static final String INITIATE_MTF = "Initiate MTF";
     private static final double PROFIT_ACTIVATION_MULTIPLIER = 1.004;
     private static final double STOP_LOSS_TRIGGER_MULTIPLIER = 1.006;
@@ -487,5 +485,7 @@ public class OrderServiceImpl implements OrderService {
         return orderRepo.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Order not found"));
     }
+
+    enum StopLossAction {NONE, SQUARE_OFF, PLACE_STOP_LOSS}
 
 }

@@ -65,6 +65,22 @@ public class MarketTickPipeline {
         }, token, ltp);
     }
 
+    public int getRingBufferSize() {
+        return RING_BUFFER_SIZE;
+    }
+
+    public int getShardCount() {
+        return SHARD_COUNT;
+    }
+
+    /**
+     * Free slots in the ring right now; {@code RING_BUFFER_SIZE} means idle, near 0 means consumers are lagging.
+     */
+    public long getRemainingCapacity() {
+        RingBuffer<TickEvent> rb = this.ringBuffer;
+        return rb == null ? -1 : rb.remainingCapacity();
+    }
+
     @PreDestroy
     public void shutdown() {
         if (disruptor != null) {

@@ -35,6 +35,17 @@ public class TradeWatchdog {
     private final Set<String> triggeredTrades = ConcurrentHashMap.newKeySet();
     private final Set<String> triggeredMtfTrades = ConcurrentHashMap.newKeySet();
 
+    private static int countTrades(Cache<String, ? extends List<?>> cache) {
+        int count = 0;
+        for (String key : cache.getActiveKeys()) {
+            List<?> trades = cache.get(key);
+            if (trades != null) {
+                count += trades.size();
+            }
+        }
+        return count;
+    }
+
     public void watch(ActiveTrade trade) {
         if (DateUtil.isSquareOffTimeReached())
             return;
@@ -75,8 +86,34 @@ public class TradeWatchdog {
         triggeredTrades.remove(trade.getStrategyOrderId());
     }
 
+    // ---- Monitoring accessors ----
+
     public void clearMtfTrigger(ActiveMtfTrade trade) {
         triggeredMtfTrades.remove(trade.getOrder().getId());
+    }
+
+    public int getWatchedTokenCount() {
+        return tradeWatchCache.getActiveKeys().size();
+    }
+
+    public int getWatchedTradeCount() {
+        return countTrades(tradeWatchCache);
+    }
+
+    public int getMtfWatchedTokenCount() {
+        return mtfTradeWatchCache.getActiveKeys().size();
+    }
+
+    public int getMtfWatchedTradeCount() {
+        return countTrades(mtfTradeWatchCache);
+    }
+
+    public int getInFlightTriggerCount() {
+        return triggeredTrades.size();
+    }
+
+    public int getInFlightMtfTriggerCount() {
+        return triggeredMtfTrades.size();
     }
 
     public void onTick(String token, double ltp) {
