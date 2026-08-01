@@ -13,6 +13,10 @@ public interface AngelOneService {
 
     void startWebSocket();
 
+    boolean isWebSocketConnected();
+
+    int getReconnectAttempts();
+
     void subscribe(String token, int exchangeType);
 
     void unsubscribe(String token, int exchangeType);

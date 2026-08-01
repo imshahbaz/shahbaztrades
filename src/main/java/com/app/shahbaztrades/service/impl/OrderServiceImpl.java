@@ -9,6 +9,7 @@ import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
 import com.app.shahbaztrades.model.dto.analysis.TechnicalMetrics;
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.dto.order.ActiveMtfTrade;
+import com.app.shahbaztrades.model.dto.order.MtfTickEvent;
 import com.app.shahbaztrades.model.dto.order.OrderDto;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.entity.Order;
@@ -55,8 +56,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
-
-    enum StopLossAction {NONE, SQUARE_OFF, PLACE_STOP_LOSS}
 
     private static final String INITIATE_MTF = "Initiate MTF";
     private static final double PROFIT_ACTIVATION_MULTIPLIER = 1.004;
@@ -468,12 +467,17 @@ public class OrderServiceImpl implements OrderService {
 
     @EventListener
     @Async("taskExecutor")
-    public void handleActiveMtfOrderEvent(ActiveMtfTrade event) {
-        var order = event.getOrder();
-        var res = processOrder(order, event.getLtp(), event.getPeakPrice());
-        if (res < 0) {
-            log.info("Order squared off - stopping monitoring orderId {} symbol {}", order.getId(), order.getSymbol());
-            tradeWatchdog.unwatchMtfTrade(event);
+    public void handleActiveMtfOrderEvent(MtfTickEvent event) {
+        var trade = event.trade();
+        try {
+            var order = trade.getOrder();
+            var res = processOrder(order, event.ltp(), event.peakPrice());
+            if (res < 0) {
+                log.info("Order squared off - stopping monitoring orderId {} symbol {}", order.getId(), order.getSymbol());
+                tradeWatchdog.unwatchMtfTrade(trade);
+            }
+        } finally {
+            tradeWatchdog.clearMtfTrigger(trade);
         }
     }
 
@@ -481,5 +485,7 @@ public class OrderServiceImpl implements OrderService {
         return orderRepo.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Order not found"));
     }
+
+    enum StopLossAction {NONE, SQUARE_OFF, PLACE_STOP_LOSS}
 
 }

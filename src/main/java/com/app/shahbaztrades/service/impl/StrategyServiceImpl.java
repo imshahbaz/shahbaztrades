@@ -3,6 +3,7 @@ package com.app.shahbaztrades.service.impl;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
 import com.app.shahbaztrades.model.entity.Strategy;
+import com.app.shahbaztrades.model.enums.TimeFrame;
 import com.app.shahbaztrades.repo.StrategyRepository;
 import com.app.shahbaztrades.service.StrategyService;
 import jakarta.annotation.PostConstruct;
@@ -42,8 +43,8 @@ public class StrategyServiceImpl implements StrategyService {
     }
 
     @Override
-    public List<StrategyDto> getAllStrategies() {
-        return getActiveStrategies(Boolean.TRUE);
+    public List<StrategyDto> getAllStrategies(TimeFrame timeFrame) {
+        return getActiveStrategies(Boolean.TRUE, timeFrame);
     }
 
     @Override
@@ -72,12 +73,12 @@ public class StrategyServiceImpl implements StrategyService {
 
     @Override
     public List<StrategyDto> getAllStrategiesAdmin() {
-        return getActiveStrategies(Boolean.FALSE);
+        return getActiveStrategies(Boolean.FALSE, TimeFrame.DAILY);
     }
 
-    private List<StrategyDto> getActiveStrategies(boolean active) {
+    private List<StrategyDto> getActiveStrategies(boolean active, TimeFrame timeFrame) {
         if (active) {
-            return cachedStrategies.values().stream().filter(StrategyDto::isActive).toList();
+            return cachedStrategies.values().stream().filter(StrategyDto::isActive).filter(strategyDto -> timeFrame.equals(strategyDto.getTimeFrame())).toList();
         } else {
             return cachedStrategies.values().stream().toList();
         }
