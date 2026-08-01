@@ -3,7 +3,6 @@ package com.app.shahbaztrades.model.dto.system;
 import java.lang.management.ManagementFactory;
 import java.util.List;
 
-// Per-collector cumulative GC count and pause time since JVM start.
 public record GcStats(
         String name,
         long collectionCount,

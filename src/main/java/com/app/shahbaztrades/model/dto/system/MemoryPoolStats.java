@@ -4,7 +4,6 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
 import java.util.List;
 
-// Per-pool breakdown (Eden, Old Gen, Metaspace, code cache, ...).
 public record MemoryPoolStats(
         String name,
         long usedMb,

@@ -4,7 +4,6 @@ import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.List;
 
-// NIO direct/mapped buffers — off-heap memory used by the websocket ByteBuffer parsing etc.
 public record BufferPoolStats(
         String name,
         long count,

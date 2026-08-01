@@ -86,8 +86,6 @@ public class TradeWatchdog {
         triggeredTrades.remove(trade.getStrategyOrderId());
     }
 
-    // ---- Monitoring accessors ----
-
     public void clearMtfTrigger(ActiveMtfTrade trade) {
         triggeredMtfTrades.remove(trade.getOrder().getId());
     }
