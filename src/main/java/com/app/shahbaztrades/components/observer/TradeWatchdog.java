@@ -6,7 +6,6 @@ import com.app.shahbaztrades.model.dto.strategy.ActiveTrade;
 import com.app.shahbaztrades.model.dto.strategy.TradeCompletionEvent;
 import com.app.shahbaztrades.util.Cache;
 import com.app.shahbaztrades.util.DateUtil;
-import com.app.shahbaztrades.util.HelperUtil;
 import com.google.common.util.concurrent.Striped;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +17,6 @@ import org.springframework.util.CollectionUtils;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -86,9 +84,8 @@ public class TradeWatchdog {
             return;
         }
 
-        var strategyFuture = CompletableFuture.runAsync(() -> checkTargetHits(token, ltp), HelperUtil.EXECUTOR);
-        var mtfFuture = CompletableFuture.runAsync(() -> checkMtfTicks(token, ltp), HelperUtil.EXECUTOR);
-        CompletableFuture.allOf(strategyFuture, mtfFuture).join();
+        checkTargetHits(token, ltp);
+        checkMtfTicks(token, ltp);
     }
 
     private void checkTargetHits(String token, double ltp) {
@@ -96,6 +93,7 @@ public class TradeWatchdog {
         if (CollectionUtils.isEmpty(trades)) {
             return;
         }
+
         for (ActiveTrade trade : trades) {
             if (ltp >= trade.getTargetPrice() && triggeredTrades.add(trade.getStrategyOrderId())) {
                 applicationEventPublisher.publishEvent(new TradeCompletionEvent(trade.getUserId(), trade));
@@ -108,6 +106,7 @@ public class TradeWatchdog {
         if (CollectionUtils.isEmpty(trades)) {
             return;
         }
+
         for (ActiveMtfTrade trade : trades) {
             if (ltp != trade.getPrevLtp()) {
                 if (ltp > trade.getPeakPrice()) {
