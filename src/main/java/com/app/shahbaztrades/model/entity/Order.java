@@ -61,17 +61,6 @@ public class Order {
                 .build();
     }
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class ExecutionRecord {
-        String brokerOrderId;
-        String orderStatus;
-        BigDecimal averagePrice;
-    }
-
     public boolean hasEntryOrder() {
         return this.entry != null && StringUtils.isNotEmpty(this.entry.getBrokerOrderId());
     }
@@ -82,6 +71,17 @@ public class Order {
 
     public boolean hasEntryPrice() {
         return this.entry != null && this.entry.averagePrice != null && this.entry.getAveragePrice().signum() > 0;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class ExecutionRecord {
+        String brokerOrderId;
+        String orderStatus;
+        BigDecimal averagePrice;
     }
 
 }
