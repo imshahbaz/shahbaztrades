@@ -1,9 +1,9 @@
 package com.app.shahbaztrades.components.observer;
 
 import com.app.shahbaztrades.model.dto.order.ActiveMtfTrade;
+import com.app.shahbaztrades.model.dto.order.MtfTickEvent;
 import com.app.shahbaztrades.model.dto.strategy.ActiveTrade;
 import com.app.shahbaztrades.model.dto.strategy.TradeCompletionEvent;
-import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.util.Cache;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
@@ -18,6 +18,8 @@ import org.springframework.util.CollectionUtils;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -29,10 +31,11 @@ public class TradeWatchdog {
 
     private final Cache<String, List<ActiveTrade>> tradeWatchCache = new Cache<>();
     private final Cache<String, List<ActiveMtfTrade>> mtfTradeWatchCache = new Cache<>();
-    private final AngelOneService angelOneService;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final Striped<Lock> tokenLocks = Striped.lock(8192);
     private final Striped<Lock> mtfTokenLocks = Striped.lock(8192);
+    private final Set<String> triggeredTrades = ConcurrentHashMap.newKeySet();
+    private final Set<String> triggeredMtfTrades = ConcurrentHashMap.newKeySet();
 
     public void watch(ActiveTrade trade) {
         if (DateUtil.isSquareOffTimeReached())
@@ -70,91 +73,72 @@ public class TradeWatchdog {
         }
     }
 
-    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.SECONDS)
-    public void executePulse() {
-        var activeKeys = tradeWatchCache.getActiveKeys();
-        if (DateUtil.isSquareOffTimeReached()) {
-            if (!activeKeys.isEmpty()) {
-                log.info("Market session over. Purging watchdog cache.");
-                tradeWatchCache.invalidateAll();
+    public void clearTrigger(ActiveTrade trade) {
+        triggeredTrades.remove(trade.getStrategyOrderId());
+    }
+
+    public void clearMtfTrigger(ActiveMtfTrade trade) {
+        triggeredMtfTrades.remove(trade.getOrder().getId());
+    }
+
+    public void onTick(String token, double ltp) {
+        if (ltp <= 0) {
+            return;
+        }
+
+        var strategyFuture = CompletableFuture.runAsync(() -> checkTargetHits(token, ltp), HelperUtil.EXECUTOR);
+        var mtfFuture = CompletableFuture.runAsync(() -> checkMtfTicks(token, ltp), HelperUtil.EXECUTOR);
+        CompletableFuture.allOf(strategyFuture, mtfFuture).join();
+    }
+
+    private void checkTargetHits(String token, double ltp) {
+        List<ActiveTrade> trades = tradeWatchCache.get(token);
+        if (CollectionUtils.isEmpty(trades)) {
+            return;
+        }
+        for (ActiveTrade trade : trades) {
+            if (ltp >= trade.getTargetPrice() && triggeredTrades.add(trade.getStrategyOrderId())) {
+                applicationEventPublisher.publishEvent(new TradeCompletionEvent(trade.getUserId(), trade));
             }
-            return;
-        }
-
-        if (CollectionUtils.isEmpty(activeKeys)) {
-            return;
-        }
-
-        for (String activeKey : activeKeys) {
-            HelperUtil.EXECUTOR.execute(() -> processActiveKey(activeKey));
         }
     }
 
-    private void processActiveKey(String activeKey) {
-        Lock lock = tokenLocks.get(activeKey);
-        lock.lock();
-        try {
-            double ltp = angelOneService.getLTP(activeKey);
-            if (ltp <= 0) return;
-            List<ActiveTrade> trades = tradeWatchCache.get(activeKey);
-            if (CollectionUtils.isEmpty(trades)) return;
-            trades.forEach(trade -> {
-                if (ltp >= trade.getTargetPrice()) {
-                    applicationEventPublisher.publishEvent(new TradeCompletionEvent(trade.getUserId(), trade));
+    private void checkMtfTicks(String token, double ltp) {
+        List<ActiveMtfTrade> trades = mtfTradeWatchCache.get(token);
+        if (CollectionUtils.isEmpty(trades)) {
+            return;
+        }
+        for (ActiveMtfTrade trade : trades) {
+            if (ltp != trade.getPrevLtp()) {
+                if (ltp > trade.getPeakPrice()) {
+                    trade.setPeakPrice(ltp);
                 }
-            });
-        } finally {
-            lock.unlock();
-        }
-    }
 
-    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.SECONDS)
-    public void executeMtfPulse() {
-        var activeKeys = mtfTradeWatchCache.getActiveKeys();
-        if (handleMtfSquareOff(activeKeys)) {
-            return;
-        }
-
-        if (CollectionUtils.isEmpty(activeKeys)) {
-            return;
-        }
-
-        for (String activeKey : activeKeys) {
-            HelperUtil.EXECUTOR.execute(() -> processMtfActiveKey(activeKey));
-        }
-    }
-
-    private boolean handleMtfSquareOff(Set<String> activeKeys) {
-        if (DateUtil.isSquareOffTimeReached()) {
-            if (!activeKeys.isEmpty()) {
-                log.info("Market session over. Purging mtf watchdog cache.");
-                mtfTradeWatchCache.invalidateAll();
-            }
-            return true;
-        }
-        return false;
-    }
-
-    private void processMtfActiveKey(String activeKey) {
-        Lock lock = mtfTokenLocks.get(activeKey);
-        lock.lock();
-        try {
-            double ltp = angelOneService.getLTP(activeKey);
-            if (ltp <= 0) return;
-            List<ActiveMtfTrade> trades = mtfTradeWatchCache.get(activeKey);
-            if (CollectionUtils.isEmpty(trades)) return;
-            trades.forEach(trade -> {
-                if (ltp != trade.getPrevLtp()) {
+                if (triggeredMtfTrades.add(trade.getOrder().getId())) {
                     trade.setPrevLtp(ltp);
                     trade.setLtp(ltp);
-                    if (ltp > trade.getPeakPrice()) {
-                        trade.setPeakPrice((float) ltp);
-                    }
-                    applicationEventPublisher.publishEvent(trade);
+                    applicationEventPublisher.publishEvent(new MtfTickEvent(trade, ltp, trade.getPeakPrice()));
                 }
-            });
-        } finally {
-            lock.unlock();
+            }
+        }
+    }
+
+    @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.SECONDS)
+    public void purgeAtSquareOff() {
+        if (!DateUtil.isSquareOffTimeReached()) {
+            return;
+        }
+
+        if (!tradeWatchCache.getActiveKeys().isEmpty()) {
+            log.info("Market session over. Purging watchdog cache.");
+            tradeWatchCache.invalidateAll();
+            triggeredTrades.clear();
+        }
+
+        if (!mtfTradeWatchCache.getActiveKeys().isEmpty()) {
+            log.info("Market session over. Purging mtf watchdog cache.");
+            mtfTradeWatchCache.invalidateAll();
+            triggeredMtfTrades.clear();
         }
     }
 

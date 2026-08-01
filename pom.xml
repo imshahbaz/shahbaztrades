@@ -210,6 +210,13 @@
             <scope>compile</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.lmax</groupId>
+            <artifactId>disruptor</artifactId>
+            <version>4.0.0</version>
+            <scope>compile</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
