@@ -4,6 +4,7 @@ import com.app.shahbaztrades.components.angelone.AngelOneClient;
 import com.app.shahbaztrades.components.angelone.AngelOneRateLimiter;
 import com.app.shahbaztrades.components.angelone.SmartApiFeignClient;
 import com.app.shahbaztrades.components.helper.MarketDataContainer;
+import com.app.shahbaztrades.components.observer.MarketTickPipeline;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
@@ -74,6 +75,7 @@ public class AngelOneServiceImpl implements AngelOneService {
     private final SmartApiFeignClient smartApiFeignClient;
     private final AngelOneRateLimiter angelOneRateLimiter;
     private final MarketDataContainer marketDataContainer;
+    private final MarketTickPipeline marketTickPipeline;
     private final StrategyRegistry strategyRegistry;
     private final AngelOneHistoricalDataRedisRepo angelOneHistoricalDataRedisRepo;
 
@@ -202,6 +204,7 @@ public class AngelOneServiceImpl implements AngelOneService {
         }
 
         ltpCache.put(token, ltp);
+        marketTickPipeline.publish(token, ltp);
         if (marketDataContainer.checkActiveWorker(token)) {
             marketDataContainer.getTickBuffer(token).add(
                     new LiveTick(ltp, ZonedDateTime.now(DateUtil.IST_ZONE))
