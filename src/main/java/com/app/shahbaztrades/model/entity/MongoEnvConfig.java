@@ -23,10 +23,7 @@ public class MongoEnvConfig {
     List<String> frontendUrls;
     String brevoEmail;
     String brevoApiKey;
-    String apiKey;
     float leverage;
-    boolean debugMode;
-    boolean rateLimiter;
     String jwtSecret;
     String redisUrl;
 
