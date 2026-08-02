@@ -1,6 +1,6 @@
-package com.app.shahbaztrades.controller;
+package com.app.shahbaztrades.controller.admin;
 
-import com.app.shahbaztrades.config.security.PublicEndpoint;
+import com.app.shahbaztrades.config.security.AdminOnly;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.scheduler.CronTaskDto;
 import com.app.shahbaztrades.model.dto.scheduler.ScheduledTaskDto;
@@ -19,42 +19,42 @@ import java.util.List;
 @Validated
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/schedule")
+@RequestMapping("/api/admin/schedule")
 public class SchedulerController {
 
     private final SchedulerService schedulerService;
 
     @PostMapping
-    @PublicEndpoint
+    @AdminOnly
     public ResponseEntity<ApiResponse<String>> scheduleTask(@RequestBody @Valid ScheduledTaskDto scheduledTaskDto) {
         return ResponseEntity.ok(ApiResponse.ok(schedulerService.scheduleTask(scheduledTaskDto), "Task scheduled successfully"));
     }
 
-    @PublicEndpoint
+    @AdminOnly
     @DeleteMapping
     public ResponseEntity<ApiResponse<Boolean>> deleteTask(@RequestParam @NotBlank String id) {
         return ResponseEntity.ok(ApiResponse.ok(schedulerService.deleteTask(id, SchedulerTaskType.TASK), "Task has been cancelled"));
     }
 
-    @PublicEndpoint
+    @AdminOnly
     @PostMapping("/cron")
     public ResponseEntity<ApiResponse<String>> scheduleCron(@RequestBody @Valid CronTaskDto cronTaskDto) {
         return ResponseEntity.ok(ApiResponse.ok(schedulerService.scheduleCron(cronTaskDto), "Cron scheduled successfully"));
     }
 
-    @PublicEndpoint
+    @AdminOnly
     @DeleteMapping("/cron")
     public ResponseEntity<ApiResponse<Boolean>> deleteCron(@RequestParam @NotBlank String id) {
         return ResponseEntity.ok(ApiResponse.ok(schedulerService.deleteTask(id, SchedulerTaskType.CRON), "Task has been cancelled"));
     }
 
-    @PublicEndpoint
+    @AdminOnly
     @GetMapping("/all")
     public ResponseEntity<ApiResponse<List<Object>>> getAllTasks(@RequestParam @NotNull SchedulerTaskType taskType) {
         return ResponseEntity.ok(ApiResponse.ok(schedulerService.getAllTask(taskType), "All tasks fetched successfully"));
     }
 
-    @PublicEndpoint
+    @AdminOnly
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Object>> getTaskById(@PathVariable("id") @NotBlank String id, @RequestParam @NotNull SchedulerTaskType taskType) {
         return ResponseEntity.ok(ApiResponse.ok(schedulerService.getTask(id, taskType), "Task fetched successfully"));
