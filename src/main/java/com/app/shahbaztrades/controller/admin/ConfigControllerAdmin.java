@@ -27,6 +27,13 @@ public class ConfigControllerAdmin {
     }
 
     @AdminOnly
+    @PostMapping("/client/reload")
+    public ResponseEntity<ApiResponse<Void>> reloadClientMongoConfig() {
+        mongoConfigService.refreshClientConfig();
+        return ResponseEntity.ok(ApiResponse.ok(null, "Mongo Client Configs Loaded Successfully"));
+    }
+
+    @AdminOnly
     @GetMapping("/active")
     public ResponseEntity<ApiResponse<MongoEnvConfig>> getActiveConfig() {
         return ResponseEntity.ok(ApiResponse.ok(mongoConfigService.getConfig(), "Success"));
