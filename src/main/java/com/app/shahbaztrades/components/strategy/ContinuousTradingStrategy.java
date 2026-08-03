@@ -7,7 +7,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 
-public interface TradingStrategy {
+public interface ContinuousTradingStrategy {
 
     LocalTime MARKET_START_TIME = LocalTime.of(9, 15);
 
