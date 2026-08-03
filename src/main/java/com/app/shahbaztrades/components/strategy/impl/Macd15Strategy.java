@@ -1,6 +1,6 @@
 package com.app.shahbaztrades.components.strategy.impl;
 
-import com.app.shahbaztrades.components.strategy.AbstractTradingStrategy;
+import com.app.shahbaztrades.components.strategy.AbstractContinuousTradingStrategy;
 import com.app.shahbaztrades.service.MarginService;
 import org.springframework.stereotype.Component;
 import org.ta4j.core.BarSeries;
@@ -17,7 +17,7 @@ import org.ta4j.core.rules.OverIndicatorRule;
 import org.ta4j.core.rules.UnderIndicatorRule;
 
 @Component("MACD15MIN")
-public class Macd15Strategy extends AbstractTradingStrategy {
+public class Macd15Strategy extends AbstractContinuousTradingStrategy {
 
     public Macd15Strategy(MarginService marginService) {
         super(marginService);
@@ -31,7 +31,8 @@ public class Macd15Strategy extends AbstractTradingStrategy {
     @Override
     protected boolean matches(BarSeries series) {
         int safeClosedIndex = lastClosedIndex(series);
-        if (safeClosedIndex < 20) return false;
+        int availableBars = safeClosedIndex - series.getBeginIndex() + 1;
+        if (availableBars < 28) return false;
 
         return applyEntryRule(series, safeClosedIndex);
     }

@@ -4,6 +4,7 @@ import com.app.shahbaztrades.components.angelone.AngelOneClient;
 import com.app.shahbaztrades.components.angelone.AngelOneRateLimiter;
 import com.app.shahbaztrades.components.angelone.SmartApiFeignClient;
 import com.app.shahbaztrades.components.helper.MarketDataContainer;
+import com.app.shahbaztrades.components.observer.MarketTickPipeline;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
@@ -58,9 +59,6 @@ public class AngelOneServiceImpl implements AngelOneService {
 
     private static final long RECONNECT_MAX_DELAY_SECONDS = 30;
     private static final int HEARTBEAT_INTERVAL_SECONDS = 20;
-
-    private volatile Session session;
-    private volatile ScheduledFuture<?> heartbeatTask;
     private final ConcurrentHashMap<String, Double> ltpCache = new ConcurrentHashMap<>();
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final AtomicBoolean intentionalDisconnect = new AtomicBoolean(false);
@@ -74,73 +72,9 @@ public class AngelOneServiceImpl implements AngelOneService {
     private final SmartApiFeignClient smartApiFeignClient;
     private final AngelOneRateLimiter angelOneRateLimiter;
     private final MarketDataContainer marketDataContainer;
+    private final MarketTickPipeline marketTickPipeline;
     private final StrategyRegistry strategyRegistry;
     private final AngelOneHistoricalDataRedisRepo angelOneHistoricalDataRedisRepo;
-
-    @Override
-    public void startWebSocket() {
-        if (connected.get() || mongoConfigService.getAngelOneJwtToken() == null) return;
-
-        intentionalDisconnect.set(false);
-        reconnectAttempts.set(0);
-
-        ClientManager client = ClientManager.createClient(JdkClientContainer.class.getName());
-        client.getProperties().put(ClientProperties.RECONNECT_HANDLER, reconnectHandler);
-
-        ClientEndpointConfig config = ClientEndpointConfig.Builder.create()
-                .configurator(new AngelOneHeaderConfigurator())
-                .build();
-
-        try {
-            client.connectToServer(new AngelOneEndpoint(), config, URI.create(WS_URL));
-        } catch (Exception e) {
-            log.error("WebSocket Connection Error", e);
-        }
-    }
-
-    private class AngelOneHeaderConfigurator extends ClientEndpointConfig.Configurator {
-        @Override
-        public void beforeRequest(Map<String, List<String>> headers) {
-            var angelOneConfig = mongoConfigService.getConfig().getAngelOneConfig();
-            headers.put("Authorization", List.of(BEARER_PREFIX + mongoConfigService.getAngelOneJwtToken()));
-            headers.put("x-api-key", List.of(angelOneConfig.getApiKey()));
-            headers.put("x-client-code", List.of(angelOneConfig.getClientId()));
-            headers.put("x-feed-token", List.of(mongoConfigService.getAngelOneFeedToken()));
-        }
-    }
-
-    private class AngelOneEndpoint extends Endpoint {
-        @Override
-        public void onOpen(Session sess, EndpointConfig config) {
-            session = sess;
-            connected.set(true);
-            reconnectAttempts.set(0);
-
-            sess.addMessageHandler(ByteBuffer.class, AngelOneServiceImpl.this::handleBinaryTick);
-            sess.addMessageHandler(String.class, msg -> {
-                if ("pong".equals(msg)) {
-                    log.trace("Received keep-alive pong");
-                }
-            });
-
-            startHeartbeat();
-            resubscribeActiveTokens();
-            log.info("Smart Stream Connected and Heartbeat started");
-        }
-
-        @Override
-        public void onClose(Session sess, CloseReason closeReason) {
-            connected.set(false);
-            log.warn("Smart Stream Connection Closed: {}", closeReason);
-        }
-
-        @Override
-        public void onError(Session sess, Throwable thr) {
-            connected.set(false);
-            log.error("Transport Error", thr);
-        }
-    }
-
     private final ClientManager.ReconnectHandler reconnectHandler = new ClientManager.ReconnectHandler() {
         @Override
         public boolean onDisconnect(CloseReason closeReason) {
@@ -170,6 +104,39 @@ public class AngelOneServiceImpl implements AngelOneService {
             return Math.min(delay, RECONNECT_MAX_DELAY_SECONDS);
         }
     };
+    private volatile Session session;
+    private volatile ScheduledFuture<?> heartbeatTask;
+
+    @Override
+    public boolean isWebSocketConnected() {
+        return connected.get();
+    }
+
+    @Override
+    public int getReconnectAttempts() {
+        return reconnectAttempts.get();
+    }
+
+    @Override
+    public void startWebSocket() {
+        if (connected.get() || mongoConfigService.getAngelOneJwtToken() == null) return;
+
+        intentionalDisconnect.set(false);
+        reconnectAttempts.set(0);
+
+        ClientManager client = ClientManager.createClient(JdkClientContainer.class.getName());
+        client.getProperties().put(ClientProperties.RECONNECT_HANDLER, reconnectHandler);
+
+        ClientEndpointConfig config = ClientEndpointConfig.Builder.create()
+                .configurator(new AngelOneHeaderConfigurator())
+                .build();
+
+        try {
+            client.connectToServer(new AngelOneEndpoint(), config, URI.create(WS_URL));
+        } catch (Exception e) {
+            log.error("WebSocket Connection Error", e);
+        }
+    }
 
     private void resubscribeActiveTokens() {
         var tokens = strategyRegistry.getAllActiveTokens();
@@ -202,6 +169,7 @@ public class AngelOneServiceImpl implements AngelOneService {
         }
 
         ltpCache.put(token, ltp);
+        marketTickPipeline.publish(token, ltp);
         if (marketDataContainer.checkActiveWorker(token)) {
             marketDataContainer.getTickBuffer(token).add(
                     new LiveTick(ltp, ZonedDateTime.now(DateUtil.IST_ZONE))
@@ -412,6 +380,49 @@ public class AngelOneServiceImpl implements AngelOneService {
         }
 
         throw new NotFoundException("Historical data not found");
+    }
+
+    private class AngelOneHeaderConfigurator extends ClientEndpointConfig.Configurator {
+        @Override
+        public void beforeRequest(Map<String, List<String>> headers) {
+            var angelOneConfig = mongoConfigService.getConfig().getAngelOneConfig();
+            headers.put("Authorization", List.of(BEARER_PREFIX + mongoConfigService.getAngelOneJwtToken()));
+            headers.put("x-api-key", List.of(angelOneConfig.getApiKey()));
+            headers.put("x-client-code", List.of(angelOneConfig.getClientId()));
+            headers.put("x-feed-token", List.of(mongoConfigService.getAngelOneFeedToken()));
+        }
+    }
+
+    private class AngelOneEndpoint extends Endpoint {
+        @Override
+        public void onOpen(Session sess, EndpointConfig config) {
+            session = sess;
+            connected.set(true);
+
+            sess.addMessageHandler(ByteBuffer.class, AngelOneServiceImpl.this::handleBinaryTick);
+            sess.addMessageHandler(String.class, msg -> {
+                if ("pong".equals(msg)) {
+                    log.trace("Received keep-alive pong");
+                }
+            });
+
+            startHeartbeat();
+            if (reconnectAttempts.get() > 0) resubscribeActiveTokens();
+            reconnectAttempts.set(0);
+            log.info("Smart Stream Connected and Heartbeat started");
+        }
+
+        @Override
+        public void onClose(Session sess, CloseReason closeReason) {
+            connected.set(false);
+            log.warn("Smart Stream Connection Closed: {}", closeReason);
+        }
+
+        @Override
+        public void onError(Session sess, Throwable thr) {
+            connected.set(false);
+            log.error("Transport Error", thr);
+        }
     }
 
 }

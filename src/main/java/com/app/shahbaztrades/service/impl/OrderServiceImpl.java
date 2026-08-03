@@ -2,39 +2,32 @@ package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
 import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
-import com.app.shahbaztrades.components.yahoo.YahooClient;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
 import com.app.shahbaztrades.model.dto.analysis.TechnicalMetrics;
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
-import com.app.shahbaztrades.model.dto.order.ActiveMtfTrade;
+import com.app.shahbaztrades.model.dto.order.MtfTickEvent;
 import com.app.shahbaztrades.model.dto.order.OrderDto;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.entity.Order;
-import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.model.enums.OrderStatus;
-import com.app.shahbaztrades.model.enums.YahooTimeRange;
 import com.app.shahbaztrades.repo.OrderRepo;
-import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.OrderService;
 import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
-import com.app.shahbaztrades.util.TechnicalAnalysisUtil;
 import com.app.shahbaztrades.validator.OrderValidator;
 import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -45,18 +38,13 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
-
-    enum StopLossAction {NONE, SQUARE_OFF, PLACE_STOP_LOSS}
 
     private static final String INITIATE_MTF = "Initiate MTF";
     private static final double PROFIT_ACTIVATION_MULTIPLIER = 1.004;
@@ -66,12 +54,11 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepo orderRepo;
     private final MongoTemplate mongoTemplate;
     private final MarginService marginService;
-    private final AngelOneService angelOneService;
     private final ApplicationEventPublisher eventPublisher;
     private final TradeWatchdog tradeWatchdog;
     private final OrderRouterFactory orderRouterFactory;
-    private final YahooClient yahooClient;
     private final UserService userService;
+    private final DailyTradingStrategyRegistry dailyTradingStrategyRegistry;
 
     static StopLossAction decideStopLossAction(double ltp, double buyPrice, double peakPrice,
                                                Double atrValue, boolean hasNoExitOrder, boolean marketClosing) {
@@ -94,19 +81,6 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return StopLossAction.NONE;
-    }
-
-    static OrderStatus mapEntryStatus(String brokerStatus) {
-        if (StringUtils.isBlank(brokerStatus)) {
-            return OrderStatus.PLACED;
-        }
-
-        return switch (brokerStatus.toUpperCase()) {
-            case Constants.ORDER_COMPLETE, "EXECUTED" -> OrderStatus.BOUGHT;
-            case Constants.ORDER_REJECTED -> OrderStatus.REJECTED;
-            case Constants.ORDER_CANCELLED, "CANCELLED AMO" -> OrderStatus.FAILED;
-            default -> OrderStatus.PLACED;
-        };
     }
 
     @Override
@@ -148,7 +122,8 @@ public class OrderServiceImpl implements OrderService {
         }
 
         var entity = orderDto.toEntity(margin);
-        OrderValidator.validateForCreateAndUpdate(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
+        OrderValidator.validateOrder(entity);
+        OrderValidator.validateBroker(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
         try {
             mongoTemplate.insert(entity);
         } catch (DataIntegrityViolationException _) {
@@ -164,7 +139,8 @@ public class OrderServiceImpl implements OrderService {
         }
 
         var entity = orderDto.toEntity(margin);
-        OrderValidator.validateForCreateAndUpdate(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
+        OrderValidator.validateOrder(entity);
+        OrderValidator.validateBroker(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
         try {
             orderRepo.save(entity);
         } catch (DataIntegrityViolationException _) {
@@ -193,59 +169,39 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Async("taskExecutor")
     public void initiateMtfOrders() {
-        processTodayOrders(INITIATE_MTF, (order) -> {
-            if (order.getOrderStatus() != OrderStatus.PENDING || (order.getEntry() != null && StringUtils.isNotBlank(order.getEntry().getBrokerOrderId()))) {
-                log.warn("MTF order exists for user {} symbol {}", order.getUserId(), order.getSymbol());
-                return null;
-            }
+        var orders = getTodayOrders();
+        if (CollectionUtils.isEmpty(orders)) {
+            log.info("No Orders found for today for {}", INITIATE_MTF);
+            return;
+        }
 
+        var metrics = new ConcurrentHashMap<String, TechnicalMetrics>();
+        for (var order : orders) {
             try {
-                var orderRouter = orderRouterFactory.getRouter(order.getBroker());
-                var req = TradeOrderRequest.builder().symbol(order.getSymbol()).quantity(order.getQuantity())
-                        .transactionType(Constants.TRANSACTION_TYPE_BUY).orderType(Constants.ORDER_TYPE_MARKET).build();
-                var res = orderRouter.placeMTFOrder(order.getUserId(), req);
-                order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.getOrderId()).build());
-                order.setOrderStatus(OrderStatus.PLACED);
-                log.info("MTF order placed for user {} symbol {} at init", order.getUserId(), order.getSymbol());
-                eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_PLACED,
-                        String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_PLACED, order.getQuantity(), order.getSymbol()),
-                        Collections.emptyMap()));
+                var strategy = dailyTradingStrategyRegistry.getStrategy(order.getStrategyName());
+                strategy.initialiseTrade(order, metrics);
             } catch (Exception e) {
-                order.setOrderStatus(OrderStatus.FAILED);
-                log.error("Failed to place MTF order for user {} symbol {} error {} at init", order.getUserId(), order.getSymbol(), e.getMessage());
+                log.error("Error processing mtf order {}", order.getId(), e);
             }
-            return null;
-        });
+        }
     }
 
     @Override
     public void updateMtfOrderStatus() {
-        processTodayOrders("Update MTF Status", ((order) -> {
-            if (order.getOrderStatus() != OrderStatus.PLACED || !order.hasEntryOrder()) {
-                log.info("Mtf order not found for userId {} symbol {} skipping status update", order.getUserId(), order.getSymbol());
-                throw new NotFoundException("Mtf order not found");
-            }
+        var orders = getTodayOrders();
+        if (CollectionUtils.isEmpty(orders)) {
+            log.info("No Orders found for today for Update MTF Status");
+            return;
+        }
 
+        for (var order : orders) {
             try {
-                var orderRouter = orderRouterFactory.getRouter(order.getBroker());
-                var orderDetails = orderRouter.getOrderDetails(order.getUserId(), order.getEntry().getBrokerOrderId());
-                order.getEntry().setOrderStatus(orderDetails.getStatus());
-                order.getEntry().setAveragePrice(orderDetails.getAveragePrice());
-                order.setOrderStatus(mapEntryStatus(orderDetails.getStatus()));
-                log.info("MTF status updated for user {} symbol {} status {} at update", order.getUserId(), order.getSymbol(), order.getOrderStatus());
-
-                if (order.getOrderStatus() == OrderStatus.BOUGHT && orderDetails.getAveragePrice() != null) {
-                    eventPublisher.publishEvent(new NotificationRequest(order.getUserId(), com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_BUY,
-                            String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_BUY, order.getQuantity(), order.getSymbol(), orderDetails.getAveragePrice().doubleValue()),
-                            Collections.emptyMap()));
-                }
+                var strategy = dailyTradingStrategyRegistry.getStrategy(order.getStrategyName());
+                strategy.updateTradeStatus(order);
             } catch (Exception e) {
-                log.error("Failed to update MTF status for user {} symbol {} error {} at update", order.getUserId(), order.getSymbol(), e.getMessage());
-                throw new BadRequestException("Invalid MTF order or kite exception " + e.getMessage());
+                log.error("Error updating mtf order status {}", order.getId(), e);
             }
-
-            return null;
-        }));
+        }
     }
 
     @Override
@@ -256,101 +212,14 @@ public class OrderServiceImpl implements OrderService {
             return;
         }
 
-        orders.forEach(order -> {
-            if (!order.hasEntryPrice()) {
-                log.info("Watchdog skipped order {} doesn't have entry price for user {} symbol {}", order.getId(), order.getUserId(), order.getSymbol());
-                return;
-            }
-
+        for (var order : orders) {
             try {
-                angelOneService.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
-            } catch (Exception _) {
-                log.error("WS Subscription failed for {}", order.getSymbol());
-                return;
+                var strategy = dailyTradingStrategyRegistry.getStrategy(order.getStrategyName());
+                strategy.startTrading(order);
+            } catch (Exception e) {
+                log.error("Error in mtf order {}", order.getId(), e);
             }
-
-            tradeWatchdog.watchMtfTrade(ActiveMtfTrade.builder()
-                    .order(order)
-                    .peakPrice(order.getEntry().getAveragePrice().doubleValue())
-                    .build());
-        });
-    }
-
-    private void processTodayOrders(String type, Function<Order, Void> processor) {
-        var orders = getTodayOrders();
-        if (CollectionUtils.isEmpty(orders)) {
-            log.info("No Orders found for today for {}", type);
-            return;
         }
-
-        if (shouldUpdateAtr(type)) {
-            updateAtr(orders);
-        }
-
-        processOrdersByUser(orders, processor);
-    }
-
-    private boolean shouldUpdateAtr(String type) {
-        return INITIATE_MTF.equalsIgnoreCase(type);
-    }
-
-    private void updateAtr(List<Order> orders) {
-        Map<String, TechnicalMetrics> metrics = new ConcurrentHashMap<>();
-        orders.forEach(order -> updateAtr(order, metrics));
-    }
-
-    private void updateAtr(Order order, Map<String, TechnicalMetrics> metrics) {
-        try {
-            var res = metrics.computeIfAbsent(order.getSymbol(), this::getValidTechnicalMetrics);
-            if (res != null) {
-                order.setAtr(res);
-            }
-        } catch (Exception _) {
-            log.error("Error updating ATR for {} orderId {}", order.getSymbol(), order.getId());
-        }
-    }
-
-    private TechnicalMetrics getValidTechnicalMetrics(String symbol) {
-        var data = yahooClient.getHistoricalData(symbol, YahooTimeRange.RANGE_1MO.getValue());
-        if (CollectionUtils.isEmpty(data)) {
-            return null;
-        }
-
-        var atr = TechnicalAnalysisUtil.getAtr(data);
-        if (atr == null || !atr.isAtrValid()) {
-            return null;
-        }
-
-        return atr;
-    }
-
-    private void processOrdersByUser(List<Order> orders, Function<Order, Void> processor) {
-        Map<Long, List<Order>> userOrderMap = orders.stream()
-                .collect(Collectors.groupingBy(Order::getUserId));
-
-        userOrderMap.forEach((userId, userOrders) ->
-                HelperUtil.EXECUTOR.execute(() -> processUserOrders(userId, userOrders, processor)));
-    }
-
-    private void processUserOrders(Long userId, List<Order> userOrders, Function<Order, Void> processor) {
-        try {
-            for (Order order : userOrders) {
-                processor.apply(order);
-                saveOrderProgress(order);
-            }
-        } catch (Exception e) {
-            log.error("Error processing orders for user {}", userId, e);
-        }
-    }
-
-    private void saveOrderProgress(Order order) {
-        Query query = Query.query(Criteria.where(Order.Fields.id).is(order.getId()));
-        Update update = new Update()
-                .set(Order.Fields.entry, order.getEntry())
-                .set(Order.Fields.exit, order.getExit())
-                .set(Order.Fields.atr, order.getAtr())
-                .set(Order.Fields.orderStatus, order.getOrderStatus());
-        mongoTemplate.updateFirst(query, update, Order.class);
     }
 
     private short processOrder(Order order, double ltp, double peakPrice) {
@@ -381,7 +250,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private short handleSquareOff(Order order, boolean hasNoExitOrder) {
-        log.info("Symbol: {}. Stock price dropped more than 0.6% or Market is closing (3:25 PM). Squaring off...", order.getSymbol());
+        log.info("Symbol: {}. Stock price dropped more than 0.6% or Market is closing (3:14 PM). Squaring off...", order.getSymbol());
         if (hasNoExitOrder) {
             return placeMarketSellOrder(order);
         } else {
@@ -468,12 +337,17 @@ public class OrderServiceImpl implements OrderService {
 
     @EventListener
     @Async("taskExecutor")
-    public void handleActiveMtfOrderEvent(ActiveMtfTrade event) {
-        var order = event.getOrder();
-        var res = processOrder(order, event.getLtp(), event.getPeakPrice());
-        if (res < 0) {
-            log.info("Order squared off - stopping monitoring orderId {} symbol {}", order.getId(), order.getSymbol());
-            tradeWatchdog.unwatchMtfTrade(event);
+    public void handleActiveMtfOrderEvent(MtfTickEvent event) {
+        var trade = event.trade();
+        try {
+            var order = trade.getOrder();
+            var res = processOrder(order, event.ltp(), event.peakPrice());
+            if (res < 0) {
+                log.info("Order squared off - stopping monitoring orderId {} symbol {}", order.getId(), order.getSymbol());
+                tradeWatchdog.unwatchMtfTrade(trade);
+            }
+        } finally {
+            tradeWatchdog.clearMtfTrigger(trade);
         }
     }
 
@@ -481,5 +355,7 @@ public class OrderServiceImpl implements OrderService {
         return orderRepo.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Order not found"));
     }
+
+    enum StopLossAction {NONE, SQUARE_OFF, PLACE_STOP_LOSS}
 
 }

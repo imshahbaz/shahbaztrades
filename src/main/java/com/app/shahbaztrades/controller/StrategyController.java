@@ -1,16 +1,17 @@
 package com.app.shahbaztrades.controller;
 
-import com.app.shahbaztrades.config.security.AdminOnly;
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
+import com.app.shahbaztrades.model.enums.TimeFrame;
 import com.app.shahbaztrades.service.StrategyService;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -24,33 +25,8 @@ public class StrategyController {
 
     @GetMapping
     @PublicEndpoint
-    public ResponseEntity<ApiResponse<List<StrategyDto>>> getAllStrategies() {
-        return ResponseEntity.ok(ApiResponse.ok(strategyService.getAllStrategies(), "Strategies fetched successfully"));
-    }
-
-    @AdminOnly
-    @PostMapping
-    public ResponseEntity<ApiResponse<StrategyDto>> createStrategy(@RequestBody @Valid StrategyDto strategyDto) {
-        return ResponseEntity.ok(ApiResponse.ok(strategyService.createStrategy(strategyDto), "Strategy created successfully"));
-    }
-
-    @AdminOnly
-    @PutMapping
-    public ResponseEntity<ApiResponse<StrategyDto>> updateStrategy(@RequestBody @Valid StrategyDto strategyDto) {
-        return ResponseEntity.ok(ApiResponse.ok(strategyService.updateStrategy(strategyDto), "Strategy updated successfully"));
-    }
-
-    @AdminOnly
-    @DeleteMapping
-    public ResponseEntity<ApiResponse<Void>> deleteStrategy(@RequestParam @NotBlank String id) {
-        strategyService.deleteStrategy(id.toUpperCase());
-        return ResponseEntity.ok(ApiResponse.ok(null, "Strategy deleted successfully"));
-    }
-
-    @AdminOnly
-    @GetMapping("/admin")
-    public ResponseEntity<ApiResponse<List<StrategyDto>>> getAllStrategiesAdmin() {
-        return ResponseEntity.ok(ApiResponse.ok(strategyService.getAllStrategiesAdmin(), "Strategies fetched successfully"));
+    public ResponseEntity<ApiResponse<List<StrategyDto>>> getAllStrategies(@RequestParam(defaultValue = "DAILY", required = false) TimeFrame timeFrame) {
+        return ResponseEntity.ok(ApiResponse.ok(strategyService.getAllStrategies(timeFrame), "Strategies fetched successfully"));
     }
 
 }

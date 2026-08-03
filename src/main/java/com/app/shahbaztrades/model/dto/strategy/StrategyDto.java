@@ -1,7 +1,9 @@
 package com.app.shahbaztrades.model.dto.strategy;
 
 import com.app.shahbaztrades.model.entity.Strategy;
+import com.app.shahbaztrades.model.enums.TimeFrame;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -22,9 +24,12 @@ public class StrategyDto {
 
     float successRate;
 
+    @NotNull
+    TimeFrame timeFrame;
+
     public Strategy toEntity() {
         this.setName(this.getName().toUpperCase());
-        return Strategy.builder().name(name).scanClause(scanClause).active(active).build();
+        return Strategy.builder().name(this.name).scanClause(this.scanClause).active(this.active).timeFrame(this.timeFrame).build();
     }
 
 }

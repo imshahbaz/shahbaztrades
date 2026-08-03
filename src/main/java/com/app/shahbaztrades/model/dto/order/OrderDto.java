@@ -5,15 +5,16 @@ import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.model.enums.OrderStatus;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.validator.OrderValidator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -44,6 +45,11 @@ public class OrderDto {
 
     OrderStatus orderStatus;
 
+    @NotBlank
+    String strategyName;
+
+    BigDecimal targetPercentage;
+
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     public String getStatusLabel() {
         return this.orderStatus == null ? null : this.orderStatus.getLabel();
@@ -72,6 +78,8 @@ public class OrderDto {
                 .date(parsedDate.atStartOfDay(DateUtil.IST_ZONE).toInstant())
                 .margin(margin)
                 .broker(this.broker)
+                .strategyName(this.strategyName)
+                .targetPercentage(this.targetPercentage)
                 .build();
     }
 }

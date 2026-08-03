@@ -281,19 +281,23 @@ public class TradeEngineImpl implements TradeEngine {
     @EventListener
     @Async("taskExecutor")
     public void tradeCompletionListener(TradeCompletionEvent event) throws Exception {
-        var orderRouter = orderRouterFactory.getRouter(event.trade().getBroker());
-        var det = orderRouter.getOrderDetails(event.userId(), event.trade().getExitOrderId());
-        if (det.getPendingQuantity() == 0) {
-            log.info("Exit order filled for {}", event.trade().getSymbol());
-            tradeWatchdog.unwatch(event.trade());
-            activeOrders.remove(event.trade().getStrategyOrderId());
-            eventPublisher.publishEvent(new NotificationRequest(
-                    event.userId(),
-                    com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_SELL,
-                    String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_SELL, event.trade().getQuantity(),
-                            event.trade().getSymbol(), event.trade().getTargetPrice()),
-                    Collections.emptyMap()
-            ));
+        try {
+            var orderRouter = orderRouterFactory.getRouter(event.trade().getBroker());
+            var det = orderRouter.getOrderDetails(event.userId(), event.trade().getExitOrderId());
+            if (det.getPendingQuantity() == 0) {
+                log.info("Exit order filled for {}", event.trade().getSymbol());
+                tradeWatchdog.unwatch(event.trade());
+                activeOrders.remove(event.trade().getStrategyOrderId());
+                eventPublisher.publishEvent(new NotificationRequest(
+                        event.userId(),
+                        com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_SELL,
+                        String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_SELL, event.trade().getQuantity(),
+                                event.trade().getSymbol(), event.trade().getTargetPrice()),
+                        Collections.emptyMap()
+                ));
+            }
+        } finally {
+            tradeWatchdog.clearTrigger(event.trade());
         }
     }
 

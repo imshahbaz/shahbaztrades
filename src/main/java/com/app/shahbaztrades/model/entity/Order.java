@@ -49,6 +49,10 @@ public class Order {
 
     TechnicalMetrics atr;
 
+    String strategyName;
+
+    BigDecimal targetPercentage;
+
     public OrderDto toDto() {
         return OrderDto.builder()
                 .id(this.id)
@@ -58,18 +62,9 @@ public class Order {
                 .date(DateTimeFormatter.ISO_LOCAL_DATE.withZone(DateUtil.IST_ZONE).format(this.date))
                 .broker(this.broker)
                 .orderStatus(this.orderStatus)
+                .strategyName(this.strategyName)
+                .targetPercentage(this.targetPercentage)
                 .build();
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class ExecutionRecord {
-        String brokerOrderId;
-        String orderStatus;
-        BigDecimal averagePrice;
     }
 
     public boolean hasEntryOrder() {
@@ -82,6 +77,17 @@ public class Order {
 
     public boolean hasEntryPrice() {
         return this.entry != null && this.entry.averagePrice != null && this.entry.getAveragePrice().signum() > 0;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class ExecutionRecord {
+        String brokerOrderId;
+        String orderStatus;
+        BigDecimal averagePrice;
     }
 
 }

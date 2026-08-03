@@ -5,16 +5,17 @@ import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.util.DateUtil;
 import org.ta4j.core.BarSeries;
 
+import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public abstract class AbstractTradingStrategy implements TradingStrategy {
+public abstract class AbstractContinuousTradingStrategy implements ContinuousTradingStrategy {
 
     protected final MarginService marginService;
 
-    protected AbstractTradingStrategy(MarginService marginService) {
+    protected AbstractContinuousTradingStrategy(MarginService marginService) {
         this.marginService = marginService;
     }
 
@@ -40,10 +41,11 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             return -1;
 
         var now = DateUtil.getCurrentDateTime().atZone(DateUtil.IST_ZONE).toInstant();
+        var isFirstScan = LocalTime.now(DateUtil.IST_ZONE).withSecond(0).withNano(0).equals(MARKET_START_TIME);
         for (int i = series.getEndIndex(); i >= series.getBeginIndex(); i--) {
             var bar = series.getBar(i);
             if (bar.getEndTime().isBefore(now)) {
-                if (now.isBefore(bar.getEndTime().plus(bar.getTimePeriod()))) {
+                if (isFirstScan || now.isBefore(bar.getEndTime().plus(bar.getTimePeriod()))) {
                     return i;
                 }
                 return -1;
