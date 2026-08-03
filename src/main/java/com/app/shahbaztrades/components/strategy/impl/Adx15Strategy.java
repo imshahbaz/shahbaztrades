@@ -1,6 +1,6 @@
 package com.app.shahbaztrades.components.strategy.impl;
 
-import com.app.shahbaztrades.components.strategy.AbstractTradingStrategy;
+import com.app.shahbaztrades.components.strategy.AbstractContinuousTradingStrategy;
 import com.app.shahbaztrades.service.MarginService;
 import org.springframework.stereotype.Component;
 import org.ta4j.core.BarSeries;
@@ -14,7 +14,7 @@ import org.ta4j.core.indicators.helpers.PreviousValueIndicator;
 import org.ta4j.core.rules.OverIndicatorRule;
 
 @Component("ADX15MIN")
-public class Adx15Strategy extends AbstractTradingStrategy {
+public class Adx15Strategy extends AbstractContinuousTradingStrategy {
 
     public Adx15Strategy(MarginService marginService) {
         super(marginService);

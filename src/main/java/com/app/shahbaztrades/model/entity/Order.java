@@ -49,6 +49,10 @@ public class Order {
 
     TechnicalMetrics atr;
 
+    String strategyName;
+
+    BigDecimal targetPercentage;
+
     public OrderDto toDto() {
         return OrderDto.builder()
                 .id(this.id)
@@ -58,6 +62,8 @@ public class Order {
                 .date(DateTimeFormatter.ISO_LOCAL_DATE.withZone(DateUtil.IST_ZONE).format(this.date))
                 .broker(this.broker)
                 .orderStatus(this.orderStatus)
+                .strategyName(this.strategyName)
+                .targetPercentage(this.targetPercentage)
                 .build();
     }
 

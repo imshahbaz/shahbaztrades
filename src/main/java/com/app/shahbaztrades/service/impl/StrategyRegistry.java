@@ -1,6 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
-import com.app.shahbaztrades.components.strategy.TradingStrategy;
+import com.app.shahbaztrades.components.strategy.ContinuousTradingStrategy;
 import lombok.Getter;
 import org.springframework.stereotype.Service;
 
@@ -15,9 +15,9 @@ public class StrategyRegistry {
     private final Map<String, List<String>> strategyTokenMap = new ConcurrentHashMap<>();
     @Getter
     private final Map<String, String> tokenSymbolMap = new ConcurrentHashMap<>();
-    private final Map<String, TradingStrategy> availableStrategies;
+    private final Map<String, ContinuousTradingStrategy> availableStrategies;
 
-    public StrategyRegistry(Map<String, TradingStrategy> strategyBeans) {
+    public StrategyRegistry(Map<String, ContinuousTradingStrategy> strategyBeans) {
         this.availableStrategies = strategyBeans;
     }
 
@@ -45,7 +45,7 @@ public class StrategyRegistry {
                 .toList();
     }
 
-    public TradingStrategy getStrategyInstance(String strategyName) {
+    public ContinuousTradingStrategy getStrategyInstance(String strategyName) {
         return availableStrategies.get(strategyName);
     }
 

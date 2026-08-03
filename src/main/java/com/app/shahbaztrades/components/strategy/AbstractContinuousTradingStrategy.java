@@ -11,11 +11,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public abstract class AbstractTradingStrategy implements TradingStrategy {
+public abstract class AbstractContinuousTradingStrategy implements ContinuousTradingStrategy {
 
     protected final MarginService marginService;
 
-    protected AbstractTradingStrategy(MarginService marginService) {
+    protected AbstractContinuousTradingStrategy(MarginService marginService) {
         this.marginService = marginService;
     }
 
