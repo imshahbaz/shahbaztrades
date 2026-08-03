@@ -2,6 +2,8 @@ package com.app.shahbaztrades.service;
 
 import com.app.shahbaztrades.model.entity.MongoEnvConfig;
 
+import java.util.Map;
+
 public interface MongoConfigService {
     String getAngelOneJwtToken();
 
@@ -18,4 +20,6 @@ public interface MongoConfigService {
     MongoEnvConfig getConfig();
 
     MongoEnvConfig getClientConfig();
+
+    void updatePartialConfig(String configId, Map<String, Object> request);
 }

@@ -1,18 +1,23 @@
 package com.app.shahbaztrades.validator;
 
 import com.app.shahbaztrades.exceptions.BadRequestException;
+import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.util.DateUtil;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class OrderValidator {
+
+    private static final BigDecimal lowerBound = new BigDecimal("0.4");
+    private static final BigDecimal upperBound = new BigDecimal(20);
 
     public static void validateOrderDate(LocalDate orderDate) {
         var threshold = orderDate.atTime(9, 0).atZone(DateUtil.IST_ZONE);
@@ -32,7 +37,7 @@ public class OrderValidator {
         }
     }
 
-    public static void validateForCreateAndUpdate(User user, BrokerType brokerType) {
+    public static void validateBroker(User user, BrokerType brokerType) {
         switch (brokerType) {
             case ZERODHA -> {
                 if (!BrokerConfigValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
@@ -45,6 +50,25 @@ public class OrderValidator {
                 }
             }
             default -> throw new BadRequestException("Broker not supported");
+        }
+    }
+
+    public static void validateOrder(Order order) {
+        switch (order.getStrategyName()) {
+            case "TARGET PROFIT" -> {
+                var targetPercentage = order.getTargetPercentage();
+                if (targetPercentage == null) {
+                    throw new BadRequestException("Target percentage is required");
+                }
+
+                if (!(targetPercentage.compareTo(lowerBound) >= 0 && targetPercentage.compareTo(upperBound) <= 0)) {
+                    throw new BadRequestException("Target percentage should be between 0.4 and 20");
+                }
+            }
+
+            case "TRAILING PROFIT" -> order.setTargetPercentage(null);
+
+            default -> throw new BadRequestException("Invalid order strategy");
         }
     }
 

@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.config.redis;
 
+import com.app.shahbaztrades.service.MongoConfigService;
 import lombok.RequiredArgsConstructor;
 import org.redisson.Redisson;
 import org.redisson.api.RScheduledExecutorService;
@@ -13,7 +14,6 @@ import org.redisson.spring.cache.CacheConfig;
 import org.redisson.spring.cache.RedissonSpringCacheManager;
 import org.redisson.spring.data.connection.RedissonConnectionFactory;
 import org.springframework.beans.factory.BeanFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RedisConfig {
 
     private static final String SCHEDULER_NAME = "1Klik-Scheduler";
+    private final MongoConfigService mongoConfigService;
 
     @Bean
     public RedissonConnectionFactory redisConnectionFactory(RedissonClient redissonClient) {
@@ -42,21 +43,13 @@ public class RedisConfig {
     }
 
     @Bean
-    public RedissonClient redissonClient(
-            @Value("${REDIS_HOST}") String host,
-            @Value("${REDIS_PORT}") int port,
-            @Value("${REDIS_USER}") String user,
-            @Value("${REDIS_PASS}") String pass) {
+    public RedissonClient redissonClient() {
 
         Config config = new Config();
-        config.setUsername(user);
-        config.setPassword(pass);
         config.setCodec(new JsonJacksonCodec());
 
-        String redisUrl = String.format("rediss://%s:%d", host, port);
-
         config.useSingleServer()
-                .setAddress(redisUrl)
+                .setAddress(mongoConfigService.getConfig().getRedisUrl())
                 .setConnectTimeout((int) Duration.ofSeconds(10).toMillis())
                 .setTimeout((int) Duration.ofSeconds(5).toMillis())
                 .setRetryAttempts(5)

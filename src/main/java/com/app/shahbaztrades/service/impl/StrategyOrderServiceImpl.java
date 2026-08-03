@@ -43,7 +43,7 @@ public class StrategyOrderServiceImpl implements StrategyOrderService {
     @Override
     public StrategyOrderDto createOrder(StrategyOrderDto request) {
         var entity = request.toEntity();
-        OrderValidator.validateForCreateAndUpdate(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
+        OrderValidator.validateBroker(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
         try {
             entity = strategyOrderRepo.insert(entity);
         } catch (DataIntegrityViolationException _) {
@@ -55,7 +55,7 @@ public class StrategyOrderServiceImpl implements StrategyOrderService {
     @Override
     public StrategyOrderDto updateOrder(StrategyOrderDto request) {
         var entity = request.toEntity();
-        OrderValidator.validateForCreateAndUpdate(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
+        OrderValidator.validateBroker(userService.findByUserIdOrEmailOrMobile(entity.getUserId(), "", 0L), entity.getBroker());
         try {
             entity = strategyOrderRepo.save(entity);
         } catch (DataIntegrityViolationException _) {

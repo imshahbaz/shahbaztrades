@@ -4,12 +4,13 @@ import com.app.shahbaztrades.config.security.AdminOnly;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.entity.MongoEnvConfig;
 import com.app.shahbaztrades.service.MongoConfigService;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -26,9 +27,23 @@ public class ConfigControllerAdmin {
     }
 
     @AdminOnly
+    @PostMapping("/client/reload")
+    public ResponseEntity<ApiResponse<Void>> reloadClientMongoConfig() {
+        mongoConfigService.refreshClientConfig();
+        return ResponseEntity.ok(ApiResponse.ok(null, "Mongo Client Configs Loaded Successfully"));
+    }
+
+    @AdminOnly
     @GetMapping("/active")
     public ResponseEntity<ApiResponse<MongoEnvConfig>> getActiveConfig() {
         return ResponseEntity.ok(ApiResponse.ok(mongoConfigService.getConfig(), "Success"));
+    }
+
+    @AdminOnly
+    @PutMapping("/update/{id}")
+    public ResponseEntity<ApiResponse<Void>> updateConfig(@PathVariable @NotBlank String id, @RequestBody @NotEmpty Map<String, Object> request) {
+        mongoConfigService.updatePartialConfig(id, request);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Success"));
     }
 
 }

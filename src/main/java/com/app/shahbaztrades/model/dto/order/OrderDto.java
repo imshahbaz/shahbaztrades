@@ -14,6 +14,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -44,6 +45,11 @@ public class OrderDto {
 
     OrderStatus orderStatus;
 
+    @NotBlank
+    String strategyName;
+
+    BigDecimal targetPercentage;
+
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     public String getStatusLabel() {
         return this.orderStatus == null ? null : this.orderStatus.getLabel();
@@ -72,6 +78,8 @@ public class OrderDto {
                 .date(parsedDate.atStartOfDay(DateUtil.IST_ZONE).toInstant())
                 .margin(margin)
                 .broker(this.broker)
+                .strategyName(this.strategyName)
+                .targetPercentage(this.targetPercentage)
                 .build();
     }
 }
