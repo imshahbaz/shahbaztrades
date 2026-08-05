@@ -17,6 +17,7 @@ import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -145,7 +146,7 @@ public class MarketDataContainer {
 
         chartInkResult.getData().forEach(dto -> {
             var margin = marginService.getMarginCache().get(dto.getNsecode());
-            if (margin == null) {
+            if (margin == null || StringUtils.isAnyEmpty(margin.getSymbol(), margin.getToken())) {
                 return;
             }
 
