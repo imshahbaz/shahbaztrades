@@ -65,7 +65,7 @@ public abstract class AbstractDailyTradingStrategy implements DailyTradingStrate
 
             var orderRouter = orderRouterFactory.getRouter(order.getBroker());
             var req = TradeOrderRequest.builder().symbol(order.getSymbol()).quantity(order.getQuantity())
-                    .transactionType(Constants.TRANSACTION_TYPE_BUY).price(ltp <= 0 ? null : ltp * 1.02).build();
+                    .transactionType(Constants.TRANSACTION_TYPE_BUY).price(ltp <= 0 ? null : HelperUtil.fixToTick(ltp * 1.02)).build();
             var res = orderRouter.placePreMarketOrder(order.getUserId(), req);
             order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.getOrderId()).build());
             order.setOrderStatus(OrderStatus.PLACED);
