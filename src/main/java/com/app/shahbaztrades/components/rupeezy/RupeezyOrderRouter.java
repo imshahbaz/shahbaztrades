@@ -116,6 +116,12 @@ public class RupeezyOrderRouter implements OrderRoutingStrategy {
                 .build();
     }
 
+    @Override
+    public TradeOrderResponse placePreMarketOrder(Long userId, TradeOrderRequest request) throws Exception {
+        request.setOrderType(request.getPrice() == null ? Constants.ORDER_TYPE_MARKET : Constants.ORDER_TYPE_LIMIT);
+        return this.placeMTFOrder(userId, request);
+    }
+
     private RupeezyTokenCache getTokenCache(Long userId) {
         var cache = rupeezyService.getTokenCache(userId);
         if (cache == null) {

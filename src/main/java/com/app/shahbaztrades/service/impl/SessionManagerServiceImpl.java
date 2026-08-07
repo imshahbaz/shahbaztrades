@@ -2,21 +2,26 @@ package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
 import com.app.shahbaztrades.model.dto.UserDto;
+import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.Constants;
 import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.time.Duration;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -28,10 +33,12 @@ public class SessionManagerServiceImpl implements SessionManagerService {
     private final StrategyOrderService strategyOrderService;
     private final StringRedisTemplate stringRedisTemplate;
     private final UserService userService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     @Async("taskExecutor")
     public void initiateZerodhaLogin() throws ExecutionException, InterruptedException {
+        Set<Long> usersToRemind = ConcurrentHashMap.newKeySet();
         var orderFuture = CompletableFuture.supplyAsync(() -> {
             var res = new HashSet<Long>();
             var orders = orderService.getTodayOrders();
@@ -42,6 +49,8 @@ public class SessionManagerServiceImpl implements SessionManagerService {
             orders.forEach(order -> {
                 if (order.getBroker().equals(BrokerType.ZERODHA)) {
                     res.add(order.getUserId());
+                } else {
+                    usersToRemind.add(order.getUserId());
                 }
             });
 
@@ -58,6 +67,8 @@ public class SessionManagerServiceImpl implements SessionManagerService {
             orders.forEach(order -> {
                 if (order.getBroker().equals(BrokerType.ZERODHA)) {
                     res.add(order.getUserId());
+                } else {
+                    usersToRemind.add(order.getUserId());
                 }
             });
 
@@ -68,6 +79,13 @@ public class SessionManagerServiceImpl implements SessionManagerService {
         var userIds = orderFuture.get();
         userIds.addAll(strategyOrderFuture.get());
 
+        usersToRemind.forEach(userId -> applicationEventPublisher.publishEvent(NotificationRequest.builder()
+                .userId(userId)
+                .title(Constants.NOTIFICATION_TITLE_BROKER_LOGIN)
+                .body(Constants.NOTIFICATION_MESSAGE_BROKER_LOGIN)
+                .data(Collections.emptyMap())
+                .build()));
+
         zerodhaService.autoLogin(userIds);
     }
 
@@ -76,8 +94,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
         Boolean isAbsent = stringRedisTemplate.opsForValue().setIfAbsent(
                 Constants.ZERODHA_AUTO_LOGIN_KEY + userDto.getUserId(),
                 "PENDING",
-                3,
-                TimeUnit.MINUTES
+                Duration.ofMinutes(3)
         );
 
         if (!Boolean.TRUE.equals(isAbsent)) {
