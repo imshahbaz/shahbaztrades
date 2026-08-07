@@ -81,7 +81,7 @@ public class SchedulerServiceImpl implements SchedulerService {
     @Override
     public String updateCron(String id, CronTaskDto cronTaskDto) {
         if (this.deleteTask(id, SchedulerTaskType.CRON)) {
-            this.scheduleCron(cronTaskDto);
+            return this.scheduleCron(cronTaskDto);
         }
 
         throw new NotFoundException("Task not found");
