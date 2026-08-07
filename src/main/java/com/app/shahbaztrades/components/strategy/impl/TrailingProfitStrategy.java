@@ -19,14 +19,12 @@ public class TrailingProfitStrategy extends AbstractDailyTradingStrategy {
 
     private static final String NAME = "TRAILING PROFIT";
 
-    private final AngelOneService angelOneService;
     private final TradeWatchdog tradeWatchdog;
 
     protected TrailingProfitStrategy(MongoTemplate mongoTemplate, YahooClient yahooClient,
                                      ApplicationEventPublisher eventPublisher, OrderRouterFactory orderRouterFactory,
                                      AngelOneService angelOneService, TradeWatchdog tradeWatchdog) {
-        super(mongoTemplate, eventPublisher, orderRouterFactory, yahooClient);
-        this.angelOneService = angelOneService;
+        super(mongoTemplate, eventPublisher, orderRouterFactory, yahooClient, angelOneService);
         this.tradeWatchdog = tradeWatchdog;
     }
 
