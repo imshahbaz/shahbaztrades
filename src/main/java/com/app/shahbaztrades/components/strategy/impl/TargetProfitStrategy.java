@@ -6,6 +6,7 @@ import com.app.shahbaztrades.components.yahoo.YahooClient;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.OrderStatus;
+import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.util.HelperUtil;
 import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +25,8 @@ public class TargetProfitStrategy extends AbstractDailyTradingStrategy {
     private static final BigDecimal ONE_HUNDRED = new BigDecimal(100);
 
     protected TargetProfitStrategy(MongoTemplate mongoTemplate, ApplicationEventPublisher eventPublisher,
-                                   OrderRouterFactory orderRouterFactory, YahooClient yahooClient) {
-        super(mongoTemplate, eventPublisher, orderRouterFactory, yahooClient);
+                                   OrderRouterFactory orderRouterFactory, YahooClient yahooClient, AngelOneService angelOneService) {
+        super(mongoTemplate, eventPublisher, orderRouterFactory, yahooClient, angelOneService);
     }
 
     @Override

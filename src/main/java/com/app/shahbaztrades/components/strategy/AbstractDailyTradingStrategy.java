@@ -6,8 +6,11 @@ import com.app.shahbaztrades.model.dto.analysis.TechnicalMetrics;
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.entity.Order;
+import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.model.enums.OrderStatus;
 import com.app.shahbaztrades.model.enums.YahooTimeRange;
+import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.util.HelperUtil;
 import com.app.shahbaztrades.util.TechnicalAnalysisUtil;
 import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.extern.slf4j.Slf4j;
@@ -29,13 +32,15 @@ public abstract class AbstractDailyTradingStrategy implements DailyTradingStrate
     private final ApplicationEventPublisher eventPublisher;
     protected final OrderRouterFactory orderRouterFactory;
     private final YahooClient yahooClient;
+    protected final AngelOneService angelOneService;
 
     protected AbstractDailyTradingStrategy(MongoTemplate mongoTemplate, ApplicationEventPublisher eventPublisher,
-                                           OrderRouterFactory orderRouterFactory, YahooClient yahooClient) {
+                                           OrderRouterFactory orderRouterFactory, YahooClient yahooClient, AngelOneService angelOneService) {
         this.mongoTemplate = mongoTemplate;
         this.eventPublisher = eventPublisher;
         this.orderRouterFactory = orderRouterFactory;
         this.yahooClient = yahooClient;
+        this.angelOneService = angelOneService;
     }
 
     @Override
@@ -47,10 +52,21 @@ public abstract class AbstractDailyTradingStrategy implements DailyTradingStrate
         }
 
         try {
+            var ltp = angelOneService.getLTP(order.getMargin().getToken());
+            if (ltp <= 0) {
+                try {
+                    angelOneService.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
+                    HelperUtil.pollWait(1000);
+                    ltp = angelOneService.getLTP(order.getMargin().getToken());
+                } catch (Exception _) {
+                    log.error("WS Subscription failed for {}", order.getSymbol());
+                }
+            }
+
             var orderRouter = orderRouterFactory.getRouter(order.getBroker());
             var req = TradeOrderRequest.builder().symbol(order.getSymbol()).quantity(order.getQuantity())
-                    .transactionType(Constants.TRANSACTION_TYPE_BUY).orderType(Constants.ORDER_TYPE_MARKET).build();
-            var res = orderRouter.placeMTFOrder(order.getUserId(), req);
+                    .transactionType(Constants.TRANSACTION_TYPE_BUY).price(ltp <= 0 ? null : ltp * 1.02).build();
+            var res = orderRouter.placePreMarketOrder(order.getUserId(), req);
             order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.getOrderId()).build());
             order.setOrderStatus(OrderStatus.PLACED);
             log.info("MTF order placed for user {} symbol {} at init", order.getUserId(), order.getSymbol());

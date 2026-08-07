@@ -19,4 +19,6 @@ public interface OrderRoutingStrategy {
     void convertSLToMarket(Long userId, TradeOrderRequest request) throws Exception;
 
     TradeOrderResponse getOrderDetails(Long userId, String orderId) throws Exception;
+
+    TradeOrderResponse placePreMarketOrder(Long userId, TradeOrderRequest request) throws Exception;
 }

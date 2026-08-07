@@ -60,4 +60,10 @@ public class SchedulerController {
         return ResponseEntity.ok(ApiResponse.ok(schedulerService.getTask(id, taskType), "Task fetched successfully"));
     }
 
+    @AdminOnly
+    @PutMapping("/cron/{id}")
+    public ResponseEntity<ApiResponse<String>> updateCron(@PathVariable String id, @RequestBody @Valid CronTaskDto cronTaskDto) {
+        return ResponseEntity.ok(ApiResponse.ok(schedulerService.updateCron(id, cronTaskDto), "Cron updated successfully"));
+    }
+
 }
