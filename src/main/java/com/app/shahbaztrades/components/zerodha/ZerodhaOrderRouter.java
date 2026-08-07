@@ -157,4 +157,11 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
                 .pendingQuantity(NumberUtils.isCreatable(detail.pendingQuantity) ? Integer.parseInt(detail.pendingQuantity) : 0)
                 .build();
     }
+
+    @Override
+    public TradeOrderResponse placePreMarketOrder(Long userId, TradeOrderRequest request) throws Exception {
+        request.setPrice(null);
+        request.setOrderType(Constants.ORDER_TYPE_MARKET);
+        return this.placeMTFOrder(userId, request);
+    }
 }

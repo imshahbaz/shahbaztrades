@@ -3,6 +3,7 @@ package com.app.shahbaztrades.model.entity;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.enums.UserRole;
 import com.app.shahbaztrades.model.enums.UserTheme;
+import com.app.shahbaztrades.validator.BrokerConfigValidator;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.FieldNameConstants;
@@ -83,6 +84,10 @@ public class User {
 
         String apiSecret;
         String appId;
+    }
+
+    public boolean isZerodhaAutoLoginEnabled() {
+        return BrokerConfigValidator.validateZerodhaConfig(this.zerodhaConfig) && this.zerodhaConfig.isTotpEnabled();
     }
 
 }

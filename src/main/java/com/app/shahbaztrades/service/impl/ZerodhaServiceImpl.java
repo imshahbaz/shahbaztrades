@@ -7,6 +7,7 @@ import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
 import com.app.shahbaztrades.exceptions.UnauthorizedException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
+import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginRequestDTO;
 import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginResponseDTO;
 import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
@@ -25,6 +26,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -35,6 +37,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Set;
 
 @Slf4j
@@ -47,6 +50,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     private final MongoTemplate mongoTemplate;
     private final SessionManagerClient sessionManagerClient;
     private final CacheManager cacheManager;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     public KiteConnect initiateKiteConnect(String accessToken, Long userId) {
@@ -176,7 +180,7 @@ public class ZerodhaServiceImpl implements ZerodhaService {
         }
 
         for (User user : users) {
-            if (user.getZerodhaConfig() != null && user.getZerodhaConfig().isTotpEnabled()) {
+            if (user.isZerodhaAutoLoginEnabled()) {
                 HelperUtil.EXECUTOR.execute(() -> {
                     try {
                         tryAutoLogin(user);
@@ -187,13 +191,20 @@ public class ZerodhaServiceImpl implements ZerodhaService {
                         log.info("Auto login failed {} {}", user.getUserId(), e.getMessage());
                     }
                 });
+            } else {
+                applicationEventPublisher.publishEvent(NotificationRequest.builder()
+                        .userId(user.getUserId())
+                        .title(Constants.NOTIFICATION_TITLE_BROKER_LOGIN)
+                        .body(Constants.NOTIFICATION_MESSAGE_BROKER_LOGIN)
+                        .data(Collections.emptyMap())
+                        .build());
             }
         }
     }
 
     @Override
     public void autoConnectZerodhaSession(User user) {
-        if (user.getZerodhaConfig() != null && user.getZerodhaConfig().isTotpEnabled() && BrokerConfigValidator.validateZerodhaConfig(user.getZerodhaConfig())) {
+        if (user.isZerodhaAutoLoginEnabled()) {
             var res = sessionManagerClient.autoLogin(ZerodhaLoginRequestDTO.mapDto(user.getUserId(), user.getZerodhaConfig()), SessionManagerClient.SOURCE);
             if (res.isPending() && res.message().equals("Token generation already in progress")) {
                 throw new ResourceAlreadyExistsException("Request already exists");

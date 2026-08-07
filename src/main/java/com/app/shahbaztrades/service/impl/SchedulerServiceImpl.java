@@ -78,4 +78,13 @@ public class SchedulerServiceImpl implements SchedulerService {
         return rMap.values().stream().toList();
     }
 
+    @Override
+    public String updateCron(String id, CronTaskDto cronTaskDto) {
+        if (this.deleteTask(id, SchedulerTaskType.CRON)) {
+            return this.scheduleCron(cronTaskDto);
+        }
+
+        throw new NotFoundException("Task not found");
+    }
+
 }
