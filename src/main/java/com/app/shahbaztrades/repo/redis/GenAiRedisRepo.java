@@ -11,7 +11,7 @@ public class GenAiRedisRepo extends RedisCache {
     private static final String LOCK_KEY = KEY_PREFIX + "_lock:";
 
     public GenAiRedisRepo(RedissonClient redissonClient) {
-        super(redissonClient, "genai");
+        super(redissonClient, KEY_PREFIX);
     }
 
     public RLock getLock(String id) {
