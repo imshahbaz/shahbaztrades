@@ -239,6 +239,12 @@ public class ZerodhaServiceImpl implements ZerodhaService {
         }
     }
 
+    @Override
+    public void revokeZerodhaAuth(long userId) {
+        stringRedisTemplate.delete(ZERODHA_TOKEN_KEY + userId);
+        kiteClientCache.remove(userId);
+    }
+
     private void tryAutoLogin(User user) throws InterruptedException {
         var userId = user.getUserId();
         try {

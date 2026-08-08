@@ -20,4 +20,6 @@ public interface RupeezyService {
     Long setConfig(User.RupeezyConfig config, UserDto userDto);
 
     RupeezyTokenCache getTokenCache(long userId);
+
+    void revokeRupeezyAuth(long userId);
 }
