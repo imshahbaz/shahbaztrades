@@ -11,20 +11,18 @@ import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.Strategy;
 import com.app.shahbaztrades.model.enums.TimeFrame;
-import com.app.shahbaztrades.model.enums.YahooTimeRange;
+import com.app.shahbaztrades.repo.redis.GenAiRedisRepo;
+import com.app.shahbaztrades.repo.redis.TvNewsRedisRepo;
 import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
-import com.google.gson.reflect.TypeToken;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.redisson.api.RedissonClient;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -42,28 +40,26 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class AnalysisServiceImpl implements AnalysisService {
 
-    private final StringRedisTemplate stringRedisTemplate;
     private final GenAiClient genAiClient;
     private final YahooClient yahooClient;
     private final MongoConfigService mongoConfigService;
-    private final RedissonClient redissonClient;
     private final StrategyService strategyService;
     private final ChartInkService chartInkService;
     private final AngelOneService angelOneService;
     private final MongoTemplate mongoTemplate;
+    private final GenAiRedisRepo genAiRedisRepo;
+    private final TvNewsRedisRepo tvNewsRedisRepo;
 
     @Override
     public List<TradingViewNewsResponse.NewsItem> getStockNews(String symbol) {
-        var cacheKey = "tv_news:" + symbol;
-        var value = stringRedisTemplate.opsForValue().get(cacheKey);
-        if (StringUtils.isNotBlank(value)) {
-            return HelperUtil.GSON.fromJson(value, new TypeToken<List<TradingViewNewsResponse.NewsItem>>() {
-            }.getType());
+        List<TradingViewNewsResponse.NewsItem> cache = tvNewsRedisRepo.get(symbol);
+        if (cache != null) {
+            return cache;
         }
 
         var res = TradingViewClient.getStockNews(symbol);
         if (res != null && !CollectionUtils.isEmpty(res.items())) {
-            stringRedisTemplate.opsForValue().set(cacheKey, HelperUtil.GSON.toJson(res.items()), Duration.ofMinutes(10));
+            tvNewsRedisRepo.set(symbol, res.items(), Duration.ofMinutes(10));
             return res.items();
         }
 
@@ -72,25 +68,22 @@ public class AnalysisServiceImpl implements AnalysisService {
 
     @Override
     public AIAnalysis getGenAiAnalysis(String symbol) {
-        var cacheKey = "genai:" + symbol;
-
-        var value = stringRedisTemplate.opsForValue().get(cacheKey);
-        if (StringUtils.isNotBlank(value)) {
-            return HelperUtil.GSON.fromJson(value, AIAnalysis.class);
+        AIAnalysis value = genAiRedisRepo.get(symbol);
+        if (value != null) {
+            return value;
         }
 
-        var lockKey = "lock:genai_" + symbol;
-        var lock = redissonClient.getLock(lockKey);
+        var lock = genAiRedisRepo.getLock(symbol);
 
         try {
             if (lock.tryLock(20, -1, TimeUnit.SECONDS)) {
                 try {
-                    value = stringRedisTemplate.opsForValue().get(cacheKey);
-                    if (StringUtils.isNotBlank(value)) {
-                        return HelperUtil.GSON.fromJson(value, AIAnalysis.class);
+                    value = genAiRedisRepo.get(symbol);
+                    if (value != null) {
+                        return value;
                     }
 
-                    var history = yahooClient.getHistoricalData(symbol, YahooTimeRange.RANGE_1MO.getValue());
+                    var history = yahooClient.getMonthlyHistoricalData(symbol);
                     if (CollectionUtils.isEmpty(history)) {
                         throw new NotFoundException("Analysis Not Found");
                     }
@@ -100,9 +93,9 @@ public class AnalysisServiceImpl implements AnalysisService {
                         throw new NotFoundException("Analysis Not Found");
                     }
 
-                    stringRedisTemplate.opsForValue().set(cacheKey, analysis,
-                            DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10)));
-                    return HelperUtil.GSON.fromJson(analysis, AIAnalysis.class);
+                    var res = HelperUtil.GSON.fromJson(analysis, AIAnalysis.class);
+                    genAiRedisRepo.set(symbol, res, DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10)));
+                    return res;
                 } finally {
                     if (lock.isLocked() && lock.isHeldByCurrentThread()) {
                         lock.unlock();

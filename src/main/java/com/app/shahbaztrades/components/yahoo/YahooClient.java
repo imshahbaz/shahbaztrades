@@ -2,13 +2,11 @@ package com.app.shahbaztrades.components.yahoo;
 
 import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
 import com.app.shahbaztrades.model.dto.yahoo.YahooChartResponse;
+import com.app.shahbaztrades.model.enums.YahooTimeRange;
+import com.app.shahbaztrades.repo.redis.YahooMonthlyHistoricalDataRepo;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
-import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.redisson.api.RedissonClient;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -28,28 +26,25 @@ public class YahooClient {
 
     private static final String BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
     private final RestClient restClient;
-    private final StringRedisTemplate stringRedisTemplate;
-    private final RedissonClient redissonClient;
+    private final YahooMonthlyHistoricalDataRepo yahooMonthlyHistoricalDataRepo;
 
-    public YahooClient(StringRedisTemplate stringRedisTemplate, RedissonClient redissonClient) {
+    public YahooClient(YahooMonthlyHistoricalDataRepo yahooMonthlyHistoricalDataRepo) {
+        this.yahooMonthlyHistoricalDataRepo = yahooMonthlyHistoricalDataRepo;
         this.restClient = RestClient.builder()
                 .baseUrl(BASE_URL)
                 .requestFactory(HelperUtil.requestFactory(Duration.ofSeconds(15)))
                 .defaultHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36")
                 .defaultHeader("Accept", MediaType.APPLICATION_JSON_VALUE)
                 .build();
-        this.stringRedisTemplate = stringRedisTemplate;
-        this.redissonClient = redissonClient;
     }
 
-    public List<NSEHistoricalData> getHistoricalData(String symbol, String timeRange) {
-        var cacheKey = "yahoo_history:" + symbol + "_" + timeRange;
-        List<NSEHistoricalData> cached = readCache(cacheKey);
+    public List<NSEHistoricalData> getMonthlyHistoricalData(String symbol) {
+        List<NSEHistoricalData> cached = yahooMonthlyHistoricalDataRepo.get(symbol);
         if (cached != null) {
             return cached;
         }
 
-        var lock = redissonClient.getLock("yahoo_lock:fetch:" + symbol + ":" + timeRange);
+        var lock = yahooMonthlyHistoricalDataRepo.getLock(symbol);
         try {
             if (!lock.tryLock(2, -1, TimeUnit.SECONDS)) {
                 log.warn("Could not acquire distributed lock within 2 seconds for symbol: {}. Returning empty list.", symbol);
@@ -61,7 +56,7 @@ public class YahooClient {
         }
 
         try {
-            return fetchAndCache(symbol, timeRange, cacheKey);
+            return fetchAndCache(symbol, YahooTimeRange.RANGE_1MO.getValue());
         } finally {
             if (lock.isLocked() && lock.isHeldByCurrentThread()) {
                 lock.unlock();
@@ -69,18 +64,9 @@ public class YahooClient {
         }
     }
 
-    private List<NSEHistoricalData> readCache(String cacheKey) {
-        var value = stringRedisTemplate.opsForValue().get(cacheKey);
-        if (StringUtils.isNotBlank(value)) {
-            return HelperUtil.GSON.fromJson(value, new TypeToken<List<NSEHistoricalData>>() {
-            }.getType());
-        }
-        return null;
-    }
-
-    private List<NSEHistoricalData> fetchAndCache(String symbol, String timeRange, String cacheKey) {
+    private List<NSEHistoricalData> fetchAndCache(String symbol, String timeRange) {
         try {
-            List<NSEHistoricalData> cached = readCache(cacheKey);
+            List<NSEHistoricalData> cached = yahooMonthlyHistoricalDataRepo.get(symbol);
             if (cached != null) {
                 return cached;
             }
@@ -101,11 +87,7 @@ public class YahooClient {
             List<NSEHistoricalData> list = (response != null) ? parseResponse(symbol, response) : Collections.emptyList();
             if (!list.isEmpty()) {
                 Collections.reverse(list);
-                stringRedisTemplate.opsForValue().set(
-                        cacheKey,
-                        HelperUtil.GSON.toJson(list),
-                        DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10))
-                );
+                yahooMonthlyHistoricalDataRepo.set(symbol, list, DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10)));
             }
 
             return list;
