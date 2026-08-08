@@ -12,10 +12,10 @@ import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.Strategy;
 import com.app.shahbaztrades.model.enums.TimeFrame;
 import com.app.shahbaztrades.repo.redis.GenAiRedisRepo;
+import com.app.shahbaztrades.repo.redis.TvNewsRedisRepo;
 import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
-import com.google.gson.reflect.TypeToken;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -23,7 +23,6 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -41,7 +40,6 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class AnalysisServiceImpl implements AnalysisService {
 
-    private final StringRedisTemplate stringRedisTemplate;
     private final GenAiClient genAiClient;
     private final YahooClient yahooClient;
     private final MongoConfigService mongoConfigService;
@@ -50,19 +48,18 @@ public class AnalysisServiceImpl implements AnalysisService {
     private final AngelOneService angelOneService;
     private final MongoTemplate mongoTemplate;
     private final GenAiRedisRepo genAiRedisRepo;
+    private final TvNewsRedisRepo tvNewsRedisRepo;
 
     @Override
     public List<TradingViewNewsResponse.NewsItem> getStockNews(String symbol) {
-        var cacheKey = "tv_news:" + symbol;
-        var value = stringRedisTemplate.opsForValue().get(cacheKey);
-        if (StringUtils.isNotBlank(value)) {
-            return HelperUtil.GSON.fromJson(value, new TypeToken<List<TradingViewNewsResponse.NewsItem>>() {
-            }.getType());
+        List<TradingViewNewsResponse.NewsItem> cache = tvNewsRedisRepo.get(symbol);
+        if (cache != null) {
+            return cache;
         }
 
         var res = TradingViewClient.getStockNews(symbol);
         if (res != null && !CollectionUtils.isEmpty(res.items())) {
-            stringRedisTemplate.opsForValue().set(cacheKey, HelperUtil.GSON.toJson(res.items()), Duration.ofMinutes(10));
+            tvNewsRedisRepo.set(symbol, res.items(), Duration.ofMinutes(10));
             return res.items();
         }
 

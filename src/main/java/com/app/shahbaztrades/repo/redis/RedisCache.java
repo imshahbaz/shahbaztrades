@@ -1,8 +1,10 @@
 package com.app.shahbaztrades.repo.redis;
 
 import org.redisson.api.RedissonClient;
+import org.springframework.util.CollectionUtils;
 
 import java.time.Duration;
+import java.util.Collection;
 
 public abstract class RedisCache {
 
@@ -33,4 +35,21 @@ public abstract class RedisCache {
     public void delete(String id) {
         redissonClient.getBucket(key(id)).delete();
     }
+
+    public void deleteAll() {
+        redissonClient.getKeys().deleteByPattern(keyPrefix + ":*");
+    }
+
+    public void deleteAll(Collection<String> ids) {
+        if (CollectionUtils.isEmpty(ids)) {
+            return;
+        }
+
+        redissonClient.getKeys().delete(
+                ids.stream()
+                        .map(this::key)
+                        .toArray(String[]::new)
+        );
+    }
+
 }
