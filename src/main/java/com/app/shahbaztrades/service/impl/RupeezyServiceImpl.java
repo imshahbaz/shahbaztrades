@@ -120,6 +120,12 @@ public class RupeezyServiceImpl implements RupeezyService {
         return cache;
     }
 
+    @Override
+    public void revokeRupeezyAuth(long userId) {
+        stringRedisTemplate.delete(RUPEEZY_TOKEN_KEY + userId);
+        rupeezyTokenCache.remove(userId);
+    }
+
     private User getUser(Long userId) {
         User user = userService.findByUserIdOrEmailOrMobile(userId, "", 0L);
 
