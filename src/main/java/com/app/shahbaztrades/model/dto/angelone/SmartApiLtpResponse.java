@@ -1,7 +1,8 @@
 package com.app.shahbaztrades.model.dto.angelone;
 
 import com.app.shahbaztrades.exceptions.NotFoundException;
-import lombok.Builder;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 import org.springframework.util.CollectionUtils;
 
 import java.time.ZonedDateTime;
@@ -47,21 +48,27 @@ public record SmartApiLtpResponse<T>(
         return list;
     }
 
-    public record MarketData(
-            List<MarketTicker> fetched
-    ) {
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class MarketData {
+        List<MarketTicker> fetched;
     }
 
-    public record MarketTicker(
-            String exchange,
-            String tradingSymbol,
-            String symbolToken,
-            Double ltp,
-            Double open,
-            Double high,
-            Double low,
-            Double close
-    ) {
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class MarketTicker {
+        String exchange;
+        String tradingSymbol;
+        String symbolToken;
+        Double ltp;
+        Double open;
+        Double high;
+        Double low;
+        Double close;
     }
 
     @Builder
