@@ -5,6 +5,8 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.util.CollectionUtils;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,7 +62,10 @@ public record SmartApiLtpResponse<T>(
     @NoArgsConstructor
     @AllArgsConstructor
     @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class MarketTicker {
+    public static class MarketTicker implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
         String exchange;
         String tradingSymbol;
         String symbolToken;

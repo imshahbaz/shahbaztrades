@@ -18,7 +18,6 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,8 +32,7 @@ public class UserServiceImpl implements UserService {
     private final MongoTemplate mongoTemplate;
     private final UserRepo userRepo;
     private final SequenceGeneratorService sequenceGeneratorService;
-    private final StringRedisTemplate stringRedisTemplate;
-    private final AuthDataRedisRepo authDataRedisRepo;
+    private final AuthDataRedisRepo<UserDto> authDataRedisRepo;
 
     @Override
     @Transactional

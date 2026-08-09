@@ -73,8 +73,8 @@ public class AngelOneServiceImpl implements AngelOneService {
     private final MarketTickPipeline marketTickPipeline;
     private final StrategyRegistry strategyRegistry;
     private final AngelOneHistoricalDataRedisRepo angelOneHistoricalDataRedisRepo;
-    private final AngelOneLoginDataRedisRepo angelOneLoginDataRedisRepo;
-    private final MarketTickerRedisRepo marketTickerRedisRepo;
+    private final AngelOneLoginDataRedisRepo<AngelOneLoginResponse.LoginData> angelOneLoginDataRedisRepo;
+    private final MarketTickerRedisRepo<SmartApiLtpResponse.MarketTicker> marketTickerRedisRepo;
     private final ClientManager.ReconnectHandler reconnectHandler = new ClientManager.ReconnectHandler() {
         @Override
         public boolean onDisconnect(CloseReason closeReason) {

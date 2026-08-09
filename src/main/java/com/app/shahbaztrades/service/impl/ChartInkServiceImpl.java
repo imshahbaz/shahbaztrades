@@ -35,7 +35,7 @@ public class ChartInkServiceImpl implements ChartInkService {
     private final JsonMapper jsonMapper;
     private final MarginService marginService;
     private final StrategyService strategyService;
-    private final ChartInkResultRedisRepo chartInkResultRedisRepo;
+    private final ChartInkResultRedisRepo<List<StockMarginDto>> chartInkResultRedisRepo;
 
     @Override
     public void refreshTokens() {

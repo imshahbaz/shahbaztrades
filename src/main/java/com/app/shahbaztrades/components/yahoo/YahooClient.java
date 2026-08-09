@@ -26,9 +26,9 @@ public class YahooClient {
 
     private static final String BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
     private final RestClient restClient;
-    private final YahooMonthlyHistoricalDataRepo yahooMonthlyHistoricalDataRepo;
+    private final YahooMonthlyHistoricalDataRepo<List<NSEHistoricalData>> yahooMonthlyHistoricalDataRepo;
 
-    public YahooClient(YahooMonthlyHistoricalDataRepo yahooMonthlyHistoricalDataRepo) {
+    public YahooClient(YahooMonthlyHistoricalDataRepo<List<NSEHistoricalData>> yahooMonthlyHistoricalDataRepo) {
         this.yahooMonthlyHistoricalDataRepo = yahooMonthlyHistoricalDataRepo;
         this.restClient = RestClient.builder()
                 .baseUrl(BASE_URL)

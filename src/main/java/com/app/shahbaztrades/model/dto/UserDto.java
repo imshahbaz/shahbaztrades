@@ -7,12 +7,18 @@ import com.app.shahbaztrades.util.HelperUtil;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.io.Serial;
+import java.io.Serializable;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class UserDto {
+public class UserDto implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     long userId;
 
