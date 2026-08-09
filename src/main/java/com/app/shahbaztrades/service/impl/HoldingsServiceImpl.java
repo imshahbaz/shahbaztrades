@@ -235,7 +235,7 @@ public class HoldingsServiceImpl implements HoldingsService {
 
     private Double fetchLtpFromAngelOne(String symbol, String token) {
         try {
-            return angelOneService.getMarketTicker(token).ltp();
+            return angelOneService.getMarketTicker(token).getLtp();
         } catch (Exception e) {
             log.error("Error while getting ltp for symbol {}", symbol, e);
             return null;
@@ -288,7 +288,7 @@ public class HoldingsServiceImpl implements HoldingsService {
 
         double ltp = 0;
         try {
-            ltp = angelOneService.getMarketTicker(margin.getToken()).ltp();
+            ltp = angelOneService.getMarketTicker(margin.getToken()).getLtp();
         } catch (Exception e) {
             log.error("Error while getting ltp for symbol {}", symbol, e);
         }

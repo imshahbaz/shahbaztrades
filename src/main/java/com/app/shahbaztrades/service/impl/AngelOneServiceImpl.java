@@ -316,9 +316,9 @@ public class AngelOneServiceImpl implements AngelOneService {
                         .exchangeTokens(Map.of(ExchangeType.NSE.name(), List.of(token)))
                         .build());
 
-        if (response != null && response.data() != null && !CollectionUtils.isEmpty(response.data().fetched())) {
-            marketTickerRedisRepo.set(token, response.data().fetched().getFirst(), DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(1)));
-            return response.data().fetched().getFirst();
+        if (response != null && response.data() != null && !CollectionUtils.isEmpty(response.data().getFetched())) {
+            marketTickerRedisRepo.set(token, response.data().getFetched().getFirst(), DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(1)));
+            return response.data().getFetched().getFirst();
         }
 
         throw new NotFoundException("Ltp not found");
