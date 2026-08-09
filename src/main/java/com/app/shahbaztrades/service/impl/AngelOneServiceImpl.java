@@ -63,7 +63,7 @@ public class AngelOneServiceImpl implements AngelOneService {
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final AtomicBoolean intentionalDisconnect = new AtomicBoolean(false);
     private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final ReentrantLock wsLock = new ReentrantLock();
     private final StringRedisTemplate stringRedisTemplate;
