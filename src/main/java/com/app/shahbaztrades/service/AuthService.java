@@ -5,15 +5,10 @@ import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.auth.AuthCallbackResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthCookieResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthRequest;
-import com.app.shahbaztrades.model.dto.auth.SignUpResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
 
 public interface AuthService {
-
-    String AUTH_KEY = "auth:";
-
-    SignUpResponse signUp(AuthRequest request);
 
     String logout();
 

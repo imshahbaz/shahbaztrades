@@ -14,22 +14,21 @@ import com.app.shahbaztrades.model.dto.angelone.websocket.*;
 import com.app.shahbaztrades.model.entity.redis.AngelOneHistoricalDataRedis;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.repo.redis.AngelOneHistoricalDataRedisRepo;
+import com.app.shahbaztrades.repo.redis.AngelOneLoginDataRedisRepo;
+import com.app.shahbaztrades.repo.redis.MarketTickerRedisRepo;
 import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.util.DateUtil;
-import com.app.shahbaztrades.util.HelperUtil;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import jakarta.annotation.PreDestroy;
 import jakarta.websocket.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.glassfish.tyrus.client.ClientManager;
 import org.glassfish.tyrus.client.ClientProperties;
 import org.glassfish.tyrus.container.jdk.client.JdkClientContainer;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
@@ -66,7 +65,6 @@ public class AngelOneServiceImpl implements AngelOneService {
     private final JsonMapper jsonMapper;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final ReentrantLock wsLock = new ReentrantLock();
-    private final StringRedisTemplate stringRedisTemplate;
     private final AngelOneClient angelOneClient;
     private final MongoConfigService mongoConfigService;
     private final SmartApiFeignClient smartApiFeignClient;
@@ -75,6 +73,8 @@ public class AngelOneServiceImpl implements AngelOneService {
     private final MarketTickPipeline marketTickPipeline;
     private final StrategyRegistry strategyRegistry;
     private final AngelOneHistoricalDataRedisRepo angelOneHistoricalDataRedisRepo;
+    private final AngelOneLoginDataRedisRepo angelOneLoginDataRedisRepo;
+    private final MarketTickerRedisRepo marketTickerRedisRepo;
     private final ClientManager.ReconnectHandler reconnectHandler = new ClientManager.ReconnectHandler() {
         @Override
         public boolean onDisconnect(CloseReason closeReason) {
@@ -248,11 +248,8 @@ public class AngelOneServiceImpl implements AngelOneService {
     @Override
     @EventListener(ApplicationReadyEvent.class)
     public void refreshBrokerSession() {
-        var key = "angel_one_login_data";
-        var data = stringRedisTemplate.opsForValue().get(key);
-        AngelOneLoginResponse.LoginData loginData;
-        if (StringUtils.isNotEmpty(data)) {
-            loginData = HelperUtil.GSON.fromJson(data, AngelOneLoginResponse.LoginData.class);
+        AngelOneLoginResponse.LoginData loginData = angelOneLoginDataRedisRepo.get("oneklik");
+        if (loginData != null) {
             var response = smartApiFeignClient.getUserProfile(BEARER_PREFIX + loginData.getJwtToken(), mongoConfigService.getConfig().getAngelOneConfig().getApiKey());
             if (response != null && response.status() != null && response.status()) {
                 mongoConfigService.setAngelOneJwtToken(loginData.getJwtToken());
@@ -263,9 +260,9 @@ public class AngelOneServiceImpl implements AngelOneService {
 
         loginData = angelOneClient.getWebsocketLogin(mongoConfigService.getConfig().getAngelOneConfig());
         if (loginData != null) {
-            stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(loginData), Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
             mongoConfigService.setAngelOneJwtToken(loginData.getJwtToken());
             mongoConfigService.setAngelOneFeedToken(loginData.getFeedToken());
+            angelOneLoginDataRedisRepo.set("oneklik", loginData, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
         }
     }
 
@@ -307,10 +304,9 @@ public class AngelOneServiceImpl implements AngelOneService {
 
     @Override
     public SmartApiLtpResponse.MarketTicker getMarketTicker(String token) {
-        var key = "angel_one_ltp:" + token;
-        var data = stringRedisTemplate.opsForValue().get(key);
+        SmartApiLtpResponse.MarketTicker data = marketTickerRedisRepo.get(token);
         if (data != null) {
-            return HelperUtil.GSON.fromJson(data, SmartApiLtpResponse.MarketTicker.class);
+            return data;
         }
 
         var jwt = mongoConfigService.getAngelOneJwtToken();
@@ -321,7 +317,7 @@ public class AngelOneServiceImpl implements AngelOneService {
                         .build());
 
         if (response != null && response.data() != null && !CollectionUtils.isEmpty(response.data().fetched())) {
-            stringRedisTemplate.opsForValue().set(key, HelperUtil.GSON.toJson(response.data().fetched().getFirst()), DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(1)));
+            marketTickerRedisRepo.set(token, response.data().fetched().getFirst(), DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(1)));
             return response.data().fetched().getFirst();
         }
 

@@ -9,7 +9,7 @@ import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.model.enums.UserRole;
 import com.app.shahbaztrades.model.enums.UserTheme;
 import com.app.shahbaztrades.repo.UserRepo;
-import com.app.shahbaztrades.service.AuthService;
+import com.app.shahbaztrades.repo.redis.AuthDataRedisRepo;
 import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +34,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepo userRepo;
     private final SequenceGeneratorService sequenceGeneratorService;
     private final StringRedisTemplate stringRedisTemplate;
+    private final AuthDataRedisRepo authDataRedisRepo;
 
     @Override
     @Transactional
@@ -125,7 +126,7 @@ public class UserServiceImpl implements UserService {
         if (result.getModifiedCount() < 1) {
             throw new NotFoundException("User not found!");
         }
-        stringRedisTemplate.delete(AuthService.AUTH_KEY + userDto.getUserId());
+        authDataRedisRepo.delete(String.valueOf(userDto.getUserId()));
     }
 
     @Override
@@ -140,7 +141,7 @@ public class UserServiceImpl implements UserService {
         if (result.getModifiedCount() < 1) {
             throw new NotFoundException("User not found!");
         }
-        stringRedisTemplate.delete(AuthService.AUTH_KEY + userDto.getUserId());
+        authDataRedisRepo.delete(String.valueOf(userDto.getUserId()));
         return userDto.getTheme();
     }
 

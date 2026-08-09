@@ -5,17 +5,15 @@ import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.chartink.*;
 import com.app.shahbaztrades.model.entity.Margin;
+import com.app.shahbaztrades.repo.redis.ChartInkResultRedisRepo;
 import com.app.shahbaztrades.service.ChartInkService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.StrategyService;
 import com.app.shahbaztrades.util.DateUtil;
-import com.app.shahbaztrades.util.HelperUtil;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.google.common.reflect.TypeToken;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
@@ -29,17 +27,15 @@ import java.util.concurrent.atomic.AtomicReference;
 @RequiredArgsConstructor
 public class ChartInkServiceImpl implements ChartInkService {
 
-    private static final String CHART_INK_REDIS_KEY_PREFIX = "chartink_result:";
     private static final String IST_ZONE_ID = "Asia/Kolkata";
     private static final ZoneId IST_ZONE = ZoneId.of(IST_ZONE_ID);
+    private final AtomicReference<String> xsrfToken = new AtomicReference<>();
 
     private final ChartinkClient chartinkClient;
     private final JsonMapper jsonMapper;
     private final MarginService marginService;
-    private final StringRedisTemplate stringRedisTemplate;
     private final StrategyService strategyService;
-
-    private final AtomicReference<String> xsrfToken = new AtomicReference<>();
+    private final ChartInkResultRedisRepo chartInkResultRedisRepo;
 
     @Override
     public void refreshTokens() {
@@ -62,12 +58,9 @@ public class ChartInkServiceImpl implements ChartInkService {
 
     @Override
     public List<StockMarginDto> fetchWithMargin(String strategyName) {
-        String redisKey = CHART_INK_REDIS_KEY_PREFIX + strategyName;
-
-        String cachedData = stringRedisTemplate.opsForValue().get(redisKey);
-        if (StringUtils.isNotBlank(cachedData)) {
-            return HelperUtil.GSON.fromJson(cachedData, new TypeToken<List<StockMarginDto>>() {
-            }.getType());
+        List<StockMarginDto> cachedData = chartInkResultRedisRepo.get(strategyName);
+        if (cachedData != null) {
+            return cachedData;
         }
 
         ChartInkResponseDto response = fetchData(strategyName);
@@ -88,8 +81,7 @@ public class ChartInkServiceImpl implements ChartInkService {
                 .sorted(Comparator.comparing(StockMarginDto::getMargin).reversed())
                 .toList();
 
-        stringRedisTemplate.opsForValue().set(redisKey,
-                HelperUtil.GSON.toJson(result),
+        chartInkResultRedisRepo.set(strategyName, result,
                 DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10)));
 
         return result;
