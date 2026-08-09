@@ -18,7 +18,7 @@ import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import jakarta.annotation.PreDestroy;
 import jakarta.websocket.*;
 import lombok.RequiredArgsConstructor;
@@ -63,7 +63,7 @@ public class AngelOneServiceImpl implements AngelOneService {
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final AtomicBoolean intentionalDisconnect = new AtomicBoolean(false);
     private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JsonMapper jsonMapper;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final ReentrantLock wsLock = new ReentrantLock();
     private final StringRedisTemplate stringRedisTemplate;
@@ -207,7 +207,7 @@ public class AngelOneServiceImpl implements AngelOneService {
         }
         wsLock.lock();
         try {
-            String json = objectMapper.writeValueAsString(obj);
+            String json = jsonMapper.writeValueAsString(obj);
             log.info("Sending Subscription Request: {}", json);
             local.getBasicRemote().sendText(json);
         } catch (IOException e) {

@@ -3,6 +3,7 @@ package com.app.shahbaztrades.config;
 import com.app.shahbaztrades.util.HelperUtil;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
@@ -71,6 +72,7 @@ public class Beans {
     @Primary
     public JsonMapper jsonMapper() {
         return JsonMapper.builder()
+                .addModule(new JavaTimeModule())
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .build();
     }
