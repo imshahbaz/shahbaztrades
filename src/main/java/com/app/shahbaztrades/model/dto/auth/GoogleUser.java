@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.model.dto.auth;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -12,7 +13,8 @@ import lombok.experimental.FieldDefaults;
 public class GoogleUser {
     String id;
     String email;
-    @JsonProperty("verified_email")
+    @JsonProperty("email_verified")
+    @JsonAlias("verified_email")
     boolean verifiedEmail;
     String name;
     String picture;

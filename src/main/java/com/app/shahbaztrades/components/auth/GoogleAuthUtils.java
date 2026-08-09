@@ -3,14 +3,12 @@ package com.app.shahbaztrades.components.auth;
 import com.app.shahbaztrades.model.dto.auth.GoogleUser;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.util.HelperUtil;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.google.auth.oauth2.TokenVerifier;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
 import java.util.Map;
 
 @Slf4j
@@ -18,39 +16,33 @@ import java.util.Map;
 public class GoogleAuthUtils {
 
     private final MongoConfigService mongoConfigService;
-    private final GoogleIdTokenVerifier verifier;
+    private final TokenVerifier verifier;
+    private final JsonMapper jsonMapper;
 
-    public GoogleAuthUtils(MongoConfigService mongoConfigService) {
+    public GoogleAuthUtils(MongoConfigService mongoConfigService, JsonMapper jsonMapper) {
         this.mongoConfigService = mongoConfigService;
-        this.verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
-                .setAudience(Collections.singletonList(mongoConfigService.getConfig().getGoogleAuth().getClientId()))
+        this.jsonMapper = jsonMapper;
+        this.verifier = TokenVerifier.newBuilder()
+                .setAudience(mongoConfigService.getConfig().getGoogleAuth().getClientId())
                 .build();
     }
 
     public GoogleUser validateIdToken(String idTokenString) {
-        if (idTokenString == null || idTokenString.isEmpty()) {
+        if (StringUtils.isEmpty(idTokenString)) {
             throw new IllegalArgumentException("Empty ID token");
         }
 
         try {
-            GoogleIdToken idToken = verifier.verify(idTokenString);
-
-            if (idToken == null) {
+            var result = verifier.verify(idTokenString);
+            if (result == null) {
                 return null;
             }
-
-            GoogleIdToken.Payload payload = idToken.getPayload();
-
-            return GoogleUser.builder()
-                    .email(payload.getEmail())
-                    .verifiedEmail(payload.getEmailVerified())
-                    .name((String) payload.get("name"))
-                    .picture((String) payload.get("picture"))
-                    .familyName((String) payload.get("family_name"))
-                    .givenName((String) payload.get("given_name"))
-                    .build();
-
+            return jsonMapper.convertValue(result.getPayload(), GoogleUser.class);
+        } catch (TokenVerifier.VerificationException e) {
+            log.warn("Google ID token verification failed: {}", e.getMessage());
+            return null;
         } catch (Exception e) {
+            log.error("Unexpected error during Google ID token verification", e);
             return null;
         }
     }
