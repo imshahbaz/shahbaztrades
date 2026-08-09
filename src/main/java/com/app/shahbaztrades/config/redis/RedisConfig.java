@@ -1,7 +1,7 @@
 package com.app.shahbaztrades.config.redis;
 
 import com.app.shahbaztrades.service.MongoConfigService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.RequiredArgsConstructor;
 import org.redisson.Redisson;
 import org.redisson.api.RScheduledExecutorService;
@@ -44,10 +44,10 @@ public class RedisConfig {
     }
 
     @Bean
-    public RedissonClient redissonClient(ObjectMapper objectMapper) {
+    public RedissonClient redissonClient(JsonMapper jsonMapper) {
 
         Config config = new Config();
-        config.setCodec(new JsonJacksonCodec(objectMapper));
+        config.setCodec(new JsonJacksonCodec(jsonMapper));
 
         config.useSingleServer()
                 .setAddress(mongoConfigService.getConfig().getRedisUrl())
