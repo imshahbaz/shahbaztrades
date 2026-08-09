@@ -51,7 +51,7 @@ public class SecurityInterceptor implements HandlerInterceptor {
             if ("auth_token".equals(c.getName()) && StringUtils.isNotEmpty(c.getValue())) {
                 var claims = jwtService.validateToken(c.getValue());
                 userDto = claims.getUser();
-                request.setAttribute("user", claims.getUser());
+                request.setAttribute("user", userDto);
                 rollToken(response, userDto, claims.getExpiresAt());
                 break;
             }
