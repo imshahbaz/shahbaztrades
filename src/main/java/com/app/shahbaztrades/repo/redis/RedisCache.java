@@ -1,43 +1,38 @@
 package com.app.shahbaztrades.repo.redis;
 
-import org.redisson.api.RedissonClient;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.util.CollectionUtils;
 
 import java.time.Duration;
 import java.util.Collection;
 
-public abstract class RedisCache {
-
-    protected final RedissonClient redissonClient;
+public abstract class RedisCache<T> {
     private final String keyPrefix;
+    private final RedisTemplate<String, T> redisTemplate;
 
-    protected RedisCache(RedissonClient redissonClient, String keyPrefix) {
-        this.redissonClient = redissonClient;
+    protected RedisCache(String keyPrefix, RedisTemplate<String, T> redisTemplate) {
         this.keyPrefix = keyPrefix;
+        this.redisTemplate = redisTemplate;
     }
 
     private String key(String id) {
         return keyPrefix + ":" + id;
     }
 
-    public <T> T get(String id) {
-        return redissonClient.<T>getBucket(key(id)).get();
+    public T get(String id) {
+        return redisTemplate.opsForValue().get(key(id));
     }
 
-    public <T> void set(String id, T value, Duration ttl) {
-        redissonClient.<T>getBucket(key(id)).set(value, ttl);
+    public void set(String id, T value, Duration ttl) {
+        redisTemplate.opsForValue().set(key(id), value, ttl);
     }
 
     public boolean exists(String id) {
-        return redissonClient.getBucket(key(id)).isExists();
+        return Boolean.TRUE.equals(redisTemplate.hasKey(key(id)));
     }
 
     public void delete(String id) {
-        redissonClient.getBucket(key(id)).delete();
-    }
-
-    public void deleteAll() {
-        redissonClient.getKeys().deleteByPattern(keyPrefix + ":*");
+        redisTemplate.delete(key(id));
     }
 
     public void deleteAll(Collection<String> ids) {
@@ -45,11 +40,9 @@ public abstract class RedisCache {
             return;
         }
 
-        redissonClient.getKeys().delete(
-                ids.stream()
-                        .map(this::key)
-                        .toArray(String[]::new)
-        );
+        redisTemplate.delete(ids.stream()
+                .map(this::key)
+                .toList());
     }
 
 }

@@ -34,7 +34,7 @@ public class RupeezyServiceImpl implements RupeezyService {
     private final RupeezyClient rupeezyClient;
     private final UserService userService;
     private final MongoTemplate mongoTemplate;
-    private final RupeezyTokenCacheRedisRepo rupeezyTokenCacheRedisRepo;
+    private final RupeezyTokenCacheRedisRepo<RupeezyTokenCache> rupeezyTokenCacheRedisRepo;
 
     @Override
     public void login(BrokerLoginDto request) {

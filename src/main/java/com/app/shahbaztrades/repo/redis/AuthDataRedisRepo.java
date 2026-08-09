@@ -1,14 +1,15 @@
 package com.app.shahbaztrades.repo.redis;
 
-import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
-public class AuthDataRedisRepo extends RedisCache {
+public class AuthDataRedisRepo<T> extends RedisCache<T> {
 
     private static final String KEY_PREFIX = "auth";
 
-    public AuthDataRedisRepo(RedissonClient redissonClient) {
-        super(redissonClient, KEY_PREFIX);
+    public AuthDataRedisRepo(@Qualifier("redisTemplateObject") RedisTemplate<String, T> redisTemplate) {
+        super(KEY_PREFIX, redisTemplate);
     }
 }

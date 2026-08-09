@@ -43,7 +43,7 @@ public class HoldingsServiceImpl implements HoldingsService {
     private final MarginService marginService;
     private final MongoTemplate mongoTemplate;
     private final AngelOneService angelOneService;
-    private final HoldingsDataRedisRepo holdingsDataRedisRepo;
+    private final HoldingsDataRedisRepo<Holdings> holdingsDataRedisRepo;
 
     @Override
     public List<HoldingDto> getAllHoldings(BrokerType brokerType, UserDto userDto) {

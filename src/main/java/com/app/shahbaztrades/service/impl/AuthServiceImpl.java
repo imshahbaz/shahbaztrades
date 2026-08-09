@@ -10,6 +10,7 @@ import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.auth.AuthCallbackResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthCookieResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthRequest;
+import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.repo.redis.AuthDataRedisRepo;
 import com.app.shahbaztrades.service.AuthService;
 import com.app.shahbaztrades.service.MongoConfigService;
@@ -39,7 +40,8 @@ public class AuthServiceImpl implements AuthService {
     private final MongoConfigService mongoConfigService;
     private final GoogleAuthUtils googleAuthUtils;
     private final JwtService jwtService;
-    private final AuthDataRedisRepo authDataRedisRepo;
+    private final AuthDataRedisRepo<UserDto> authDataRedisRepo;
+    private final AuthDataRedisRepo<User> userAuthDataRedisRepo;
 
     @Override
     public String logout() {
@@ -90,7 +92,7 @@ public class AuthServiceImpl implements AuthService {
                 }
 
                 var user = userService.findOrCreateGoogleUser(gUser);
-                authDataRedisRepo.set(id, user, Duration.ofMinutes(2));
+                userAuthDataRedisRepo.set(id, user, Duration.ofMinutes(2));
             } catch (Exception e) {
                 log.error("Failed to find or create google user", e);
             }
@@ -150,7 +152,7 @@ public class AuthServiceImpl implements AuthService {
                     return;
                 }
                 var user = userService.findOrCreateGoogleUser(gUser);
-                authDataRedisRepo.set(id, user, Duration.ofMinutes(2));
+                userAuthDataRedisRepo.set(id, user, Duration.ofMinutes(2));
             });
 
             String targetURL = potentialTarget + "/google/callback?code=" + signedUuid + "&state=standard";
@@ -167,16 +169,16 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Invalid or tampered session state");
         }
 
-        UserDto userDto = authDataRedisRepo.get(id);
-        if (userDto == null) {
+        User user = userAuthDataRedisRepo.get(id);
+        if (user == null) {
             throw new NotFoundException("Request still under process or expired");
         }
 
+        var userDto = user.toDto();
         String tokenStr = jwtService.generateToken(userDto);
         String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
-
         authDataRedisRepo.set(String.valueOf(userDto.getUserId()), userDto, Duration.ofHours(1));
-        authDataRedisRepo.delete(id);
+        userAuthDataRedisRepo.delete(id);
 
         return AuthCallbackResponse.session(cookie, userDto, "User created");
     }

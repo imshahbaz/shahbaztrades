@@ -5,6 +5,9 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 
+import java.io.Serial;
+import java.io.Serializable;
+
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AngelOneLoginResponse {
@@ -16,7 +19,11 @@ public class AngelOneLoginResponse {
 
     @Data
     @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class LoginData {
+    public static class LoginData implements Serializable {
+
+        @Serial
+        private static final long serialVersionUID = 1L;
+
         String jwtToken;
 
         String refreshToken;

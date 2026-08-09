@@ -1,14 +1,15 @@
 package com.app.shahbaztrades.repo.redis;
 
-import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
-public class AngelOneLoginDataRedisRepo extends RedisCache {
+public class AngelOneLoginDataRedisRepo<T> extends RedisCache<T> {
 
     private static final String KEY_PREFIX = "angel_one_login_data";
 
-    public AngelOneLoginDataRedisRepo(RedissonClient redissonClient) {
-        super(redissonClient, KEY_PREFIX);
+    public AngelOneLoginDataRedisRepo(@Qualifier("redisTemplateObject") RedisTemplate<String, T> redisTemplate) {
+        super(KEY_PREFIX, redisTemplate);
     }
 }

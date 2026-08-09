@@ -3,7 +3,6 @@ package com.app.shahbaztrades.config;
 import com.app.shahbaztrades.util.HelperUtil;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -19,7 +18,7 @@ public class Beans {
     @Primary
     public JsonMapper jsonMapper() {
         return JsonMapper.builder()
-                .addModule(new JavaTimeModule())
+                .findAndAddModules()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .build();
     }

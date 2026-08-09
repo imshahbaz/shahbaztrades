@@ -47,8 +47,8 @@ public class AnalysisServiceImpl implements AnalysisService {
     private final ChartInkService chartInkService;
     private final AngelOneService angelOneService;
     private final MongoTemplate mongoTemplate;
-    private final GenAiRedisRepo genAiRedisRepo;
-    private final TvNewsRedisRepo tvNewsRedisRepo;
+    private final GenAiRedisRepo<AIAnalysis> genAiRedisRepo;
+    private final TvNewsRedisRepo<List<TradingViewNewsResponse.NewsItem>> tvNewsRedisRepo;
     private final JsonMapper jsonMapper;
 
     @Override
