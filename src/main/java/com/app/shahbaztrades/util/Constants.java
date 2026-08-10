@@ -33,6 +33,7 @@ public class Constants {
 
     public static String NOTIFICATION_TITLE_BROKER_LOGIN = "Broker Login Needed";
     public static String NOTIFICATION_MESSAGE_BROKER_LOGIN = "Log in with your broker now to process your scheduled orders";
+    public static final String NOTIFICATION_MESSAGE_SELL_LIMIT = "Your sell order for %d shares of %s at ₹%.2f has been submitted successfully.";
 
     public static void validateSessionCallback(String header) {
         if (StringUtils.isEmpty(header) || !SESSION_MANAGER_SOURCE.equals(header)) {
