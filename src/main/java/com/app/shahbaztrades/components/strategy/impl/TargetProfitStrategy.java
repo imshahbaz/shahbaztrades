@@ -43,7 +43,7 @@ public class TargetProfitStrategy extends AbstractDailyTradingStrategy {
 
         try {
             var entryPrice = order.getEntry().getAveragePrice();
-            var targetPercentage = ONE_HUNDRED.add(order.getTargetPercentage()).divide(ONE_HUNDRED, RoundingMode.HALF_UP);
+            var targetPercentage = ONE_HUNDRED.add(order.getTargetPercentage()).divide(ONE_HUNDRED, 2, RoundingMode.HALF_UP);
             var target = entryPrice.multiply(targetPercentage);
             var targetPrice = HelperUtil.fixToTick(target.doubleValue());
             var orderRouter = orderRouterFactory.getRouter(order.getBroker());
