@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.regex.Pattern;
 
@@ -34,6 +35,10 @@ public class Constants {
     public static String NOTIFICATION_TITLE_BROKER_LOGIN = "Broker Login Needed";
     public static String NOTIFICATION_MESSAGE_BROKER_LOGIN = "Log in with your broker now to process your scheduled orders";
     public static final String NOTIFICATION_MESSAGE_SELL_LIMIT = "Your sell order for %d shares of %s at ₹%.2f has been submitted successfully.";
+
+    public static final BigDecimal TAX_PER_SHARE = new BigDecimal("0.00035");
+    public static final BigDecimal FIXED_BROKERAGE_WITH_GST = new BigDecimal("47.2");
+    public static final BigDecimal TARGET_PERCENTAGE_CONTINUOUS_TRADING = new BigDecimal("0.007");
 
     public static void validateSessionCallback(String header) {
         if (StringUtils.isEmpty(header) || !SESSION_MANAGER_SOURCE.equals(header)) {
