@@ -211,4 +211,13 @@ public class HelperUtil {
         return factory;
     }
 
+    public static double dynamicTargetPrice(BigDecimal capitalDeployed, BigDecimal entryPrice, int quantity) {
+        var targetOnCapital = capitalDeployed.multiply(Constants.TARGET_PERCENTAGE_CONTINUOUS_TRADING);
+        var totalFixedBurden = targetOnCapital.add(Constants.FIXED_BROKERAGE_WITH_GST);
+        var taxPerShare = entryPrice.multiply(Constants.TAX_PER_SHARE);
+        var fixedBurdenPerShare = totalFixedBurden.divide(BigDecimal.valueOf(quantity), 6, RoundingMode.HALF_UP);
+        var target = entryPrice.add(taxPerShare).add(fixedBurdenPerShare);
+        return fixToTick(target.doubleValue());
+    }
+
 }

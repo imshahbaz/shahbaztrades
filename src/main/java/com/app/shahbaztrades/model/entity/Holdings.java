@@ -43,7 +43,7 @@ public class Holdings implements Serializable {
     @AllArgsConstructor
     @FieldNameConstants
     @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class HoldingInfo implements Serializable{
+    public static class HoldingInfo implements Serializable {
 
         @Serial
         private static final long serialVersionUID = 1L;
@@ -74,7 +74,7 @@ public class Holdings implements Serializable {
     @AllArgsConstructor
     @FieldNameConstants
     @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class HoldingDetail implements Serializable{
+    public static class HoldingDetail implements Serializable {
         @Serial
         private static final long serialVersionUID = 1L;
 
