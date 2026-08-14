@@ -5,7 +5,6 @@ import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.kronos.BulkPredictionRequestDto;
 import com.app.shahbaztrades.model.dto.kronos.KronosPredictionResponse;
 import com.app.shahbaztrades.service.KronosPredictionService;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
