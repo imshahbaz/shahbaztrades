@@ -8,8 +8,6 @@ import java.util.List;
 
 public interface HoldingsService {
 
-    String HOLDING_KEY = "HOLDINGS:";
-
     List<HoldingDto> getAllHoldings(BrokerType brokerType, UserDto userDto);
 
     boolean createHoldings(BrokerType brokerType, UserDto userDto, HoldingDto holdingDto);

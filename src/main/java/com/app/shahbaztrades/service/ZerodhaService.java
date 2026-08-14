@@ -33,4 +33,6 @@ public interface ZerodhaService {
     void autoConnectZerodhaSession(User user);
 
     void sessionManagerCallback(ZerodhaLoginResponseDTO request);
+
+    void revokeZerodhaAuth(long userId);
 }

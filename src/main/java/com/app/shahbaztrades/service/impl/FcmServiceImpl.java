@@ -6,7 +6,7 @@ import com.app.shahbaztrades.repo.FcmTokenRepository;
 import com.app.shahbaztrades.service.FcmService;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.util.DateUtil;
-import com.app.shahbaztrades.util.HelperUtil;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
@@ -21,7 +21,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -37,12 +36,16 @@ public class FcmServiceImpl implements FcmService {
     private final FcmTokenRepository fcmTokenRepository;
     private final MongoTemplate mongoTemplate;
 
-    public FcmServiceImpl(MongoConfigService mongoConfigService, FcmTokenRepository fcmTokenRepository, MongoTemplate mongoTemplate) throws IOException {
+    public FcmServiceImpl(MongoConfigService mongoConfigService, FcmTokenRepository fcmTokenRepository,
+                          MongoTemplate mongoTemplate, JsonMapper jsonMapper) throws IOException {
         this.fcmTokenRepository = fcmTokenRepository;
+
         FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(GoogleCredentials.fromStream(
-                        new ByteArrayInputStream(HelperUtil.GSON.toJson(mongoConfigService.getConfig().getFcmConfig().getServiceAccount())
-                                .getBytes(StandardCharsets.UTF_8))))
+                        new ByteArrayInputStream(jsonMapper.writeValueAsBytes(
+                                mongoConfigService.getConfig().getFcmConfig().getServiceAccount()
+                        ))
+                ))
                 .build();
 
         if (FirebaseApp.getApps().isEmpty()) {

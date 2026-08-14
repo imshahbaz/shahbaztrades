@@ -8,7 +8,6 @@ import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.model.enums.OrderStatus;
-import com.app.shahbaztrades.model.enums.YahooTimeRange;
 import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.util.HelperUtil;
 import com.app.shahbaztrades.util.TechnicalAnalysisUtil;
@@ -147,7 +146,7 @@ public abstract class AbstractDailyTradingStrategy implements DailyTradingStrate
     }
 
     private TechnicalMetrics getValidTechnicalMetrics(String symbol) {
-        var data = yahooClient.getHistoricalData(symbol, YahooTimeRange.RANGE_1MO.getValue());
+        var data = yahooClient.getMonthlyHistoricalData(symbol);
         if (CollectionUtils.isEmpty(data)) {
             return null;
         }

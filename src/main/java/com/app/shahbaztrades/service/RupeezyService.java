@@ -9,8 +9,6 @@ import com.app.shahbaztrades.util.Cache;
 
 public interface RupeezyService {
 
-    String RUPEEZY_TOKEN_KEY = "rupeezy_token:";
-
     Cache<Long, RupeezyTokenCache> rupeezyTokenCache = new Cache<>();
 
     void login(BrokerLoginDto request);
@@ -20,4 +18,6 @@ public interface RupeezyService {
     Long setConfig(User.RupeezyConfig config, UserDto userDto);
 
     RupeezyTokenCache getTokenCache(long userId);
+
+    void revokeRupeezyAuth(long userId);
 }

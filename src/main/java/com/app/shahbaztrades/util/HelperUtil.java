@@ -1,9 +1,7 @@
 package com.app.shahbaztrades.util;
 
-import com.app.shahbaztrades.config.Beans;
 import com.app.shahbaztrades.model.dto.scheduler.SchedulerCallBackDto;
 import com.app.shahbaztrades.model.entity.Margin;
-import com.google.gson.Gson;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -35,7 +33,6 @@ import java.util.regex.Matcher;
 public class HelperUtil {
     public static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
     public static final SecureRandom RANDOM = new SecureRandom();
-    public static final Gson GSON = Beans.createGson();
     public static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
     public static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
@@ -212,6 +209,15 @@ public class HelperUtil {
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(HTTP_CLIENT);
         factory.setReadTimeout(readTimeout);
         return factory;
+    }
+
+    public static double dynamicTargetPrice(BigDecimal capitalDeployed, BigDecimal entryPrice, int quantity) {
+        var targetOnCapital = capitalDeployed.multiply(Constants.TARGET_PERCENTAGE_CONTINUOUS_TRADING);
+        var totalFixedBurden = targetOnCapital.add(Constants.FIXED_BROKERAGE_WITH_GST);
+        var taxPerShare = entryPrice.multiply(Constants.TAX_PER_SHARE);
+        var fixedBurdenPerShare = totalFixedBurden.divide(BigDecimal.valueOf(quantity), 6, RoundingMode.HALF_UP);
+        var target = entryPrice.add(taxPerShare).add(fixedBurdenPerShare);
+        return fixToTick(target.doubleValue());
     }
 
 }

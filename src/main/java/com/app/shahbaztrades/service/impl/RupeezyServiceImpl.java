@@ -10,10 +10,10 @@ import com.app.shahbaztrades.model.dto.rupeezy.RupeezySessionRequest;
 import com.app.shahbaztrades.model.dto.rupeezy.RupeezyTokenCache;
 import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
 import com.app.shahbaztrades.model.entity.User;
+import com.app.shahbaztrades.repo.redis.RupeezyTokenCacheRedisRepo;
 import com.app.shahbaztrades.service.RupeezyService;
 import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.util.DateUtil;
-import com.app.shahbaztrades.util.HelperUtil;
 import com.app.shahbaztrades.validator.BrokerConfigValidator;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -21,7 +21,6 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -34,8 +33,8 @@ public class RupeezyServiceImpl implements RupeezyService {
 
     private final RupeezyClient rupeezyClient;
     private final UserService userService;
-    private final StringRedisTemplate stringRedisTemplate;
     private final MongoTemplate mongoTemplate;
+    private final RupeezyTokenCacheRedisRepo<RupeezyTokenCache> rupeezyTokenCacheRedisRepo;
 
     @Override
     public void login(BrokerLoginDto request) {
@@ -53,7 +52,7 @@ public class RupeezyServiceImpl implements RupeezyService {
         var cache = RupeezyTokenCache.builder().apiSecret(user.getRupeezyConfig().getApiSecret())
                 .accessToken(res.getData().getAccessToken()).build();
         rupeezyTokenCache.set(user.getUserId(), cache, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
-        stringRedisTemplate.opsForValue().set(RUPEEZY_TOKEN_KEY + request.userId(), HelperUtil.GSON.toJson(cache), Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
+        rupeezyTokenCacheRedisRepo.set(String.valueOf(request.userId()), cache, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
     }
 
     @Override
@@ -111,13 +110,18 @@ public class RupeezyServiceImpl implements RupeezyService {
     public RupeezyTokenCache getTokenCache(long userId) {
         var cache = rupeezyTokenCache.get(userId);
         if (cache == null) {
-            var cacheString = stringRedisTemplate.opsForValue().get(RUPEEZY_TOKEN_KEY + userId);
-            if (!StringUtils.isEmpty(cacheString)) {
-                cache = HelperUtil.GSON.fromJson(cacheString, RupeezyTokenCache.class);
+            cache = rupeezyTokenCacheRedisRepo.get(String.valueOf(userId));
+            if (cache != null) {
                 rupeezyTokenCache.set(userId, cache, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
             }
         }
         return cache;
+    }
+
+    @Override
+    public void revokeRupeezyAuth(long userId) {
+        rupeezyTokenCacheRedisRepo.delete(String.valueOf(userId));
+        rupeezyTokenCache.remove(userId);
     }
 
     private User getUser(Long userId) {
