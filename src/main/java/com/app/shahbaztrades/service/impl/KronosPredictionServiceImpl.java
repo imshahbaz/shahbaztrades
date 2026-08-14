@@ -9,6 +9,8 @@ import com.app.shahbaztrades.service.KronosPredictionService;
 import com.app.shahbaztrades.service.NseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -49,7 +51,8 @@ public class KronosPredictionServiceImpl implements KronosPredictionService {
 
     @Override
     public KronosPredictionResponse getPredictions(String symbol) {
-        var prediction = kronosPredictionsRepo.findBySymbol(symbol, Sort.by(Sort.Direction.DESC, KronosPredictions.Fields.createdAt));
+        Pageable pageable = PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, KronosPredictions.Fields.createdAt));
+        var prediction = kronosPredictionsRepo.findBySymbol(symbol, pageable);
 
         if (prediction.isPresent()) {
             return KronosPredictionResponse.fromKronosPrediction(prediction.get(), nseService.getHistoricalData(symbol));
