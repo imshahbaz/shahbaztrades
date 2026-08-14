@@ -8,8 +8,9 @@ import com.app.shahbaztrades.util.HelperUtil;
 import com.app.shahbaztrades.util.TotpUtil;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -26,11 +27,11 @@ public class AngelOneClient {
 
     private static final String URL = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json";
     private final RestClient restClient;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final RestClient websocketRestClient;
 
-    public AngelOneClient(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public AngelOneClient(JsonMapper jsonMapper) {
+        this.jsonMapper = jsonMapper;
         this.restClient = RestClient.builder()
                 .requestFactory(HelperUtil.requestFactory(Duration.ofSeconds(60)))
                 .build();
@@ -49,7 +50,7 @@ public class AngelOneClient {
         return margins;
     }
 
-    private Void handleResponse(org.springframework.http.client.ClientHttpResponse response, Map<String, Margin> cachedMargin, List<Margin> margins) {
+    private Void handleResponse(ClientHttpResponse response, Map<String, Margin> cachedMargin, List<Margin> margins) {
         try {
             if (response.getStatusCode().isError()) {
                 log.error("Failed to fetch Scrip Master. Status: {}", response.getStatusCode());
@@ -57,7 +58,7 @@ public class AngelOneClient {
             }
 
             try (InputStream is = response.getBody();
-                 JsonParser parser = objectMapper.getFactory().createParser(is)) {
+                 JsonParser parser = jsonMapper.getFactory().createParser(is)) {
 
                 if (parser.nextToken() != JsonToken.START_ARRAY) return null;
 
@@ -72,7 +73,7 @@ public class AngelOneClient {
     }
 
     private void processInstrument(JsonParser parser, Map<String, Margin> cachedMargin, List<Margin> margins) throws IOException {
-        MinimalInstrument inst = objectMapper.readValue(parser, MinimalInstrument.class);
+        MinimalInstrument inst = jsonMapper.readValue(parser, MinimalInstrument.class);
         Margin margin;
         if ("NSE".equals(inst.exchSeg()) && inst.symbol().endsWith("-EQ") && (margin = cachedMargin.get(inst.name())) != null) {
             margin.setToken(inst.token());

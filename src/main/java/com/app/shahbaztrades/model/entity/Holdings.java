@@ -9,6 +9,8 @@ import lombok.experimental.FieldNameConstants;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -24,7 +26,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @FieldNameConstants
 @Document(collection = "holdings")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Holdings {
+public class Holdings implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     @MongoId
     long userId;
@@ -38,7 +43,11 @@ public class Holdings {
     @AllArgsConstructor
     @FieldNameConstants
     @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class HoldingInfo {
+    public static class HoldingInfo implements Serializable {
+
+        @Serial
+        private static final long serialVersionUID = 1L;
+
         String symbol;
 
         float margin;
@@ -65,7 +74,10 @@ public class Holdings {
     @AllArgsConstructor
     @FieldNameConstants
     @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class HoldingDetail {
+    public static class HoldingDetail implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
         int id;
         int quantity;
         BigDecimal price;

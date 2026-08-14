@@ -5,11 +5,11 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
-public class HoldingsDataRedisRepo<T> extends RedisCache<T> {
+public class MarketTickerRedisRepo<T> extends RedisCache<T> {
 
-    private static final String KEY_PREFIX = "holdings";
+    private static final String KEY_PREFIX = "angel_one_ltp";
 
-    public HoldingsDataRedisRepo(@Qualifier("redisTemplateObject") RedisTemplate<String, T> redisTemplate) {
+    public MarketTickerRedisRepo(@Qualifier("redisTemplateObject") RedisTemplate<String, T> redisTemplate) {
         super(KEY_PREFIX, redisTemplate);
     }
 }

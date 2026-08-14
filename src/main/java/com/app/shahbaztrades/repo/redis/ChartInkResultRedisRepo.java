@@ -5,11 +5,12 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
-public class HoldingsDataRedisRepo<T> extends RedisCache<T> {
+public class ChartInkResultRedisRepo<T> extends RedisCache<T> {
 
-    private static final String KEY_PREFIX = "holdings";
+    private static final String KEY_PREFIX = "chartink_result";
 
-    public HoldingsDataRedisRepo(@Qualifier("redisTemplateObject") RedisTemplate<String, T> redisTemplate) {
+    public ChartInkResultRedisRepo(@Qualifier("redisTemplateObject") RedisTemplate<String, T> redisTemplate) {
         super(KEY_PREFIX, redisTemplate);
     }
+
 }

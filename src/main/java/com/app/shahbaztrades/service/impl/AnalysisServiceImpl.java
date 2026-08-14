@@ -15,7 +15,7 @@ import com.app.shahbaztrades.repo.redis.GenAiRedisRepo;
 import com.app.shahbaztrades.repo.redis.TvNewsRedisRepo;
 import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.DateUtil;
-import com.app.shahbaztrades.util.HelperUtil;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -47,8 +47,9 @@ public class AnalysisServiceImpl implements AnalysisService {
     private final ChartInkService chartInkService;
     private final AngelOneService angelOneService;
     private final MongoTemplate mongoTemplate;
-    private final GenAiRedisRepo genAiRedisRepo;
-    private final TvNewsRedisRepo tvNewsRedisRepo;
+    private final GenAiRedisRepo<AIAnalysis> genAiRedisRepo;
+    private final TvNewsRedisRepo<List<TradingViewNewsResponse.NewsItem>> tvNewsRedisRepo;
+    private final JsonMapper jsonMapper;
 
     @Override
     public List<TradingViewNewsResponse.NewsItem> getStockNews(String symbol) {
@@ -93,7 +94,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                         throw new NotFoundException("Analysis Not Found");
                     }
 
-                    var res = HelperUtil.GSON.fromJson(analysis, AIAnalysis.class);
+                    AIAnalysis res = jsonMapper.readValue(analysis, AIAnalysis.class);
                     genAiRedisRepo.set(symbol, res, DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10)));
                     return res;
                 } finally {

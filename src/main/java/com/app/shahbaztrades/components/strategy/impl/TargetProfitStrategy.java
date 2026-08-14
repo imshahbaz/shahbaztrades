@@ -3,6 +3,7 @@ package com.app.shahbaztrades.components.strategy.impl;
 import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
 import com.app.shahbaztrades.components.strategy.AbstractDailyTradingStrategy;
 import com.app.shahbaztrades.components.yahoo.YahooClient;
+import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.OrderStatus;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Collections;
 
 @Slf4j
 @Component
@@ -43,7 +45,7 @@ public class TargetProfitStrategy extends AbstractDailyTradingStrategy {
 
         try {
             var entryPrice = order.getEntry().getAveragePrice();
-            var targetPercentage = ONE_HUNDRED.add(order.getTargetPercentage()).divide(ONE_HUNDRED, RoundingMode.HALF_UP);
+            var targetPercentage = ONE_HUNDRED.add(order.getTargetPercentage()).divide(ONE_HUNDRED, 2, RoundingMode.HALF_UP);
             var target = entryPrice.multiply(targetPercentage);
             var targetPrice = HelperUtil.fixToTick(target.doubleValue());
             var orderRouter = orderRouterFactory.getRouter(order.getBroker());
@@ -53,6 +55,12 @@ public class TargetProfitStrategy extends AbstractDailyTradingStrategy {
             order.setExit(Order.ExecutionRecord.builder().brokerOrderId(exitResp.getOrderId()).orderStatus(exitResp.getStatus()).build());
             order.setOrderStatus(OrderStatus.COMPLETED);
             this.saveOrderProgress(order);
+            this.publishNotification(NotificationRequest.builder()
+                    .userId(order.getUserId())
+                    .title(com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_PLACED)
+                    .body(String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_SELL_LIMIT, order.getQuantity(), order.getSymbol(), targetPrice))
+                    .data(Collections.emptyMap())
+                    .build());
         } catch (Exception e) {
             log.error("Error placing exit order for {}", order.getId());
         }

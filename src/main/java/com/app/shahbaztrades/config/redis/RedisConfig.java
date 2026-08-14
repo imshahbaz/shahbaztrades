@@ -1,6 +1,7 @@
 package com.app.shahbaztrades.config.redis;
 
 import com.app.shahbaztrades.service.MongoConfigService;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.RequiredArgsConstructor;
 import org.redisson.Redisson;
 import org.redisson.api.RScheduledExecutorService;
@@ -18,7 +19,9 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
 import java.util.Map;
@@ -31,6 +34,7 @@ public class RedisConfig {
 
     private static final String SCHEDULER_NAME = "1Klik-Scheduler";
     private final MongoConfigService mongoConfigService;
+    private final ForyRedisSerializer<?> foryRedisSerializer;
 
     @Bean
     public RedissonConnectionFactory redisConnectionFactory(RedissonClient redissonClient) {
@@ -43,10 +47,10 @@ public class RedisConfig {
     }
 
     @Bean
-    public RedissonClient redissonClient() {
+    public RedissonClient redissonClient(JsonMapper jsonMapper) {
 
         Config config = new Config();
-        config.setCodec(new JsonJacksonCodec());
+        config.setCodec(new JsonJacksonCodec(jsonMapper));
 
         config.useSingleServer()
                 .setAddress(mongoConfigService.getConfig().getRedisUrl())
@@ -85,6 +89,19 @@ public class RedisConfig {
 
         configMap.put("zerodhaAuthCache", authCacheConfig);
         return new RedissonSpringCacheManager(redissonClient, configMap);
+    }
+
+    @Bean("redisTemplateObject")
+    public <T> RedisTemplate<String, T> redisTemplateObject(RedissonConnectionFactory factory) {
+        RedisTemplate<String, T> template = new RedisTemplate<>();
+        template.setConnectionFactory(factory);
+        StringRedisSerializer stringSerializer = new StringRedisSerializer();
+        template.setKeySerializer(stringSerializer);
+        template.setHashKeySerializer(stringSerializer);
+        template.setValueSerializer(foryRedisSerializer);
+        template.setHashValueSerializer(foryRedisSerializer);
+        template.afterPropertiesSet();
+        return template;
     }
 
 }

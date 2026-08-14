@@ -6,7 +6,6 @@ import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.auth.AuthCallbackResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthCookieResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthRequest;
-import com.app.shahbaztrades.model.dto.auth.SignUpResponse;
 import com.app.shahbaztrades.service.AuthService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -25,13 +24,6 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
-
-    @PublicEndpoint
-    @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<SignUpResponse>> signUp(@RequestBody @Valid AuthRequest request) {
-        var response = authService.signUp(request);
-        return ResponseEntity.ok(ApiResponse.ok(response, response.getMessage()));
-    }
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout() {

@@ -4,7 +4,7 @@ import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.model.entity.MongoEnvConfig;
 import com.app.shahbaztrades.repo.MongoConfigsRepo;
 import com.app.shahbaztrades.service.MongoConfigService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +28,7 @@ public class MongoConfigServiceImpl implements MongoConfigService {
 
     private final MongoConfigsRepo mongoConfigsRepo;
     private final Environment environment;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final MongoTemplate mongoTemplate;
     private MongoEnvConfig cachedConfig;
     private MongoEnvConfig clientConfig;
@@ -76,7 +76,7 @@ public class MongoConfigServiceImpl implements MongoConfigService {
     @Override
     public void updatePartialConfig(String configId, Map<String, Object> request) {
         try {
-            objectMapper.convertValue(request, MongoEnvConfig.class);
+            jsonMapper.convertValue(request, MongoEnvConfig.class);
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Invalid field provided in update request");
         }

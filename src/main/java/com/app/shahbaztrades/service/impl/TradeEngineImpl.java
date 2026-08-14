@@ -228,8 +228,7 @@ public class TradeEngineImpl implements TradeEngine {
 
             var orderDetails = orderRouter.getOrderDetails(order.getUserId(), orderResp.getOrderId());
             double entryPrice = orderDetails.getAveragePrice().doubleValue();
-
-            double targetPrice = HelperUtil.fixToTick(entryPrice * 1.004);
+            double targetPrice = HelperUtil.dynamicTargetPrice(order.getAmount(), orderDetails.getAveragePrice(), qty);
 
             log.info("Entry Executed at: {} | Target Set at: {}", entryPrice, targetPrice);
 
