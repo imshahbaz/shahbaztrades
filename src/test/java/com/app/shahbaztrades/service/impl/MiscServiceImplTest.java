@@ -27,7 +27,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
@@ -43,10 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -151,7 +148,7 @@ class MiscServiceImplTest {
 
         @Test
         void getPredictions_combinesTheLatestRunWithHistoricalData() {
-            when(kronosPredictionsRepo.findBySymbol(eq("TCS"), any(Pageable.class)))
+            when(kronosPredictionsRepo.findFirstBySymbol(eq("TCS"), any(Sort.class)))
                     .thenReturn(Optional.of(KronosPredictions.builder()
                             .symbol("TCS").runDate("15-Aug-2026")
                             .predictedCandles(new java.util.ArrayList<>(List.of(
@@ -172,7 +169,7 @@ class MiscServiceImplTest {
 
         @Test
         void getPredictions_throwsWhenNoRunExistsForTheSymbol() {
-            when(kronosPredictionsRepo.findBySymbol(eq("NOPE"), any(Pageable.class)))
+            when(kronosPredictionsRepo.findFirstBySymbol(eq("NOPE"), any(Sort.class)))
                     .thenReturn(Optional.empty());
 
             assertThrows(NotFoundException.class, () -> service.getPredictions("NOPE"));
@@ -345,7 +342,7 @@ class MiscServiceImplTest {
         void getStrategyInstance_returnsTheBeanOrNull() {
             var registry = registry();
             assertSame(rsi, registry.getStrategyInstance("RSI15MIN"));
-            assertEquals(null, registry.getStrategyInstance("NOPE"));
+            assertNull(registry.getStrategyInstance("NOPE"));
         }
     }
 }
