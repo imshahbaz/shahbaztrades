@@ -8,7 +8,6 @@ import com.app.shahbaztrades.exceptions.UnauthorizedException;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.auth.AuthRequest;
 import com.app.shahbaztrades.model.dto.auth.GoogleUser;
-import com.app.shahbaztrades.model.entity.MongoEnvConfig;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.model.enums.UserRole;
 import com.app.shahbaztrades.repo.redis.AuthDataRedisRepo;

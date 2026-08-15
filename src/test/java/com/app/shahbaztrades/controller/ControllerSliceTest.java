@@ -21,7 +21,6 @@ import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginResponseDTO;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
 import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
 import com.app.shahbaztrades.model.entity.Margin;
-import com.app.shahbaztrades.model.entity.MongoEnvConfig;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.model.enums.TimeFrame;
@@ -59,11 +58,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -659,7 +656,7 @@ class ControllerSliceTest {
         void getClientConfig_exposesTheClientScopedDocumentOnly() throws Exception {
             var config = new MongoEnvConfig();
             config.setId("clientConfigId");
-            when(mongoConfigService.getClientConfig()).thenReturn(config);
+            when(mongoConfigService.getClientConfigs()).thenReturn(config);
 
             mvc(new ConfigController(mongoConfigService)).perform(get("/api/config/client/active"))
                     .andExpect(status().isOk())

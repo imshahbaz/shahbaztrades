@@ -11,7 +11,6 @@ import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpDto;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
 import com.app.shahbaztrades.model.dto.angelone.websocket.AngelOneLoginResponse;
-import com.app.shahbaztrades.model.entity.MongoEnvConfig;
 import com.app.shahbaztrades.model.entity.redis.AngelOneHistoricalDataRedis;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.repo.redis.AngelOneHistoricalDataRedisRepo;

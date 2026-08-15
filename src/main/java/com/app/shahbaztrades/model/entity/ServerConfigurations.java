@@ -1,37 +1,45 @@
 package com.app.shahbaztrades.model.entity;
 
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.app.shahbaztrades.model.enums.Environments;
+import lombok.*;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.FieldNameConstants;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@FieldNameConstants
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Document(collection = "configs")
-public class MongoEnvConfig {
+@Document(collection = "server_configs")
+public class ServerConfigurations {
 
     @MongoId
     String id;
-    List<String> frontendUrls;
-    String brevoEmail;
-    String brevoApiKey;
+
+    Environments environment;
+
+    @Builder.Default
+    List<String> frontendUrls = new ArrayList<>();
+
     float leverage;
+
     String jwtSecret;
+
     String redisUrl;
 
     GoogleAuthCredentials googleAuth;
+
     AngelOneConfig angelOneConfig;
+
     FcmConfig fcmConfig;
-    Auth auth;
-    Components components;
+
 
     @Data
     @AllArgsConstructor
@@ -63,21 +71,4 @@ public class MongoEnvConfig {
     public static class FcmConfig {
         Map<String, Object> serviceAccount;
     }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Auth {
-        private boolean google;
-        private boolean email;
-        private boolean trueCaller;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Components {
-        private boolean heatMap;
-    }
-
 }

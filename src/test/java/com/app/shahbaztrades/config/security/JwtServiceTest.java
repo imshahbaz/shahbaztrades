@@ -2,7 +2,6 @@ package com.app.shahbaztrades.config.security;
 
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.auth.JwtClaims;
-import com.app.shahbaztrades.model.entity.MongoEnvConfig;
 import com.app.shahbaztrades.model.enums.UserRole;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -14,7 +13,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class JwtServiceTest {

@@ -1,6 +1,5 @@
 package com.app.shahbaztrades.config.security;
 
-import com.app.shahbaztrades.model.entity.MongoEnvConfig;
 import com.app.shahbaztrades.service.MongoConfigService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;

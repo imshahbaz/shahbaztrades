@@ -1,8 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.exceptions.BadRequestException;
-import com.app.shahbaztrades.model.entity.MongoEnvConfig;
-import com.app.shahbaztrades.repo.MongoConfigsRepo;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.mongodb.client.result.UpdateResult;
 import org.junit.jupiter.api.BeforeEach;
@@ -85,7 +83,7 @@ class MongoConfigServiceImplTest {
 
         service.refreshClientConfig();
 
-        assertEquals("clientConfigId", service.getClientConfig().getId());
+        assertEquals("clientConfigId", service.getClientConfigs().getId());
     }
 
     @Test
@@ -97,7 +95,7 @@ class MongoConfigServiceImplTest {
         service.refreshClientConfig();
 
         assertEquals("mongoConfigDev", service.getConfig().getId());
-        assertEquals("clientConfigIdDev", service.getClientConfig().getId());
+        assertEquals("clientConfigIdDev", service.getClientConfigs().getId());
     }
 
     @Test
@@ -145,6 +143,6 @@ class MongoConfigServiceImplTest {
         service.init();
 
         assertSame(main, service.getConfig());
-        assertSame(client, service.getClientConfig());
+        assertSame(client, service.getClientConfigs());
     }
 }
