@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.model.entity.ServerConfigurations;
 import com.app.shahbaztrades.components.analysis.GenAiClient;
 import com.app.shahbaztrades.components.yahoo.YahooClient;
 import com.app.shahbaztrades.exceptions.NotFoundException;
@@ -74,9 +75,9 @@ class AnalysisServiceImplTest {
     }
 
     private void stubGeminiKey() {
-        var googleAuth = new MongoEnvConfig.GoogleAuthCredentials();
+        var googleAuth = new ServerConfigurations.GoogleAuthCredentials();
         googleAuth.setGeminiKey("gemini-key");
-        var config = new MongoEnvConfig();
+        var config = new ServerConfigurations();
         config.setGoogleAuth(googleAuth);
         when(mongoConfigService.getConfig()).thenReturn(config);
     }

@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.controller.admin;
 
+import com.app.shahbaztrades.model.entity.ServerConfigurations;
 import com.app.shahbaztrades.components.helper.MarketDataContainer;
 import com.app.shahbaztrades.components.observer.MarketTickPipeline;
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
@@ -13,6 +14,7 @@ import com.app.shahbaztrades.model.dto.scheduler.CronTaskDto;
 import com.app.shahbaztrades.model.dto.scheduler.ScheduledTaskDto;
 import com.app.shahbaztrades.model.dto.scheduler.SchedulerCallBackDto;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
+import com.app.shahbaztrades.model.enums.ConfigurationType;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.model.enums.SchedulerTaskType;
 import com.app.shahbaztrades.model.enums.TimeFrame;
@@ -80,7 +82,7 @@ class AdminControllerSliceTest {
 
         @Test
         void getActiveConfig_exposesTheFullServerConfig() throws Exception {
-            var config = new MongoEnvConfig();
+            var config = new ServerConfigurations();
             config.setId("mongoConfig");
             when(mongoConfigService.getConfig()).thenReturn(config);
 
@@ -93,19 +95,22 @@ class AdminControllerSliceTest {
         void updateConfig_forwardsThePatchMap() throws Exception {
             mvc(new ConfigControllerAdmin(mongoConfigService))
                     .perform(put("/api/admin/config/update/mongoConfig")
+                            .param("configurationType", ConfigurationType.SERVER.name())
                             .contentType(MediaType.APPLICATION_JSON).content("{\"leverage\":4.0}"))
                     .andExpect(status().isOk());
 
-            verify(mongoConfigService).updatePartialConfig(eq("mongoConfig"), any(Map.class));
+            verify(mongoConfigService).updatePartialConfig(
+                    eq("mongoConfig"), eq(ConfigurationType.SERVER), any(Map.class));
         }
 
         @Test
         void updateConfig_mapsAnUnknownFieldTo400() throws Exception {
             doThrow(new BadRequestException("Invalid field provided in update request"))
-                    .when(mongoConfigService).updatePartialConfig(any(), any());
+                    .when(mongoConfigService).updatePartialConfig(any(), any(), any());
 
             mvc(new ConfigControllerAdmin(mongoConfigService))
                     .perform(put("/api/admin/config/update/mongoConfig")
+                            .param("configurationType", ConfigurationType.SERVER.name())
                             .contentType(MediaType.APPLICATION_JSON).content("{\"nope\":1}"))
                     .andExpect(status().isBadRequest());
         }

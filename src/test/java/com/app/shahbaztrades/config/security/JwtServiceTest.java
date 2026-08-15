@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.config.security;
 
+import com.app.shahbaztrades.model.entity.ServerConfigurations;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.auth.JwtClaims;
 import com.app.shahbaztrades.model.enums.UserRole;
@@ -21,7 +22,7 @@ class JwtServiceTest {
     private MongoConfigService mongoConfigService;
 
     private JwtService jwtService(String secret) {
-        MongoEnvConfig config = new MongoEnvConfig();
+        ServerConfigurations config = new ServerConfigurations();
         config.setJwtSecret(secret);
         lenient().when(mongoConfigService.getConfig()).thenReturn(config);
         return new JwtService(mongoConfigService, JsonMapper.builder().build());

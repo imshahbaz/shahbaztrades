@@ -20,6 +20,7 @@ import com.app.shahbaztrades.model.dto.order.StrategyOrderDto;
 import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginResponseDTO;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
 import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
+import com.app.shahbaztrades.model.entity.ClientConfigurations;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.model.enums.BrokerType;
@@ -654,9 +655,9 @@ class ControllerSliceTest {
 
         @Test
         void getClientConfig_exposesTheClientScopedDocumentOnly() throws Exception {
-            var config = new MongoEnvConfig();
+            var config = new ClientConfigurations();
             config.setId("clientConfigId");
-            when(mongoConfigService.getClientConfigs()).thenReturn(config);
+            when(mongoConfigService.getClientConfig()).thenReturn(config);
 
             mvc(new ConfigController(mongoConfigService)).perform(get("/api/config/client/active"))
                     .andExpect(status().isOk())

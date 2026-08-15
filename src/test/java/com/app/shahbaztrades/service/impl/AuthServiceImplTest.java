@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.model.entity.ServerConfigurations;
 import com.app.shahbaztrades.components.auth.GoogleAuthUtils;
 import com.app.shahbaztrades.config.security.JwtService;
 import com.app.shahbaztrades.exceptions.BadRequestException;
@@ -73,10 +74,10 @@ class AuthServiceImplTest {
     }
 
     private void stubConfig(String... frontendUrls) {
-        var googleAuth = new MongoEnvConfig.GoogleAuthCredentials();
+        var googleAuth = new ServerConfigurations.GoogleAuthCredentials();
         googleAuth.setEncryptionKey(ENCRYPTION_KEY);
         googleAuth.setClientId("client-id");
-        var config = new MongoEnvConfig();
+        var config = new ServerConfigurations();
         config.setGoogleAuth(googleAuth);
         config.setFrontendUrls(List.of(frontendUrls));
         lenient().when(mongoConfigService.getConfig()).thenReturn(config);
