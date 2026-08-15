@@ -1,6 +1,6 @@
 package com.app.shahbaztrades.config.security;
 
-import com.app.shahbaztrades.model.entity.MongoEnvConfig;
+import com.app.shahbaztrades.model.entity.ServerConfigurations;
 import com.app.shahbaztrades.service.MongoConfigService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,7 +39,7 @@ class CorsFilterTest {
     @BeforeEach
     void setUp() {
         filter = new CorsFilter(mongoConfigService);
-        var config = new MongoEnvConfig();
+        var config = new ServerConfigurations();
         config.setFrontendUrls(List.of(ALLOWED));
         lenient().when(mongoConfigService.getConfig()).thenReturn(config);
     }

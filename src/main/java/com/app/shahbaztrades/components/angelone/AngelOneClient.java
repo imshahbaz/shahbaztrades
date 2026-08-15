@@ -3,7 +3,7 @@ package com.app.shahbaztrades.components.angelone;
 import com.app.shahbaztrades.model.dto.angelone.MinimalInstrument;
 import com.app.shahbaztrades.model.dto.angelone.websocket.AngelOneLoginResponse;
 import com.app.shahbaztrades.model.entity.Margin;
-import com.app.shahbaztrades.model.entity.MongoEnvConfig;
+import com.app.shahbaztrades.model.entity.ServerConfigurations;
 import com.app.shahbaztrades.util.HelperUtil;
 import com.app.shahbaztrades.util.TotpUtil;
 import com.fasterxml.jackson.core.JsonParser;
@@ -82,7 +82,7 @@ public class AngelOneClient {
     }
 
 
-    public AngelOneLoginResponse.LoginData getWebsocketLogin(MongoEnvConfig.AngelOneConfig config) {
+    public AngelOneLoginResponse.LoginData getWebsocketLogin(ServerConfigurations.AngelOneConfig config) {
         String otp = TotpUtil.generateTOTP(config.getSeed());
         if (otp.isEmpty()) {
             throw new IllegalStateException("Failed to generate TOTP");

@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.model.entity.ServerConfigurations;
 import com.app.shahbaztrades.components.angelone.AngelOneClient;
 import com.app.shahbaztrades.components.angelone.AngelOneRateLimiter;
 import com.app.shahbaztrades.components.angelone.SmartApiFeignClient;
@@ -11,7 +12,6 @@ import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpDto;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
 import com.app.shahbaztrades.model.dto.angelone.websocket.AngelOneLoginResponse;
-import com.app.shahbaztrades.model.entity.MongoEnvConfig;
 import com.app.shahbaztrades.model.entity.redis.AngelOneHistoricalDataRedis;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.repo.redis.AngelOneHistoricalDataRedisRepo;
@@ -82,10 +82,10 @@ class AngelOneServiceImplTest {
     }
 
     private void stubApiKey() {
-        var angelOne = new MongoEnvConfig.AngelOneConfig();
+        var angelOne = new ServerConfigurations.AngelOneConfig();
         angelOne.setApiKey("api-key");
         angelOne.setClientId("client");
-        var config = new MongoEnvConfig();
+        var config = new ServerConfigurations();
         config.setAngelOneConfig(angelOne);
         lenient().when(mongoConfigService.getConfig()).thenReturn(config);
     }
