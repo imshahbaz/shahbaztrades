@@ -6,6 +6,9 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -22,6 +25,12 @@ public class ClientConfigurations {
     Auth auth;
 
     Components components;
+
+    @Builder.Default
+    Set<String> allowedDailyStrategies = new HashSet<>();
+
+    @Builder.Default
+    Set<String> allowedContinuousStrategies = new HashSet<>();
 
     @Data
     @NoArgsConstructor
