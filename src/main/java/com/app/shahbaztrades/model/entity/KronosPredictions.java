@@ -33,6 +33,7 @@ public class KronosPredictions {
 
     Integer paths;
 
+    @Builder.Default
     List<PredictedCandle> predictedCandles = new ArrayList<>();
 
     @Builder.Default
