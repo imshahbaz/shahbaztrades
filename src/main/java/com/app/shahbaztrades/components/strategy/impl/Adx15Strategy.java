@@ -3,17 +3,15 @@ package com.app.shahbaztrades.components.strategy.impl;
 import com.app.shahbaztrades.components.strategy.AbstractContinuousTradingStrategy;
 import com.app.shahbaztrades.service.MarginService;
 import org.springframework.stereotype.Component;
+import org.ta4j.core.Bar;
 import org.ta4j.core.BarSeries;
-import org.ta4j.core.Rule;
 import org.ta4j.core.indicators.adx.ADXIndicator;
 import org.ta4j.core.indicators.adx.MinusDIIndicator;
 import org.ta4j.core.indicators.adx.PlusDIIndicator;
-import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
-import org.ta4j.core.indicators.helpers.OpenPriceIndicator;
 import org.ta4j.core.indicators.helpers.PreviousValueIndicator;
 import org.ta4j.core.rules.OverIndicatorRule;
 
-@Component("ADX15MIN")
+@Component
 public class Adx15Strategy extends AbstractContinuousTradingStrategy {
 
     public Adx15Strategy(MarginService marginService) {
@@ -34,11 +32,8 @@ public class Adx15Strategy extends AbstractContinuousTradingStrategy {
     }
 
     private boolean applyEntryRule(BarSeries series, int safeClosedIndex) {
-        ClosePriceIndicator close = new ClosePriceIndicator(series);
-        OpenPriceIndicator open = new OpenPriceIndicator(series);
-
-        Rule isGreenCandle = new OverIndicatorRule(close, open);
-        if (!isGreenCandle.isSatisfied(safeClosedIndex)) {
+        Bar current = series.getBar(safeClosedIndex);
+        if (current.getOpenPrice().isGreaterThanOrEqual(current.getClosePrice())) {
             return false;
         }
 
