@@ -13,6 +13,7 @@ import com.zerodhatech.models.Order;
 import com.zerodhatech.models.OrderParams;
 import com.zerodhatech.models.OrderResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.json.JSONException;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ZerodhaOrderRouter implements OrderRoutingStrategy {
@@ -59,10 +61,12 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         try {
             res = kc.placeOrder(orderParams, getVariety());
         } catch (KiteException | IOException | JSONException e) {
+            log.error("Failed to place MTF order for userId {} symbol {} quantity {} orderType {}", userId, request.getSymbol(), request.getQuantity(), request.getOrderType(), e);
             throw new IllegalStateException("Failed to place MTF order for " + request.getSymbol(), e);
         }
 
         if (res == null || res.orderId == null) {
+            log.error("Order placement failed for userId {} symbol {}: no order id returned", userId, request.getSymbol());
             throw new IllegalStateException("Order placement failed: No Order ID returned");
         }
 
@@ -88,10 +92,12 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         try {
             orderResponse = kc.placeOrder(orderParams, getVariety());
         } catch (KiteException | IOException | JSONException e) {
+            log.error("Failed to place MTF stop-loss order for userId {} symbol {} quantity {} triggerPrice {}", userId, request.getSymbol(), request.getQuantity(), request.getTriggerPrice(), e);
             throw new IllegalStateException("Failed to place MTF stop-loss order for " + request.getSymbol(), e);
         }
 
         if (orderResponse == null || orderResponse.orderId == null) {
+            log.error("MTF stop-loss order placement failed for userId {} symbol {}: no order id returned", userId, request.getSymbol());
             throw new IllegalStateException("Order placement failed: No Order ID returned");
         }
 
@@ -107,6 +113,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         try {
             kc.modifyOrder(request.getOrderId(), modParams, getVariety());
         } catch (KiteException | IOException | JSONException e) {
+            log.error("Failed to update MTF stop-loss order for userId {} orderId {} price {} triggerPrice {}", userId, request.getOrderId(), request.getPrice(), request.getTriggerPrice(), e);
             throw new IllegalStateException("Failed to update MTF stop-loss order for order " + request.getOrderId(), e);
         }
     }
@@ -117,6 +124,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         try {
             kc.cancelOrder(orderId, getVariety(), null);
         } catch (KiteException | IOException | JSONException e) {
+            log.error("Failed to cancel order for userId {} orderId {}", userId, orderId, e);
             throw new IllegalStateException("Failed to cancel order " + orderId, e);
         }
     }
@@ -133,6 +141,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         try {
             kc.modifyOrder(request.getOrderId(), params, getVariety());
         } catch (KiteException | IOException | JSONException e) {
+            log.error("Failed to convert stop-loss order to market for userId {} orderId {} symbol {}", userId, request.getOrderId(), request.getSymbol(), e);
             throw new IllegalStateException("Failed to convert stop-loss order to market for order " + request.getOrderId(), e);
         }
     }
@@ -144,6 +153,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         try {
             history = kc.getOrderHistory(orderId);
         } catch (KiteException | IOException | JSONException e) {
+            log.error("Failed to fetch order details for userId {} orderId {}", userId, orderId, e);
             throw new IllegalStateException("Failed to fetch order details for order " + orderId, e);
         }
 
