@@ -122,7 +122,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
     public void cancelOrder(Long userId, String orderId) throws Exception {
         withKiteClient(userId,
                 "Failed to cancel order " + orderId,
-                kc -> kc.cancelOrder(orderId, getVariety(), null));
+                kc -> kc.cancelOrder(orderId, getVariety()));
     }
 
     @Override
