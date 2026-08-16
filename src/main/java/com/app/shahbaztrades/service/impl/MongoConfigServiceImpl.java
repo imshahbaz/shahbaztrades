@@ -1,8 +1,11 @@
 package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.exceptions.BadRequestException;
-import com.app.shahbaztrades.model.entity.MongoEnvConfig;
-import com.app.shahbaztrades.repo.MongoConfigsRepo;
+import com.app.shahbaztrades.exceptions.NotFoundException;
+import com.app.shahbaztrades.model.entity.ClientConfigurations;
+import com.app.shahbaztrades.model.entity.ServerConfigurations;
+import com.app.shahbaztrades.model.enums.ConfigurationType;
+import com.app.shahbaztrades.model.enums.Environments;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import jakarta.annotation.PostConstruct;
@@ -18,7 +21,6 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 
 @Slf4j
@@ -26,12 +28,11 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class MongoConfigServiceImpl implements MongoConfigService {
 
-    private final MongoConfigsRepo mongoConfigsRepo;
     private final Environment environment;
     private final JsonMapper jsonMapper;
     private final MongoTemplate mongoTemplate;
-    private MongoEnvConfig cachedConfig;
-    private MongoEnvConfig clientConfig;
+    private ServerConfigurations backendConfigs;
+    private ClientConfigurations clientConfigs;
 
     @Getter
     @Setter
@@ -49,34 +50,42 @@ public class MongoConfigServiceImpl implements MongoConfigService {
 
     @Override
     public void refreshConfig() {
-        var id = Objects.equals(environment.getProperty("ENV"), "production") ? "mongoConfig" : "mongoConfigDev";
-        this.cachedConfig = mongoConfigsRepo.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Configuration not found in MongoDB"));
+        Environments env = Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()) ? Environments.PRODUCTION : Environments.DEVELOPMENT;
+        Query query = new Query(Criteria.where(ServerConfigurations.Fields.environment).is(env));
+        var config = mongoTemplate.findOne(query, ServerConfigurations.class);
+        if (config == null) {
+            throw new NotFoundException("Backend configuration not found");
+        }
+        this.backendConfigs = config;
         log.info("Mongo configuration loaded successfully");
     }
 
     @Override
     public void refreshClientConfig() {
-        var id = Objects.equals(environment.getProperty("ENV"), "production") ? "clientConfigId" : "clientConfigIdDev";
-        this.clientConfig = mongoConfigsRepo.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Configuration not found in MongoDB"));
+        Environments env = Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()) ? Environments.PRODUCTION : Environments.DEVELOPMENT;
+        Query query = new Query(Criteria.where(ServerConfigurations.Fields.environment).is(env));
+        var config = mongoTemplate.findOne(query, ClientConfigurations.class);
+        if (config == null) {
+            throw new NotFoundException("Client configuration not found");
+        }
+        this.clientConfigs = config;
         log.info("Client configuration loaded successfully");
     }
 
     @Override
-    public MongoEnvConfig getConfig() {
-        return this.cachedConfig;
+    public ServerConfigurations getConfig() {
+        return this.backendConfigs;
     }
 
     @Override
-    public MongoEnvConfig getClientConfig() {
-        return this.clientConfig;
+    public ClientConfigurations getClientConfig() {
+        return this.clientConfigs;
     }
 
     @Override
-    public void updatePartialConfig(String configId, Map<String, Object> request) {
+    public void updatePartialConfig(String configId, ConfigurationType configurationType, Map<String, Object> request) {
         try {
-            jsonMapper.convertValue(request, MongoEnvConfig.class);
+            jsonMapper.convertValue(request, configurationType.getConfigClassName());
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Invalid field provided in update request");
         }
@@ -84,7 +93,7 @@ public class MongoConfigServiceImpl implements MongoConfigService {
         Query query = new Query(Criteria.where("_id").is(configId));
         Update update = new Update();
         request.forEach(update::set);
-        var result = mongoTemplate.updateFirst(query, update, MongoEnvConfig.class);
+        var result = mongoTemplate.updateFirst(query, update, configurationType.getConfigClassName());
         if (result.getModifiedCount() == 0) {
             throw new BadRequestException("No new update found");
         }

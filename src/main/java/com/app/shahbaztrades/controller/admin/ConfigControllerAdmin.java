@@ -2,10 +2,12 @@ package com.app.shahbaztrades.controller.admin;
 
 import com.app.shahbaztrades.config.security.AdminOnly;
 import com.app.shahbaztrades.model.dto.ApiResponse;
-import com.app.shahbaztrades.model.entity.MongoEnvConfig;
+import com.app.shahbaztrades.model.entity.ServerConfigurations;
+import com.app.shahbaztrades.model.enums.ConfigurationType;
 import com.app.shahbaztrades.service.MongoConfigService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -35,14 +37,15 @@ public class ConfigControllerAdmin {
 
     @AdminOnly
     @GetMapping("/active")
-    public ResponseEntity<ApiResponse<MongoEnvConfig>> getActiveConfig() {
+    public ResponseEntity<ApiResponse<ServerConfigurations>> getActiveConfig() {
         return ResponseEntity.ok(ApiResponse.ok(mongoConfigService.getConfig(), "Success"));
     }
 
     @AdminOnly
     @PutMapping("/update/{id}")
-    public ResponseEntity<ApiResponse<Void>> updateConfig(@PathVariable @NotBlank String id, @RequestBody @NotEmpty Map<String, Object> request) {
-        mongoConfigService.updatePartialConfig(id, request);
+    public ResponseEntity<ApiResponse<Void>> updateConfig(@PathVariable @NotBlank String id, @RequestParam @NotNull ConfigurationType configurationType,
+                                                          @RequestBody @NotEmpty Map<String, Object> request) {
+        mongoConfigService.updatePartialConfig(id, configurationType, request);
         return ResponseEntity.ok(ApiResponse.ok(null, "Success"));
     }
 
