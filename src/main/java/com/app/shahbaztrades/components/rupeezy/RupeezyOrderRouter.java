@@ -117,7 +117,7 @@ public class RupeezyOrderRouter implements OrderRoutingStrategy {
     }
 
     @Override
-    public TradeOrderResponse placePreMarketOrder(Long userId, TradeOrderRequest request) throws Exception {
+    public TradeOrderResponse placePreMarketOrder(Long userId, TradeOrderRequest request) {
         request.setOrderType(request.getPrice() == null ? Constants.ORDER_TYPE_MARKET : Constants.ORDER_TYPE_LIMIT);
         return this.placeMTFOrder(userId, request);
     }

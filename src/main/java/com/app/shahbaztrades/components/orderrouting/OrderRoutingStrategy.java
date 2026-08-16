@@ -8,17 +8,17 @@ public interface OrderRoutingStrategy {
 
     BrokerType getBrokerType();
 
-    TradeOrderResponse placeMTFOrder(Long userId, TradeOrderRequest request) throws Exception;
+    TradeOrderResponse placeMTFOrder(Long userId, TradeOrderRequest request);
 
-    TradeOrderResponse placeMTFStopLossOrder(Long userId, TradeOrderRequest request) throws Exception;
+    TradeOrderResponse placeMTFStopLossOrder(Long userId, TradeOrderRequest request);
 
-    void updateMTFStopLossOrder(Long userId, TradeOrderRequest request) throws Exception;
+    void updateMTFStopLossOrder(Long userId, TradeOrderRequest request);
 
-    void cancelOrder(Long userId, String orderId) throws Exception;
+    void cancelOrder(Long userId, String orderId);
 
-    void convertSLToMarket(Long userId, TradeOrderRequest request) throws Exception;
+    void convertSLToMarket(Long userId, TradeOrderRequest request);
 
-    TradeOrderResponse getOrderDetails(Long userId, String orderId) throws Exception;
+    TradeOrderResponse getOrderDetails(Long userId, String orderId);
 
-    TradeOrderResponse placePreMarketOrder(Long userId, TradeOrderRequest request) throws Exception;
+    TradeOrderResponse placePreMarketOrder(Long userId, TradeOrderRequest request);
 }
