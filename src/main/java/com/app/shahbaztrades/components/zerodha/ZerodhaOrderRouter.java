@@ -31,6 +31,9 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
 
     private final ZerodhaService zerodhaService;
 
+    private static final String ORDER_TAG = "Shahbaz Trades";
+    private static final int NO_MARKET_PROTECTION = -1;
+
     @FunctionalInterface
     private interface KiteCall<T> {
         T execute(KiteConnect kiteConnect) throws KiteException, IOException, JSONException;
@@ -63,7 +66,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
     }
 
     @Override
-    public TradeOrderResponse placeMTFOrder(Long userId, TradeOrderRequest request) throws Exception {
+    public TradeOrderResponse placeMTFOrder(Long userId, TradeOrderRequest request) {
         OrderParams orderParams = new OrderParams();
         orderParams.exchange = Constants.EXCHANGE_NSE;
         orderParams.tradingsymbol = request.getSymbol();
@@ -72,11 +75,11 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         orderParams.product = Constants.PRODUCT_MTF;
         orderParams.orderType = request.getOrderType();
         orderParams.validity = Constants.VALIDITY_DAY;
-        orderParams.tag = "Shahbaz Trades";
+        orderParams.tag = ORDER_TAG;
         orderParams.price = request.getPrice();
 
         if (Constants.ORDER_TYPE_MARKET.equals(request.getOrderType())) {
-            orderParams.marketProtection = -1;
+            orderParams.marketProtection = NO_MARKET_PROTECTION;
         }
 
         OrderResponse res = withKiteClient(userId,
@@ -87,7 +90,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
     }
 
     @Override
-    public TradeOrderResponse placeMTFStopLossOrder(Long userId, TradeOrderRequest request) throws Exception {
+    public TradeOrderResponse placeMTFStopLossOrder(Long userId, TradeOrderRequest request) {
         OrderParams orderParams = new OrderParams();
         orderParams.exchange = Constants.EXCHANGE_NSE;
         orderParams.tradingsymbol = request.getSymbol();
@@ -99,6 +102,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         orderParams.product = Constants.PRODUCT_MTF;
         orderParams.orderType = Constants.ORDER_TYPE_SL;
         orderParams.validity = Constants.VALIDITY_DAY;
+        orderParams.tag = ORDER_TAG;
 
         OrderResponse orderResponse = withKiteClient(userId,
                 "Failed to place MTF stop-loss order for " + request.getSymbol() + " quantity " + request.getQuantity() + " triggerPrice " + request.getTriggerPrice(),
@@ -108,7 +112,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
     }
 
     @Override
-    public void updateMTFStopLossOrder(Long userId, TradeOrderRequest request) throws Exception {
+    public void updateMTFStopLossOrder(Long userId, TradeOrderRequest request) {
         OrderParams modParams = new OrderParams();
         modParams.price = request.getPrice();
         modParams.triggerPrice = request.getTriggerPrice();
@@ -119,20 +123,20 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
     }
 
     @Override
-    public void cancelOrder(Long userId, String orderId) throws Exception {
+    public void cancelOrder(Long userId, String orderId) {
         withKiteClient(userId,
                 "Failed to cancel order " + orderId,
                 kc -> kc.cancelOrder(orderId, getVariety()));
     }
 
     @Override
-    public void convertSLToMarket(Long userId, TradeOrderRequest request) throws Exception {
+    public void convertSLToMarket(Long userId, TradeOrderRequest request) {
         OrderParams params = new OrderParams();
         params.orderType = Constants.ORDER_TYPE_MARKET;
         params.quantity = request.getQuantity();
         params.price = null;
         params.triggerPrice = null;
-        params.marketProtection = -1;
+        params.marketProtection = NO_MARKET_PROTECTION;
 
         withKiteClient(userId,
                 "Failed to convert stop-loss order to market for order " + request.getOrderId() + " symbol " + request.getSymbol(),
@@ -140,7 +144,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
     }
 
     @Override
-    public TradeOrderResponse getOrderDetails(Long userId, String orderId) throws Exception {
+    public TradeOrderResponse getOrderDetails(Long userId, String orderId) {
         List<Order> history = withKiteClient(userId,
                 "Failed to fetch order details for order " + orderId,
                 kc -> kc.getOrderHistory(orderId));
@@ -159,7 +163,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
     }
 
     @Override
-    public TradeOrderResponse placePreMarketOrder(Long userId, TradeOrderRequest request) throws Exception {
+    public TradeOrderResponse placePreMarketOrder(Long userId, TradeOrderRequest request) {
         request.setPrice(null);
         request.setOrderType(Constants.ORDER_TYPE_MARKET);
         return this.placeMTFOrder(userId, request);
