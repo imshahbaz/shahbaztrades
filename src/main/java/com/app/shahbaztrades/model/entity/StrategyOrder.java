@@ -2,6 +2,7 @@ package com.app.shahbaztrades.model.entity;
 
 import com.app.shahbaztrades.model.dto.order.StrategyOrderDto;
 import com.app.shahbaztrades.model.enums.BrokerType;
+import com.app.shahbaztrades.model.enums.OrderStatus;
 import com.app.shahbaztrades.util.DateUtil;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -35,6 +36,9 @@ public class StrategyOrder {
 
     BrokerType broker;
 
+    @Builder.Default
+    OrderStatus orderStatus = OrderStatus.PENDING;
+
     public StrategyOrderDto toDto() {
         return StrategyOrderDto.builder()
                 .id(this.id)
@@ -43,6 +47,7 @@ public class StrategyOrder {
                 .date(DateTimeFormatter.ISO_LOCAL_DATE.withZone(DateUtil.IST_ZONE).format(this.date))
                 .amount(this.amount)
                 .broker(this.broker)
+                .orderStatus(this.orderStatus)
                 .build();
     }
 

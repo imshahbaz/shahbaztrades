@@ -14,6 +14,7 @@ import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.StrategyOrder;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.model.enums.ExchangeType;
+import com.app.shahbaztrades.model.enums.OrderStatus;
 import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.StrategyOrderService;
 import com.app.shahbaztrades.service.StrategyService;
@@ -75,6 +76,8 @@ public class TradeEngineImpl implements TradeEngine {
 
         if (strategy == null) {
             log.error("Strategy configuration not found for {}", strategyName);
+            order.setOrderStatus(OrderStatus.REJECTED);
+            eventPublisher.publishEvent(order);
             return;
         }
 
@@ -87,6 +90,9 @@ public class TradeEngineImpl implements TradeEngine {
         }
 
         strategyOrders.set(strategyName, list, DateUtil.getDurationUntilMarketClose());
+
+        order.setOrderStatus(OrderStatus.COMPLETED);
+        eventPublisher.publishEvent(order);
 
         if (processedStrategies.contains(strategyName)) {
             return;

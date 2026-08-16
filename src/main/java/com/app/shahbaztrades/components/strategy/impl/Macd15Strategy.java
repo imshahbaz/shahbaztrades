@@ -3,20 +3,20 @@ package com.app.shahbaztrades.components.strategy.impl;
 import com.app.shahbaztrades.components.strategy.AbstractContinuousTradingStrategy;
 import com.app.shahbaztrades.service.MarginService;
 import org.springframework.stereotype.Component;
+import org.ta4j.core.Bar;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.Indicator;
 import org.ta4j.core.Rule;
 import org.ta4j.core.indicators.MACDIndicator;
 import org.ta4j.core.indicators.averages.EMAIndicator;
 import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
-import org.ta4j.core.indicators.helpers.OpenPriceIndicator;
 import org.ta4j.core.indicators.helpers.PreviousValueIndicator;
 import org.ta4j.core.indicators.numeric.BinaryOperationIndicator;
 import org.ta4j.core.num.Num;
 import org.ta4j.core.rules.OverIndicatorRule;
 import org.ta4j.core.rules.UnderIndicatorRule;
 
-@Component("MACD15MIN")
+@Component
 public class Macd15Strategy extends AbstractContinuousTradingStrategy {
 
     public Macd15Strategy(MarginService marginService) {
@@ -38,14 +38,12 @@ public class Macd15Strategy extends AbstractContinuousTradingStrategy {
     }
 
     private boolean applyEntryRule(BarSeries series, int safeClosedIndex) {
-        ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
-        OpenPriceIndicator openPrice = new OpenPriceIndicator(series);
-
-        Rule isGreenCandle = new OverIndicatorRule(closePrice, openPrice);
-        if (!isGreenCandle.isSatisfied(safeClosedIndex)) {
+        Bar current = series.getBar(safeClosedIndex);
+        if (current.getOpenPrice().isGreaterThanOrEqual(current.getClosePrice())) {
             return false;
         }
 
+        ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
         MACDIndicator macdLine = new MACDIndicator(closePrice, 5, 13);
         EMAIndicator signalLine = new EMAIndicator(macdLine, 8);
 

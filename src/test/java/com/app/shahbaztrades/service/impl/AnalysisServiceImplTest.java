@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.model.entity.ServerConfigurations;
 import com.app.shahbaztrades.components.analysis.GenAiClient;
 import com.app.shahbaztrades.components.yahoo.YahooClient;
 import com.app.shahbaztrades.exceptions.NotFoundException;
@@ -7,7 +8,6 @@ import com.app.shahbaztrades.model.dto.analysis.AIAnalysis;
 import com.app.shahbaztrades.model.dto.analysis.TradingViewNewsResponse;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestMarginDto;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
-import com.app.shahbaztrades.model.entity.MongoEnvConfig;
 import com.app.shahbaztrades.model.entity.Strategy;
 import com.app.shahbaztrades.model.enums.TimeFrame;
 import com.app.shahbaztrades.repo.redis.GenAiRedisRepo;
@@ -35,7 +35,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -76,9 +75,9 @@ class AnalysisServiceImplTest {
     }
 
     private void stubGeminiKey() {
-        var googleAuth = new MongoEnvConfig.GoogleAuthCredentials();
+        var googleAuth = new ServerConfigurations.GoogleAuthCredentials();
         googleAuth.setGeminiKey("gemini-key");
-        var config = new MongoEnvConfig();
+        var config = new ServerConfigurations();
         config.setGoogleAuth(googleAuth);
         when(mongoConfigService.getConfig()).thenReturn(config);
     }

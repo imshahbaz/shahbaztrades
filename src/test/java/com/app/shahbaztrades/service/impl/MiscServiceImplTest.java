@@ -13,11 +13,7 @@ import com.app.shahbaztrades.model.entity.DatabaseCounter;
 import com.app.shahbaztrades.model.entity.KronosPredictions;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.repo.KronosPredictionsRepo;
-import com.app.shahbaztrades.service.NseService;
-import com.app.shahbaztrades.service.OrderService;
-import com.app.shahbaztrades.service.StrategyOrderService;
-import com.app.shahbaztrades.service.UserService;
-import com.app.shahbaztrades.service.ZerodhaService;
+import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.Constants;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -27,7 +23,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
@@ -40,22 +36,15 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
-/** Groups the small service implementations that need only a handful of cases each. */
+/**
+ * Groups the small service implementations that need only a handful of cases each.
+ */
 class MiscServiceImplTest {
 
     @Nested
@@ -151,7 +140,7 @@ class MiscServiceImplTest {
 
         @Test
         void getPredictions_combinesTheLatestRunWithHistoricalData() {
-            when(kronosPredictionsRepo.findBySymbol(eq("TCS"), any(Pageable.class)))
+            when(kronosPredictionsRepo.findFirstBySymbol(eq("TCS"), any(Sort.class)))
                     .thenReturn(Optional.of(KronosPredictions.builder()
                             .symbol("TCS").runDate("15-Aug-2026")
                             .predictedCandles(new java.util.ArrayList<>(List.of(
@@ -172,7 +161,7 @@ class MiscServiceImplTest {
 
         @Test
         void getPredictions_throwsWhenNoRunExistsForTheSymbol() {
-            when(kronosPredictionsRepo.findBySymbol(eq("NOPE"), any(Pageable.class)))
+            when(kronosPredictionsRepo.findFirstBySymbol(eq("NOPE"), any(Sort.class)))
                     .thenReturn(Optional.empty());
 
             assertThrows(NotFoundException.class, () -> service.getPredictions("NOPE"));
@@ -285,7 +274,7 @@ class MiscServiceImplTest {
         private ContinuousTradingStrategy macd;
 
         private StrategyRegistry registry() {
-            return new StrategyRegistry(Map.of("RSI15MIN", rsi, "MACD15MIN", macd));
+            return new StrategyRegistry(List.of(rsi, macd));
         }
 
         @Test
@@ -345,7 +334,7 @@ class MiscServiceImplTest {
         void getStrategyInstance_returnsTheBeanOrNull() {
             var registry = registry();
             assertSame(rsi, registry.getStrategyInstance("RSI15MIN"));
-            assertEquals(null, registry.getStrategyInstance("NOPE"));
+            assertNull(registry.getStrategyInstance("NOPE"));
         }
     }
 }

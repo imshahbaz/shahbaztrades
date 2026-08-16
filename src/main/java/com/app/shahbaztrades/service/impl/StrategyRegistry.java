@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class StrategyRegistry {
@@ -17,8 +19,12 @@ public class StrategyRegistry {
     private final Map<String, String> tokenSymbolMap = new ConcurrentHashMap<>();
     private final Map<String, ContinuousTradingStrategy> availableStrategies;
 
-    public StrategyRegistry(Map<String, ContinuousTradingStrategy> strategyBeans) {
-        this.availableStrategies = strategyBeans;
+    public StrategyRegistry(List<ContinuousTradingStrategy> strategies) {
+        this.availableStrategies = strategies.stream()
+                .collect(Collectors.toMap(
+                        ContinuousTradingStrategy::getName,
+                        Function.identity()
+                ));
     }
 
     public void assignTokenToStrategy(String strategyName, String token, String symbol) {

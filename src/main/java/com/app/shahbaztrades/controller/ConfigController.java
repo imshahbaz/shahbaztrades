@@ -2,7 +2,7 @@ package com.app.shahbaztrades.controller;
 
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
-import com.app.shahbaztrades.model.entity.MongoEnvConfig;
+import com.app.shahbaztrades.model.entity.ClientConfigurations;
 import com.app.shahbaztrades.service.MongoConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +19,7 @@ public class ConfigController {
 
     @PublicEndpoint
     @GetMapping("/client/active")
-    public ResponseEntity<ApiResponse<MongoEnvConfig>> getClientConfig() {
+    public ResponseEntity<ApiResponse<ClientConfigurations>> getClientConfig() {
         return ResponseEntity.ok(ApiResponse.ok(mongoConfigService.getClientConfig(), "Client config fetch success"));
     }
 
