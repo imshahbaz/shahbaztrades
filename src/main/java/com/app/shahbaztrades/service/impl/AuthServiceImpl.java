@@ -11,6 +11,7 @@ import com.app.shahbaztrades.model.dto.auth.AuthCallbackResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthCookieResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthRequest;
 import com.app.shahbaztrades.model.entity.User;
+import com.app.shahbaztrades.model.enums.Environments;
 import com.app.shahbaztrades.repo.redis.AuthDataRedisRepo;
 import com.app.shahbaztrades.service.AuthService;
 import com.app.shahbaztrades.service.MongoConfigService;
@@ -28,8 +29,6 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
 
-import static com.app.shahbaztrades.util.Constants.ENV_PRODUCTION;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -45,7 +44,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String logout() {
-        return HelperUtil.createAuthCookie("", -1, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
+        return HelperUtil.createAuthCookie("", -1, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
     }
 
     @Override
@@ -76,7 +75,7 @@ public class AuthServiceImpl implements AuthService {
 
             var user = userService.findOrCreateGoogleUser(gUser);
             String tokenStr = jwtService.generateToken(user.toDto());
-            String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
+            String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
             return new AuthCookieResponse<>(tokenStr, "Google Token", cookie);
         }
 
@@ -124,7 +123,7 @@ public class AuthServiceImpl implements AuthService {
         if (HelperUtil.ENCODER.matches(request.getPassword(), user.getPassword())) {
             var dto = user.toDto();
             var tokenStr = jwtService.generateToken(dto);
-            var cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
+            var cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
             servletResponse.addHeader(HttpHeaders.SET_COOKIE, cookie);
             return ResponseEntity.ok(ApiResponse.ok(dto, "Login Success"));
         }
@@ -176,7 +175,7 @@ public class AuthServiceImpl implements AuthService {
 
         var userDto = user.toDto();
         String tokenStr = jwtService.generateToken(userDto);
-        String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), ENV_PRODUCTION));
+        String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
         authDataRedisRepo.set(String.valueOf(userDto.getUserId()), userDto, Duration.ofHours(1));
         userAuthDataRedisRepo.delete(id);
 
