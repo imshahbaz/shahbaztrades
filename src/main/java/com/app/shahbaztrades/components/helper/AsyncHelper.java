@@ -2,7 +2,9 @@ package com.app.shahbaztrades.components.helper;
 
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.entity.Order;
+import com.app.shahbaztrades.model.entity.StrategyOrder;
 import com.app.shahbaztrades.repo.OrderRepo;
+import com.app.shahbaztrades.repo.StrategyOrderRepo;
 import com.app.shahbaztrades.service.FcmService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
@@ -15,6 +17,7 @@ public class AsyncHelper {
 
     private final OrderRepo orderRepo;
     private final FcmService fcmService;
+    private final StrategyOrderRepo strategyOrderRepo;
 
     @EventListener
     @Async("taskExecutor")
@@ -26,6 +29,12 @@ public class AsyncHelper {
     @Async("taskExecutor")
     public void handleNotificationRequest(NotificationRequest request) {
         fcmService.sendNotification(request.userId(), request.title(), request.body(), request.data());
+    }
+
+    @EventListener
+    @Async("taskExecutor")
+    public void handleStrategyOrder(StrategyOrder order) {
+        strategyOrderRepo.save(order);
     }
 
 }
