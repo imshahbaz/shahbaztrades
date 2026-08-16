@@ -125,7 +125,7 @@ public class MarketDataContainer {
         var failedTokens = new HashSet<String>();
 
         loadStrategyTokens("RSI15MINLOCAL", List.of("RSI15MIN"), ctx, processedTokens, failedTokens);
-        loadStrategyTokens("MACD15MINLOCAL", List.of("MACD15MIN", "ADX15MIN"), ctx, processedTokens, failedTokens);
+        loadStrategyTokens("MACD15MINLOCAL", List.of("MACD15MIN", "ADX15MIN", "MEAN REVERSION"), ctx, processedTokens, failedTokens);
 
         for (var token : failedTokens) {
             if (loadHistoricalBars(token, strategyRegistry.getTokenSymbolMap().get(token), ctx)) {
