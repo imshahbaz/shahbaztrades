@@ -14,9 +14,11 @@ import com.zerodhatech.models.OrderParams;
 import com.zerodhatech.models.OrderResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.math.NumberUtils;
+import org.json.JSONException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -56,8 +58,8 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         OrderResponse res;
         try {
             res = kc.placeOrder(orderParams, getVariety());
-        } catch (KiteException e) {
-            throw new IllegalStateException(e);
+        } catch (KiteException | IOException | JSONException e) {
+            throw new IllegalStateException("Failed to place MTF order for " + request.getSymbol(), e);
         }
 
         if (res == null || res.orderId == null) {
@@ -85,8 +87,8 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         OrderResponse orderResponse;
         try {
             orderResponse = kc.placeOrder(orderParams, getVariety());
-        } catch (KiteException e) {
-            throw new IllegalStateException(e);
+        } catch (KiteException | IOException | JSONException e) {
+            throw new IllegalStateException("Failed to place MTF stop-loss order for " + request.getSymbol(), e);
         }
 
         if (orderResponse == null || orderResponse.orderId == null) {
@@ -104,8 +106,8 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         modParams.triggerPrice = request.getTriggerPrice();
         try {
             kc.modifyOrder(request.getOrderId(), modParams, getVariety());
-        } catch (KiteException e) {
-            throw new IllegalStateException(e);
+        } catch (KiteException | IOException | JSONException e) {
+            throw new IllegalStateException("Failed to update MTF stop-loss order for order " + request.getOrderId(), e);
         }
     }
 
@@ -114,8 +116,8 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         var kc = zerodhaService.getKiteClient(userId);
         try {
             kc.cancelOrder(orderId, getVariety(), null);
-        } catch (KiteException e) {
-            throw new IllegalStateException(e);
+        } catch (KiteException | IOException | JSONException e) {
+            throw new IllegalStateException("Failed to cancel order " + orderId, e);
         }
     }
 
@@ -130,8 +132,8 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         params.marketProtection = -1;
         try {
             kc.modifyOrder(request.getOrderId(), params, getVariety());
-        } catch (KiteException e) {
-            throw new IllegalStateException(e);
+        } catch (KiteException | IOException | JSONException e) {
+            throw new IllegalStateException("Failed to convert stop-loss order to market for order " + request.getOrderId(), e);
         }
     }
 
@@ -141,8 +143,8 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         List<Order> history;
         try {
             history = kc.getOrderHistory(orderId);
-        } catch (KiteException e) {
-            throw new IllegalStateException(e);
+        } catch (KiteException | IOException | JSONException e) {
+            throw new IllegalStateException("Failed to fetch order details for order " + orderId, e);
         }
 
         if (CollectionUtils.isEmpty(history)) {
