@@ -29,7 +29,6 @@ public class Constants {
     public static final String DOT = ".";
     public static final String MONGO_ID = "_id";
 
-    public static final String ENV_PRODUCTION = "production";
     public static DateTimeFormatter AO_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     public static String NOTIFICATION_TITLE_BROKER_LOGIN = "Broker Login Needed";
