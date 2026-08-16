@@ -7,6 +7,7 @@ import com.app.shahbaztrades.model.dto.order.TradeOrderResponse;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.service.ZerodhaService;
 import com.app.shahbaztrades.util.DateUtil;
+import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import com.zerodhatech.kiteconnect.utils.Constants;
 import com.zerodhatech.models.Order;
@@ -30,8 +31,30 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
 
     private final ZerodhaService zerodhaService;
 
+    @FunctionalInterface
+    private interface KiteCall<T> {
+        T execute(KiteConnect kiteConnect) throws KiteException, IOException, JSONException;
+    }
+
     private static String getVariety() {
         return DateUtil.isMarketClosedForTrading() ? Constants.VARIETY_AMO : Constants.VARIETY_REGULAR;
+    }
+
+    private <T> T withKiteClient(Long userId, String context, KiteCall<T> call) {
+        try {
+            return call.execute(zerodhaService.getKiteClient(userId));
+        } catch (KiteException | IOException | JSONException e) {
+            log.error("{} | userId {} | error {}", context, userId, e.getMessage());
+            throw new IllegalStateException(context, e);
+        }
+    }
+
+    private TradeOrderResponse requireOrderId(Long userId, String symbol, OrderResponse res) {
+        if (res == null || res.orderId == null) {
+            log.error("Order placement returned no order id for userId {} symbol {}", userId, symbol);
+            throw new IllegalStateException("Order placement failed: No Order ID returned");
+        }
+        return TradeOrderResponse.builder().orderId(res.orderId).build();
     }
 
     @Override
@@ -41,7 +64,6 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
 
     @Override
     public TradeOrderResponse placeMTFOrder(Long userId, TradeOrderRequest request) throws Exception {
-        var kc = zerodhaService.getKiteClient(userId);
         OrderParams orderParams = new OrderParams();
         orderParams.exchange = Constants.EXCHANGE_NSE;
         orderParams.tradingsymbol = request.getSymbol();
@@ -57,25 +79,15 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
             orderParams.marketProtection = -1;
         }
 
-        OrderResponse res;
-        try {
-            res = kc.placeOrder(orderParams, getVariety());
-        } catch (KiteException | IOException | JSONException e) {
-            log.error("Failed to place MTF order for userId {} symbol {} quantity {} orderType {} error {}", userId, request.getSymbol(), request.getQuantity(), request.getOrderType(), e.getMessage());
-            throw new IllegalStateException("Failed to place MTF order for " + request.getSymbol(), e);
-        }
+        OrderResponse res = withKiteClient(userId,
+                "Failed to place MTF order for " + request.getSymbol() + " quantity " + request.getQuantity() + " orderType " + request.getOrderType(),
+                kc -> kc.placeOrder(orderParams, getVariety()));
 
-        if (res == null || res.orderId == null) {
-            log.error("Order placement failed for userId {} symbol {}: no order id returned", userId, request.getSymbol());
-            throw new IllegalStateException("Order placement failed: No Order ID returned");
-        }
-
-        return TradeOrderResponse.builder().orderId(res.orderId).build();
+        return requireOrderId(userId, request.getSymbol(), res);
     }
 
     @Override
     public TradeOrderResponse placeMTFStopLossOrder(Long userId, TradeOrderRequest request) throws Exception {
-        var kc = zerodhaService.getKiteClient(userId);
         OrderParams orderParams = new OrderParams();
         orderParams.exchange = Constants.EXCHANGE_NSE;
         orderParams.tradingsymbol = request.getSymbol();
@@ -88,74 +100,50 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
         orderParams.orderType = Constants.ORDER_TYPE_SL;
         orderParams.validity = Constants.VALIDITY_DAY;
 
-        OrderResponse orderResponse;
-        try {
-            orderResponse = kc.placeOrder(orderParams, getVariety());
-        } catch (KiteException | IOException | JSONException e) {
-            log.error("Failed to place MTF stop-loss order for userId {} symbol {} quantity {} triggerPrice {} error {}", userId, request.getSymbol(), request.getQuantity(), request.getTriggerPrice(), e.getMessage());
-            throw new IllegalStateException("Failed to place MTF stop-loss order for " + request.getSymbol(), e);
-        }
+        OrderResponse orderResponse = withKiteClient(userId,
+                "Failed to place MTF stop-loss order for " + request.getSymbol() + " quantity " + request.getQuantity() + " triggerPrice " + request.getTriggerPrice(),
+                kc -> kc.placeOrder(orderParams, getVariety()));
 
-        if (orderResponse == null || orderResponse.orderId == null) {
-            log.error("MTF stop-loss order placement failed for userId {} symbol {}: no order id returned", userId, request.getSymbol());
-            throw new IllegalStateException("Order placement failed: No Order ID returned");
-        }
-
-        return TradeOrderResponse.builder().orderId(orderResponse.orderId).build();
+        return requireOrderId(userId, request.getSymbol(), orderResponse);
     }
 
     @Override
     public void updateMTFStopLossOrder(Long userId, TradeOrderRequest request) throws Exception {
-        var kc = zerodhaService.getKiteClient(userId);
         OrderParams modParams = new OrderParams();
         modParams.price = request.getPrice();
         modParams.triggerPrice = request.getTriggerPrice();
-        try {
-            kc.modifyOrder(request.getOrderId(), modParams, getVariety());
-        } catch (KiteException | IOException | JSONException e) {
-            log.error("Failed to update MTF stop-loss order for userId {} orderId {} price {} triggerPrice {} error {}", userId, request.getOrderId(), request.getPrice(), request.getTriggerPrice(), e.getMessage());
-            throw new IllegalStateException("Failed to update MTF stop-loss order for order " + request.getOrderId(), e);
-        }
+
+        withKiteClient(userId,
+                "Failed to update MTF stop-loss order for order " + request.getOrderId() + " price " + request.getPrice() + " triggerPrice " + request.getTriggerPrice(),
+                kc -> kc.modifyOrder(request.getOrderId(), modParams, getVariety()));
     }
 
     @Override
     public void cancelOrder(Long userId, String orderId) throws Exception {
-        var kc = zerodhaService.getKiteClient(userId);
-        try {
-            kc.cancelOrder(orderId, getVariety(), null);
-        } catch (KiteException | IOException | JSONException e) {
-            log.error("Failed to cancel order for userId {} orderId {} error {}", userId, orderId, e.getMessage());
-            throw new IllegalStateException("Failed to cancel order " + orderId, e);
-        }
+        withKiteClient(userId,
+                "Failed to cancel order " + orderId,
+                kc -> kc.cancelOrder(orderId, getVariety(), null));
     }
 
     @Override
     public void convertSLToMarket(Long userId, TradeOrderRequest request) throws Exception {
-        var kc = zerodhaService.getKiteClient(userId);
         OrderParams params = new OrderParams();
         params.orderType = Constants.ORDER_TYPE_MARKET;
         params.quantity = request.getQuantity();
         params.price = null;
         params.triggerPrice = null;
         params.marketProtection = -1;
-        try {
-            kc.modifyOrder(request.getOrderId(), params, getVariety());
-        } catch (KiteException | IOException | JSONException e) {
-            log.error("Failed to convert stop-loss order to market for userId {} orderId {} symbol {} error {}", userId, request.getOrderId(), request.getSymbol(), e.getMessage());
-            throw new IllegalStateException("Failed to convert stop-loss order to market for order " + request.getOrderId(), e);
-        }
+
+        withKiteClient(userId,
+                "Failed to convert stop-loss order to market for order " + request.getOrderId() + " symbol " + request.getSymbol(),
+                kc -> kc.modifyOrder(request.getOrderId(), params, getVariety()));
     }
 
     @Override
     public TradeOrderResponse getOrderDetails(Long userId, String orderId) throws Exception {
-        var kc = zerodhaService.getKiteClient(userId);
-        List<Order> history;
-        try {
-            history = kc.getOrderHistory(orderId);
-        } catch (KiteException | IOException | JSONException e) {
-            log.error("Failed to fetch order details for userId {} orderId {} error {}", userId, orderId, e.getMessage());
-            throw new IllegalStateException("Failed to fetch order details for order " + orderId, e);
-        }
+        List<Order> history = withKiteClient(userId,
+                "Failed to fetch order details for order " + orderId,
+                kc -> kc.getOrderHistory(orderId));
 
         if (CollectionUtils.isEmpty(history)) {
             throw new NotFoundException("No history found for order id " + orderId);
