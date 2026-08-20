@@ -60,7 +60,7 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>3.0.3</version>
+            <version>3.1.0</version>
         </dependency>
 
         <dependency>
@@ -98,14 +98,13 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-crypto</artifactId>
-            <version>7.1.0</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
-            <version>1.22.2</version>
+            <version>1.23.1</version>
             <scope>compile</scope>
         </dependency>
 
@@ -144,35 +143,35 @@
         <dependency>
             <groupId>com.google.genai</groupId>
             <artifactId>google-genai</artifactId>
-            <version>1.62.0</version>
+            <version>1.66.0</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>org.redisson</groupId>
             <artifactId>redisson-spring-boot-starter</artifactId>
-            <version>4.6.1</version>
+            <version>4.7.0</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>org.redisson</groupId>
             <artifactId>redisson-spring-data-33</artifactId>
-            <version>4.6.1</version>
+            <version>4.7.0</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>org.redisson</groupId>
             <artifactId>redisson-spring-cache</artifactId>
-            <version>4.6.1</version>
+            <version>4.7.0</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>org.ta4j</groupId>
             <artifactId>ta4j-core</artifactId>
-            <version>0.23.0</version>
+            <version>0.24.1</version>
             <scope>compile</scope>
         </dependency>
 
@@ -186,7 +185,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.6.0-jre</version>
+            <version>33.7.1-jre</version>
             <scope>compile</scope>
         </dependency>
 
@@ -212,14 +211,14 @@
         <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
-            <version>1.49.0</version>
+            <version>1.50.0</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.fory</groupId>
             <artifactId>fory-core</artifactId>
-            <version>1.5.0</version>
+            <version>1.6.1</version>
             <scope>compile</scope>
         </dependency>
 
@@ -232,8 +231,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>25</source>
-                    <target>25</target>
+                    <release>25</release>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
