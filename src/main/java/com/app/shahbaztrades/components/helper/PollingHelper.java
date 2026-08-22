@@ -3,6 +3,7 @@ package com.app.shahbaztrades.components.helper;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestMarginDto;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkSignalEvent;
 import com.app.shahbaztrades.service.ChartInkService;
+import com.app.shahbaztrades.components.marketdata.BarSeriesStore;
 import com.app.shahbaztrades.service.impl.StrategyRegistry;
 import com.app.shahbaztrades.util.DateUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -46,15 +47,15 @@ public class PollingHelper {
     private final ChartInkService chartInkService;
     private final ApplicationEventPublisher eventPublisher;
     private final StrategyRegistry strategyRegistry;
-    private final MarketDataContainer marketDataContainer;
+    private final BarSeriesStore barSeriesStore;
     private final ThreadPoolTaskScheduler taskScheduler;
 
     public PollingHelper(ChartInkService chartInkService, ApplicationEventPublisher eventPublisher,
-                         StrategyRegistry strategyRegistry, MarketDataContainer marketDataContainer) {
+                         StrategyRegistry strategyRegistry, BarSeriesStore barSeriesStore) {
         this.chartInkService = chartInkService;
         this.eventPublisher = eventPublisher;
         this.strategyRegistry = strategyRegistry;
-        this.marketDataContainer = marketDataContainer;
+        this.barSeriesStore = barSeriesStore;
         this.taskScheduler = dynamicTaskScheduler();
     }
 
@@ -127,7 +128,7 @@ public class PollingHelper {
 
                 TimeUnit.SECONDS.sleep(1);
                 var strategy = strategyRegistry.getStrategyInstance(name);
-                var barSeriesList = tokens.stream().map(marketDataContainer::snapshotSeries).toList();
+                var barSeriesList = tokens.stream().map(barSeriesStore::snapshot).toList();
                 var signals = strategy.getFilteredMargins(barSeriesList, strategyRegistry.getTokenSymbolMap());
                 if (CollectionUtils.isEmpty(signals)) {
                     return;

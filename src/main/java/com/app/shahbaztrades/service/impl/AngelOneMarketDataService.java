@@ -22,9 +22,12 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import static com.app.shahbaztrades.util.Constants.AO_DATE_FORMATTER;
+import static com.app.shahbaztrades.util.Constants.AO_FIFTEEN_MINUTE_INTERVAL;
 import static com.app.shahbaztrades.util.Constants.AO_ONE_DAY_INTERVAL;
 import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
 
@@ -35,7 +38,8 @@ import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
 public class AngelOneMarketDataService implements MarketDataQuery {
 
     private static final String OHLC_MODE = "OHLC";
-    private static final int HISTORY_WINDOW_DAYS = 30;
+    private static final int DAILY_WINDOW_DAYS = 30;
+    private static final int INTRADAY_WINDOW_DAYS = 10;
 
     private final SmartApiFeignClient smartApiFeignClient;
     private final AngelOneRateLimiter angelOneRateLimiter;
@@ -68,44 +72,77 @@ public class AngelOneMarketDataService implements MarketDataQuery {
 
     @Override
     public Map<LocalDate, SmartApiLtpResponse.CandleDetail> getHistoricalData(String token, String symbol) {
-        var optionalData = angelOneHistoricalDataRedisRepo.findById(symbol);
-        if (optionalData.isPresent()) {
-            var historicalData = optionalData.get();
-            if (!CollectionUtils.isEmpty(historicalData.getDailyHistoricalData())) {
-                return byDate(historicalData.getDailyHistoricalData());
-            }
+        var cached = angelOneHistoricalDataRedisRepo.findById(symbol);
+        if (cached.isPresent() && !CollectionUtils.isEmpty(cached.get().getDailyHistoricalData())) {
+            return byDate(cached.get().getDailyHistoricalData());
         }
 
         var today = DateUtil.getTodayDate();
+        var candles = fetchAndCache(token, symbol, AO_ONE_DAY_INTERVAL,
+                today.atTime(0, 0).minusDays(DAILY_WINDOW_DAYS).format(AO_DATE_FORMATTER),
+                today.atTime(23, 59).format(AO_DATE_FORMATTER),
+                cached, AngelOneHistoricalDataRedis::setDailyHistoricalData);
+
+        if (candles == null) {
+            throw new NotFoundException("Historical data not found");
+        }
+
+        return byDate(candles);
+    }
+
+    @Override
+    public List<SmartApiLtpResponse.CandleDetail> getFifteenMinuteCandles(String token, String symbol) {
+        var cached = angelOneHistoricalDataRedisRepo.findById(symbol);
+        if (cached.isPresent() && !CollectionUtils.isEmpty(cached.get().getFifteenMinuteHistoricalData())) {
+            return cached.get().getFifteenMinuteHistoricalData();
+        }
+
+        var today = DateUtil.getTodayDate();
+        var candles = fetchAndCache(token, symbol, AO_FIFTEEN_MINUTE_INTERVAL,
+                today.atTime(9, 15).minusDays(INTRADAY_WINDOW_DAYS).format(AO_DATE_FORMATTER),
+                today.atTime(15, 30).format(AO_DATE_FORMATTER),
+                cached, AngelOneHistoricalDataRedis::setFifteenMinuteHistoricalData);
+
+        if (candles == null) {
+            throw new NotFoundException("Historical data not found");
+        }
+
+        return candles;
+    }
+
+    /**
+     * Fetches one interval and writes it back onto the shared per-symbol Redis entry, leaving the
+     * other interval's candles on that entry untouched.
+     *
+     * @return the candles, or null when the broker returned nothing.
+     */
+    private List<SmartApiLtpResponse.CandleDetail> fetchAndCache(
+            String token, String symbol, String interval, String fromDate, String toDate,
+            Optional<AngelOneHistoricalDataRedis> existing,
+            BiConsumer<AngelOneHistoricalDataRedis, List<SmartApiLtpResponse.CandleDetail>> assign) {
+
         var request = HistoricalDataRequest.builder()
                 .exchange(ExchangeType.NSE.name())
                 .symbolToken(token)
-                .interval(AO_ONE_DAY_INTERVAL)
-                .fromDate(today.atTime(0, 0).minusDays(HISTORY_WINDOW_DAYS).format(AO_DATE_FORMATTER))
-                .toDate(today.atTime(23, 59).format(AO_DATE_FORMATTER))
+                .interval(interval)
+                .fromDate(fromDate)
+                .toDate(toDate)
                 .build();
 
         angelOneRateLimiter.acquireHistoricalData();
         var response = smartApiFeignClient.getHistoricalData(BEARER_PREFIX + brokerSession.jwtToken(),
                 brokerSession.apiKey(), request);
-
-        if (response != null) {
-            var candles = response.getHistoricalCandles();
-
-            AngelOneHistoricalDataRedis data;
-            if (optionalData.isPresent()) {
-                data = optionalData.get();
-                data.setDailyHistoricalData(candles);
-            } else {
-                data = AngelOneHistoricalDataRedis.builder().id(symbol).dailyHistoricalData(candles)
-                        .ttl(DateUtil.getDurationUntilMarketOpen(Duration.ofHours(1)).getSeconds()).build();
-            }
-            angelOneHistoricalDataRedisRepo.save(data);
-
-            return byDate(candles);
+        if (response == null) {
+            return null;
         }
 
-        throw new NotFoundException("Historical data not found");
+        var candles = response.getHistoricalCandles();
+        var entry = existing.orElseGet(() -> AngelOneHistoricalDataRedis.builder().id(symbol)
+                .ttl(DateUtil.getDurationUntilMarketOpen(Duration.ofHours(1)).getSeconds()).build());
+        assign.accept(entry, candles);
+        angelOneHistoricalDataRedisRepo.save(entry);
+
+        return candles;
     }
 
     private Map<LocalDate, SmartApiLtpResponse.CandleDetail> byDate(List<SmartApiLtpResponse.CandleDetail> candles) {

@@ -2,9 +2,8 @@ package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.angelone.SmartStreamConnection;
 import com.app.shahbaztrades.components.angelone.SmartStreamTickDecoder;
-import com.app.shahbaztrades.components.helper.MarketDataContainer;
+import com.app.shahbaztrades.components.marketdata.TickAggregator;
 import com.app.shahbaztrades.components.observer.MarketTickPipeline;
-import com.app.shahbaztrades.model.dto.angelone.websocket.LiveTick;
 import com.app.shahbaztrades.model.dto.angelone.websocket.Ltp;
 import com.app.shahbaztrades.model.dto.angelone.websocket.SmartStreamParams;
 import com.app.shahbaztrades.model.dto.angelone.websocket.SmartStreamRequest;
@@ -12,13 +11,11 @@ import com.app.shahbaztrades.model.dto.angelone.websocket.TokenGroup;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.service.MarketFeed;
 import com.app.shahbaztrades.service.MarketFeedAdmin;
-import com.app.shahbaztrades.util.DateUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -39,7 +36,7 @@ public class AngelOneFeedService implements MarketFeed, MarketFeedAdmin, SmartSt
     /** Only ever holds positive prices; the decoder discards the rest. */
     private final ConcurrentHashMap<String, Double> ltpCache = new ConcurrentHashMap<>();
     private final SmartStreamConnection connection;
-    private final MarketDataContainer marketDataContainer;
+    private final TickAggregator tickAggregator;
     private final MarketTickPipeline marketTickPipeline;
     private final StrategyRegistry strategyRegistry;
 
@@ -88,10 +85,7 @@ public class AngelOneFeedService implements MarketFeed, MarketFeedAdmin, SmartSt
     public void onTick(SmartStreamTickDecoder.Tick tick) {
         ltpCache.put(tick.token(), tick.ltp());
         marketTickPipeline.publish(tick.token(), tick.ltp());
-        if (marketDataContainer.checkActiveWorker(tick.token())) {
-            marketDataContainer.getTickBuffer(tick.token())
-                    .add(new LiveTick(tick.ltp(), ZonedDateTime.now(DateUtil.IST_ZONE)));
-        }
+        tickAggregator.accept(tick.token(), tick.ltp());
     }
 
     @Override
