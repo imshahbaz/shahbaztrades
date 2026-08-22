@@ -1,6 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
-import com.app.shahbaztrades.components.helper.PollingHelper;
+import com.app.shahbaztrades.components.polling.PollingHelper;
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
 import com.app.shahbaztrades.components.trading.ContinuousTradeExecutor;
 import com.app.shahbaztrades.components.trading.TradeCandidateSelector;
@@ -9,6 +9,7 @@ import com.app.shahbaztrades.model.dto.chartink.ChartInkSignalEvent;
 import com.app.shahbaztrades.model.dto.strategy.TradeCompletionEvent;
 import com.app.shahbaztrades.model.entity.StrategyOrder;
 import com.app.shahbaztrades.model.enums.OrderStatus;
+import com.app.shahbaztrades.model.enums.PollerType;
 import com.app.shahbaztrades.service.StrategyOrderService;
 import com.app.shahbaztrades.service.StrategyService;
 import com.app.shahbaztrades.service.TradeEngine;
@@ -97,7 +98,7 @@ public class TradeEngineImpl implements TradeEngine {
 
         // One poller per strategy, however many orders subscribe to it.
         if (processedStrategies.add(strategyName)) {
-            taskExecutor.execute(() -> pollingHelper.runPollerTask(strategyName, false));
+            taskExecutor.execute(() -> pollingHelper.runPollerTask(strategyName, PollerType.LOCAL_STRATEGY));
         }
     }
 
