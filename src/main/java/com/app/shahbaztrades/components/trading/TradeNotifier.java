@@ -19,6 +19,16 @@ public class TradeNotifier {
 
     private final ApplicationEventPublisher eventPublisher;
 
+    public void orderPlaced(long userId, int quantity, String symbol) {
+        publish(userId, Constants.NOTIFICATION_TITLE_PLACED,
+                String.format(Constants.NOTIFICATION_MESSAGE_PLACED, quantity, symbol));
+    }
+
+    public void limitSellPlaced(long userId, int quantity, String symbol, double price) {
+        publish(userId, Constants.NOTIFICATION_TITLE_PLACED,
+                String.format(Constants.NOTIFICATION_MESSAGE_SELL_LIMIT, quantity, symbol, price));
+    }
+
     public void buyExecuted(long userId, int quantity, String symbol, double price) {
         publish(userId, Constants.NOTIFICATION_TITLE_BUY,
                 String.format(Constants.NOTIFICATION_MESSAGE_BUY, quantity, symbol, price));
