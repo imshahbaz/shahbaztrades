@@ -5,7 +5,7 @@ import com.app.shahbaztrades.components.observer.TradeWatchdog;
 import com.app.shahbaztrades.config.security.AdminOnly;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.system.*;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.service.MarketFeedAdmin;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,7 +19,7 @@ public class ServerMonitorController {
 
     private final MarketTickPipeline marketTickPipeline;
     private final TradeWatchdog tradeWatchdog;
-    private final AngelOneService angelOneService;
+    private final MarketFeedAdmin marketFeedAdmin;
 
     @AdminOnly
     @GetMapping("/stats")
@@ -49,6 +49,6 @@ public class ServerMonitorController {
     }
 
     private WebSocketStats webSocketStats() {
-        return new WebSocketStats(angelOneService.isWebSocketConnected(), angelOneService.getReconnectAttempts());
+        return new WebSocketStats(marketFeedAdmin.isConnected(), marketFeedAdmin.getReconnectAttempts());
     }
 }

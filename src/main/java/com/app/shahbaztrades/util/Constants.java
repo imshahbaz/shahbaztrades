@@ -31,6 +31,9 @@ public class Constants {
 
     public static DateTimeFormatter AO_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
+    public static final String AO_ONE_DAY_INTERVAL = "ONE_DAY";
+    public static final String AO_FIFTEEN_MINUTE_INTERVAL = "FIFTEEN_MINUTE";
+
     public static String NOTIFICATION_TITLE_BROKER_LOGIN = "Broker Login Needed";
     public static String NOTIFICATION_MESSAGE_BROKER_LOGIN = "Log in with your broker now to process your scheduled orders";
     public static final String NOTIFICATION_MESSAGE_SELL_LIMIT = "Your sell order for %d shares of %s at ₹%.2f has been submitted successfully.";

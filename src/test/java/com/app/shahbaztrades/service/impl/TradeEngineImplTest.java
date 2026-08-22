@@ -14,7 +14,7 @@ import com.app.shahbaztrades.model.dto.strategy.TradeCompletionEvent;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.StrategyOrder;
 import com.app.shahbaztrades.model.enums.BrokerType;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.service.MarketFeed;
 import com.app.shahbaztrades.service.StrategyOrderService;
 import com.app.shahbaztrades.service.StrategyService;
 import com.app.shahbaztrades.util.DateUtil;
@@ -51,7 +51,7 @@ class TradeEngineImplTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
     @Mock
-    private AngelOneService angelOneService;
+    private MarketFeed marketFeed;
     @Mock
     private TradeWatchdog tradeWatchdog;
     @Mock
@@ -66,7 +66,7 @@ class TradeEngineImplTest {
     @BeforeEach
     void setUp() {
         engine = new TradeEngineImpl(strategyOrderService, strategyService, eventPublisher,
-                angelOneService, tradeWatchdog, orderRouterFactory, pollingHelper);
+                marketFeed, tradeWatchdog, orderRouterFactory, pollingHelper);
     }
 
     private StrategyOrder order(String id, String strategyName) {
@@ -126,7 +126,7 @@ class TradeEngineImplTest {
     void chartInkSignalListener_ignoresSignalsForAStrategyWithNoRegisteredOrders() {
         engine.chartInkSignalListener(new ChartInkSignalEvent("RSI15MIN", List.of(signalAt(0))));
 
-        verify(angelOneService, never()).getLTP(anyString());
+        verify(marketFeed, never()).getLtp(anyString());
     }
 
     @Test
@@ -136,7 +136,7 @@ class TradeEngineImplTest {
         // A signal from 5 minutes ago has not yet matured; one from an hour ago is stale.
         engine.chartInkSignalListener(new ChartInkSignalEvent("RSI15MIN", List.of(signalAt(5), signalAt(60))));
 
-        verify(angelOneService, never()).getLTP(anyString());
+        verify(marketFeed, never()).getLtp(anyString());
     }
 
     // --- trade completion -------------------------------------------------

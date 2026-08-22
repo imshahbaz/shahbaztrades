@@ -27,7 +27,10 @@ import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.model.enums.TimeFrame;
 import com.app.shahbaztrades.model.enums.UserTheme;
 import com.app.shahbaztrades.service.AnalysisService;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.service.BrokerSession;
+import com.app.shahbaztrades.service.MarketDataQuery;
+import com.app.shahbaztrades.service.MarketFeed;
+import com.app.shahbaztrades.service.MarketFeedAdmin;
 import com.app.shahbaztrades.service.AuthService;
 import com.app.shahbaztrades.service.ChartInkService;
 import com.app.shahbaztrades.service.FcmService;
@@ -321,7 +324,13 @@ class ControllerSliceTest {
         @Mock
         private NseService nseService;
         @Mock
-        private AngelOneService angelOneService;
+        private MarketDataQuery marketDataQuery;
+        @Mock
+        private MarketFeed marketFeed;
+        @Mock
+        private MarketFeedAdmin marketFeedAdmin;
+        @Mock
+        private BrokerSession brokerSession;
         @Mock
         private KronosPredictionService kronosPredictionService;
         @Mock
@@ -409,9 +418,9 @@ class ControllerSliceTest {
         void getLtp_returnsTheMarketTicker() throws Exception {
             var ticker = new SmartApiLtpResponse.MarketTicker();
             ticker.setLtp(3200.0);
-            when(angelOneService.getMarketTicker("11536")).thenReturn(ticker);
+            when(marketDataQuery.getMarketTicker("11536")).thenReturn(ticker);
 
-            mvc(new AngelOneController(angelOneService))
+            mvc(new AngelOneController(marketFeed, marketFeedAdmin, marketDataQuery, brokerSession))
                     .perform(get("/api/angelone/ltp").param("token", "11536"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.ltp").value(3200.0));
@@ -419,15 +428,15 @@ class ControllerSliceTest {
 
         @Test
         void websocketLifecycleEndpoints_delegateToTheService() throws Exception {
-            var controller = new AngelOneController(angelOneService);
+            var controller = new AngelOneController(marketFeed, marketFeedAdmin, marketDataQuery, brokerSession);
 
             mvc(controller).perform(post("/api/angelone/ws/connect")).andExpect(status().isOk());
             mvc(controller).perform(post("/api/angelone/ws/disconnect")).andExpect(status().isOk());
             mvc(controller).perform(post("/api/angelone/refresh-session")).andExpect(status().isOk());
 
-            verify(angelOneService).startWebSocket();
-            verify(angelOneService).disconnect();
-            verify(angelOneService).refreshBrokerSession();
+            verify(marketFeedAdmin).start();
+            verify(marketFeedAdmin).disconnect();
+            verify(brokerSession).refreshBrokerSession();
         }
 
         @Test

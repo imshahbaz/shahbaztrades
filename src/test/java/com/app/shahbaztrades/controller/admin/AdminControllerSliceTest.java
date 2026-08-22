@@ -18,7 +18,8 @@ import com.app.shahbaztrades.model.enums.ConfigurationType;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.model.enums.SchedulerTaskType;
 import com.app.shahbaztrades.model.enums.TimeFrame;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.service.MarketFeed;
+import com.app.shahbaztrades.service.MarketFeedAdmin;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.service.SchedulerService;
 import com.app.shahbaztrades.service.StrategyOrderService;
@@ -300,7 +301,9 @@ class AdminControllerSliceTest {
         @Mock
         private TradeWatchdog tradeWatchdog;
         @Mock
-        private AngelOneService angelOneService;
+        private MarketFeedAdmin marketFeedAdmin;
+        @Mock
+        private MarketFeed marketFeed;
         @Mock
         private TradeEngine tradeEngine;
         @Mock
@@ -312,10 +315,10 @@ class AdminControllerSliceTest {
             when(marketTickPipeline.getShardCount()).thenReturn(4);
             when(marketTickPipeline.getRemainingCapacity()).thenReturn(16000L);
             when(tradeWatchdog.getWatchedTokenCount()).thenReturn(3);
-            when(angelOneService.isWebSocketConnected()).thenReturn(true);
-            when(angelOneService.getReconnectAttempts()).thenReturn(2);
+            when(marketFeedAdmin.isConnected()).thenReturn(true);
+            when(marketFeedAdmin.getReconnectAttempts()).thenReturn(2);
 
-            mvc(new ServerMonitorController(marketTickPipeline, tradeWatchdog, angelOneService))
+            mvc(new ServerMonitorController(marketTickPipeline, tradeWatchdog, marketFeedAdmin))
                     .perform(get("/api/admin/server/stats"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.domain.pipeline.ringUsedSlots").value(384))
@@ -328,7 +331,7 @@ class AdminControllerSliceTest {
         void serverStats_reportsMinusOneUsedSlotsBeforeThePipelineStarts() throws Exception {
             when(marketTickPipeline.getRemainingCapacity()).thenReturn(-1L);
 
-            mvc(new ServerMonitorController(marketTickPipeline, tradeWatchdog, angelOneService))
+            mvc(new ServerMonitorController(marketTickPipeline, tradeWatchdog, marketFeedAdmin))
                     .perform(get("/api/admin/server/stats"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.domain.pipeline.ringUsedSlots").value(-1));
@@ -336,7 +339,7 @@ class AdminControllerSliceTest {
 
         @Test
         void tradingLifecycleEndpoints_triggerTheirComponents() throws Exception {
-            var controller = new StrategyTradingController(tradeEngine, marketDataContainer, angelOneService);
+            var controller = new StrategyTradingController(tradeEngine, marketDataContainer, marketFeed);
 
             mvc(controller).perform(post("/api/strategy-trading/continuous")).andExpect(status().isOk());
             mvc(controller).perform(post("/api/strategy-trading/warmup")).andExpect(status().isOk());

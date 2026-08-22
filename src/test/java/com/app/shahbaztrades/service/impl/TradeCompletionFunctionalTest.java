@@ -15,7 +15,8 @@ import com.app.shahbaztrades.model.dto.strategy.TradeCompletionEvent;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.StrategyOrder;
 import com.app.shahbaztrades.model.enums.BrokerType;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.model.dto.angelone.websocket.Ltp;
+import com.app.shahbaztrades.service.MarketFeed;
 import com.app.shahbaztrades.service.StrategyOrderService;
 import com.app.shahbaztrades.service.StrategyService;
 import com.app.shahbaztrades.util.Constants;
@@ -79,7 +80,7 @@ class TradeCompletionFunctionalTest {
     @Autowired
     private StrategyService strategyService;
     @Autowired
-    private AngelOneService angelOneService;
+    private MarketFeed marketFeed;
 
     @BeforeEach
     void setUp() {
@@ -181,7 +182,7 @@ class TradeCompletionFunctionalTest {
         when(strategyOrderService.getTodayOrders()).thenReturn(List.of(strategyOrder()));
         when(strategyService.getCachedStrategies())
                 .thenReturn(java.util.Map.of("RSI15MIN", StrategyDto.builder().name("RSI15MIN").build()));
-        when(angelOneService.getLTP(anyString())).thenReturn(100.0);
+        when(marketFeed.getLtp(anyString())).thenReturn(Ltp.of(100.0));
         router.pendingQuantity = 0;
 
         tradeEngine.continuousTrade();
@@ -206,7 +207,7 @@ class TradeCompletionFunctionalTest {
         when(strategyOrderService.getTodayOrders()).thenReturn(List.of(strategyOrder()));
         when(strategyService.getCachedStrategies())
                 .thenReturn(java.util.Map.of("RSI15MIN", StrategyDto.builder().name("RSI15MIN").build()));
-        when(angelOneService.getLTP(anyString())).thenReturn(100.0);
+        when(marketFeed.getLtp(anyString())).thenReturn(Ltp.of(100.0));
 
         tradeEngine.continuousTrade();
 
@@ -314,8 +315,8 @@ class TradeCompletionFunctionalTest {
         }
 
         @Bean
-        AngelOneService angelOneService() {
-            return mock(AngelOneService.class);
+        MarketFeed marketFeed() {
+            return mock(MarketFeed.class);
         }
 
         @Bean
@@ -325,10 +326,10 @@ class TradeCompletionFunctionalTest {
 
         @Bean
         TradeEngineImpl tradeEngine(StrategyOrderService strategyOrderService, StrategyService strategyService,
-                                    ApplicationEventPublisher publisher, AngelOneService angelOneService,
+                                    ApplicationEventPublisher publisher, MarketFeed marketFeed,
                                     TradeWatchdog tradeWatchdog, OrderRouterFactory orderRouterFactory,
                                     PollingHelper pollingHelper) {
-            return new TradeEngineImpl(strategyOrderService, strategyService, publisher, angelOneService,
+            return new TradeEngineImpl(strategyOrderService, strategyService, publisher, marketFeed,
                     tradeWatchdog, orderRouterFactory, pollingHelper);
         }
     }

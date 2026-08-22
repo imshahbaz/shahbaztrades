@@ -15,7 +15,8 @@ import com.app.shahbaztrades.model.entity.StrategyOrder;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.model.enums.OrderStatus;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.model.dto.angelone.websocket.Ltp;
+import com.app.shahbaztrades.service.MarketFeed;
 import com.app.shahbaztrades.service.StrategyOrderService;
 import com.app.shahbaztrades.service.StrategyService;
 import com.app.shahbaztrades.service.TradeEngine;
@@ -48,7 +49,7 @@ public class TradeEngineImpl implements TradeEngine {
     private final StrategyOrderService strategyOrderService;
     private final StrategyService strategyService;
     private final ApplicationEventPublisher eventPublisher;
-    private final AngelOneService angelOneService;
+    private final MarketFeed marketFeed;
     private final TradeWatchdog tradeWatchdog;
     private final OrderRouterFactory orderRouterFactory;
     private final PollingHelper pollingHelper;
@@ -178,17 +179,9 @@ public class TradeEngineImpl implements TradeEngine {
     }
 
     private TargetStockResult processTargetMargin(Margin target, BigDecimal orderAmount, BrokerType brokerType) throws Exception {
-        var ltp = angelOneService.getLTP(target.getToken());
-        if (ltp == -2) {
+        Double ltp = resolveLtp(target.getToken());
+        if (ltp == null) {
             return null;
-        }
-
-        if (ltp == -1) {
-            angelOneService.subscribe(target.getToken(), ExchangeType.NSE.getValue());
-            ltp = awaitLtp(target.getToken());
-            if (ltp < 0) {
-                return null;
-            }
         }
 
         BigDecimal requiredMargin = brokerType.equals(BrokerType.RUPEEZY) ? target.getRupeezyMargin() : target.getRequiredMargin();
@@ -208,13 +201,36 @@ public class TradeEngineImpl implements TradeEngine {
         return null;
     }
 
-    private double awaitLtp(String token) throws InterruptedException {
-        double ltp = angelOneService.getLTP(token);
-        for (int attempt = 0; attempt < LTP_POLL_ATTEMPTS && ltp == -1; attempt++) {
-            Thread.sleep(LTP_POLL_INTERVAL_MS);
-            ltp = angelOneService.getLTP(token);
+    /** @return the live price, or null if the feed is down or the token never ticked. */
+    private Double resolveLtp(String token) throws InterruptedException {
+        return switch (marketFeed.getLtp(token)) {
+            case Ltp.Price(double value) -> value;
+            case Ltp.FeedDown _ -> null;
+            case Ltp.NotSubscribed _ -> {
+                marketFeed.subscribe(token, ExchangeType.NSE.getValue());
+                yield awaitLtp(token);
+            }
+        };
+    }
+
+    private Double awaitLtp(String token) throws InterruptedException {
+        for (int attempt = 0; attempt <= LTP_POLL_ATTEMPTS; attempt++) {
+            switch (marketFeed.getLtp(token)) {
+                case Ltp.Price(double value) -> {
+                    return value;
+                }
+                // The socket died mid-wait; further polling cannot succeed.
+                case Ltp.FeedDown _ -> {
+                    return null;
+                }
+                case Ltp.NotSubscribed _ -> {
+                    if (attempt < LTP_POLL_ATTEMPTS) {
+                        Thread.sleep(LTP_POLL_INTERVAL_MS);
+                    }
+                }
+            }
         }
-        return ltp;
+        return null;
     }
 
     private boolean punchSingleTrade(Margin targetStock, int qty, long userId, StrategyOrder order) {

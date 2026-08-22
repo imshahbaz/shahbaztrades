@@ -10,7 +10,7 @@ import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.repo.HoldingsRepo;
 import com.app.shahbaztrades.repo.redis.HoldingsDataRedisRepo;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.service.MarketDataQuery;
 import com.app.shahbaztrades.service.MarginService;
 import com.mongodb.client.result.UpdateResult;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +48,7 @@ class HoldingsServiceImplTest {
     @Mock
     private MongoTemplate mongoTemplate;
     @Mock
-    private AngelOneService angelOneService;
+    private MarketDataQuery marketDataQuery;
     @Mock
     private HoldingsDataRedisRepo<Holdings> holdingsDataRedisRepo;
 
@@ -59,7 +59,7 @@ class HoldingsServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new HoldingsServiceImpl(holdingsRepo, marginService, mongoTemplate,
-                angelOneService, holdingsDataRedisRepo);
+                marketDataQuery, holdingsDataRedisRepo);
     }
 
     private Holdings.HoldingDetail detail(int id, int qty) {
@@ -141,7 +141,7 @@ class HoldingsServiceImplTest {
                 Margin.builder().symbol("INFY").token("1594").requiredMargin(new BigDecimal("3.2")).build()));
         var ticker = new SmartApiLtpResponse.MarketTicker();
         ticker.setLtp(1500.0);
-        when(angelOneService.getMarketTicker("1594")).thenReturn(ticker);
+        when(marketDataQuery.getMarketTicker("1594")).thenReturn(ticker);
 
         assertTrue(service.createHoldings(BrokerType.ZERODHA, USER, dto("INFY", 0)));
 
@@ -154,7 +154,7 @@ class HoldingsServiceImplTest {
         when(holdingsRepo.findById(7L)).thenReturn(Optional.empty());
         when(marginService.getMarginCache()).thenReturn(Map.of("INFY",
                 Margin.builder().symbol("INFY").token("1594").requiredMargin(new BigDecimal("3.2")).build()));
-        when(angelOneService.getMarketTicker("1594")).thenThrow(new NotFoundException("Ltp not found"));
+        when(marketDataQuery.getMarketTicker("1594")).thenThrow(new NotFoundException("Ltp not found"));
 
         assertTrue(service.createHoldings(BrokerType.ZERODHA, USER, dto("INFY", 0)));
 

@@ -12,7 +12,7 @@ import com.app.shahbaztrades.model.entity.Strategy;
 import com.app.shahbaztrades.model.enums.TimeFrame;
 import com.app.shahbaztrades.repo.redis.GenAiRedisRepo;
 import com.app.shahbaztrades.repo.redis.TvNewsRedisRepo;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.service.MarketDataQuery;
 import com.app.shahbaztrades.service.ChartInkService;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.service.StrategyService;
@@ -55,7 +55,7 @@ class AnalysisServiceImplTest {
     @Mock
     private ChartInkService chartInkService;
     @Mock
-    private AngelOneService angelOneService;
+    private MarketDataQuery marketDataQuery;
     @Mock
     private MongoTemplate mongoTemplate;
     @Mock
@@ -70,7 +70,7 @@ class AnalysisServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new AnalysisServiceImpl(genAiClient, yahooClient, mongoConfigService, strategyService,
-                chartInkService, angelOneService, mongoTemplate, genAiRedisRepo, tvNewsRedisRepo,
+                chartInkService, marketDataQuery, mongoTemplate, genAiRedisRepo, tvNewsRedisRepo,
                 JsonMapper.builder().build());
     }
 

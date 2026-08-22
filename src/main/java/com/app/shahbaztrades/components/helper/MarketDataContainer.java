@@ -8,7 +8,6 @@ import com.app.shahbaztrades.model.dto.angelone.websocket.LiveTick;
 import com.app.shahbaztrades.model.entity.redis.AngelOneHistoricalDataRedis;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.repo.redis.AngelOneHistoricalDataRedisRepo;
-import com.app.shahbaztrades.service.AngelOneService;
 import com.app.shahbaztrades.service.ChartInkService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.MongoConfigService;
@@ -41,6 +40,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 
 import static com.app.shahbaztrades.util.Constants.AO_DATE_FORMATTER;
+import static com.app.shahbaztrades.util.Constants.AO_FIFTEEN_MINUTE_INTERVAL;
 import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
 
 @Slf4j
@@ -176,7 +176,7 @@ public class MarketDataContainer {
                 var request = HistoricalDataRequest.builder()
                         .exchange(ExchangeType.NSE.name())
                         .symbolToken(token)
-                        .interval(AngelOneService.FIFTEEN_MINUTE_INTERVAL)
+                        .interval(AO_FIFTEEN_MINUTE_INTERVAL)
                         .fromDate(ctx.fromDate())
                         .toDate(ctx.toDate())
                         .build();

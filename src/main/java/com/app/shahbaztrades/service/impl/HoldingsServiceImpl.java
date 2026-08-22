@@ -8,7 +8,7 @@ import com.app.shahbaztrades.model.entity.Holdings;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.repo.HoldingsRepo;
 import com.app.shahbaztrades.repo.redis.HoldingsDataRedisRepo;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.service.MarketDataQuery;
 import com.app.shahbaztrades.service.HoldingsService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.util.Constants;
@@ -42,7 +42,7 @@ public class HoldingsServiceImpl implements HoldingsService {
     private final HoldingsRepo holdingsRepo;
     private final MarginService marginService;
     private final MongoTemplate mongoTemplate;
-    private final AngelOneService angelOneService;
+    private final MarketDataQuery marketDataQuery;
     private final HoldingsDataRedisRepo<Holdings> holdingsDataRedisRepo;
 
     @Override
@@ -235,7 +235,7 @@ public class HoldingsServiceImpl implements HoldingsService {
 
     private Double fetchLtpFromAngelOne(String symbol, String token) {
         try {
-            return angelOneService.getMarketTicker(token).getLtp();
+            return marketDataQuery.getMarketTicker(token).getLtp();
         } catch (Exception e) {
             log.error("Error while getting ltp for symbol {}", symbol, e);
             return null;
@@ -288,7 +288,7 @@ public class HoldingsServiceImpl implements HoldingsService {
 
         double ltp = 0;
         try {
-            ltp = angelOneService.getMarketTicker(margin.getToken()).getLtp();
+            ltp = marketDataQuery.getMarketTicker(margin.getToken()).getLtp();
         } catch (Exception e) {
             log.error("Error while getting ltp for symbol {}", symbol, e);
         }

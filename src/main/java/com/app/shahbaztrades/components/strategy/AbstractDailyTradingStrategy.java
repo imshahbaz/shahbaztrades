@@ -8,7 +8,8 @@ import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.model.enums.OrderStatus;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.model.dto.angelone.websocket.Ltp;
+import com.app.shahbaztrades.service.MarketFeed;
 import com.app.shahbaztrades.util.HelperUtil;
 import com.app.shahbaztrades.util.TechnicalAnalysisUtil;
 import com.zerodhatech.kiteconnect.utils.Constants;
@@ -27,19 +28,23 @@ import java.util.Map;
 @Slf4j
 public abstract class AbstractDailyTradingStrategy implements DailyTradingStrategy {
 
+    /** Pre-open orders fill against an empty book, so the entry is capped just above the last price. */
+    private static final double PRE_MARKET_LIMIT_MULTIPLIER = 1.02;
+    private static final long SUBSCRIBE_SETTLE_MILLIS = 1000;
+
     private final MongoTemplate mongoTemplate;
     private final ApplicationEventPublisher eventPublisher;
     protected final OrderRouterFactory orderRouterFactory;
     private final YahooClient yahooClient;
-    protected final AngelOneService angelOneService;
+    protected final MarketFeed marketFeed;
 
     protected AbstractDailyTradingStrategy(MongoTemplate mongoTemplate, ApplicationEventPublisher eventPublisher,
-                                           OrderRouterFactory orderRouterFactory, YahooClient yahooClient, AngelOneService angelOneService) {
+                                           OrderRouterFactory orderRouterFactory, YahooClient yahooClient, MarketFeed marketFeed) {
         this.mongoTemplate = mongoTemplate;
         this.eventPublisher = eventPublisher;
         this.orderRouterFactory = orderRouterFactory;
         this.yahooClient = yahooClient;
-        this.angelOneService = angelOneService;
+        this.marketFeed = marketFeed;
     }
 
     @Override
@@ -51,20 +56,12 @@ public abstract class AbstractDailyTradingStrategy implements DailyTradingStrate
         }
 
         try {
-            var ltp = angelOneService.getLTP(order.getMargin().getToken());
-            if (ltp <= 0) {
-                try {
-                    angelOneService.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
-                    HelperUtil.pollWait(1000);
-                    ltp = angelOneService.getLTP(order.getMargin().getToken());
-                } catch (Exception _) {
-                    log.error("WS Subscription failed for {}", order.getSymbol());
-                }
-            }
+            Double ltp = resolveEntryLtp(order);
 
             var orderRouter = orderRouterFactory.getRouter(order.getBroker());
             var req = TradeOrderRequest.builder().symbol(order.getSymbol()).quantity(order.getQuantity())
-                    .transactionType(Constants.TRANSACTION_TYPE_BUY).price(ltp <= 0 ? null : HelperUtil.fixToTick(ltp * 1.02)).build();
+                    .transactionType(Constants.TRANSACTION_TYPE_BUY)
+                    .price(ltp == null ? null : HelperUtil.fixToTick(ltp * PRE_MARKET_LIMIT_MULTIPLIER)).build();
             var res = orderRouter.placePreMarketOrder(order.getUserId(), req);
             order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.getOrderId()).build());
             order.setOrderStatus(OrderStatus.PLACED);
@@ -112,6 +109,34 @@ public abstract class AbstractDailyTradingStrategy implements DailyTradingStrate
         }
 
         this.saveOrderProgress(order);
+    }
+
+    /**
+     * @return the reference price for the pre-market limit, or null to fall back to a market order.
+     */
+    private Double resolveEntryLtp(Order order) {
+        var token = order.getMargin().getToken();
+        return switch (marketFeed.getLtp(token)) {
+            case Ltp.Price(double value) -> value;
+            case Ltp.NotSubscribed _ -> subscribeAndAwaitLtp(order, token);
+            // Subscribing to a dead socket cannot produce a price, so don't burn a second waiting on it.
+            case Ltp.FeedDown _ -> {
+                log.warn("Market feed is down; placing pre-market order for {} without a limit price", order.getSymbol());
+                yield null;
+            }
+        };
+    }
+
+    private Double subscribeAndAwaitLtp(Order order, String token) {
+        try {
+            marketFeed.subscribe(token, ExchangeType.NSE.getValue());
+        } catch (Exception _) {
+            log.error("WS Subscription failed for {}", order.getSymbol());
+            return null;
+        }
+
+        HelperUtil.pollWait(SUBSCRIBE_SETTLE_MILLIS);
+        return marketFeed.getLtp(token) instanceof Ltp.Price(double value) ? value : null;
     }
 
     protected void saveOrderProgress(Order order) {

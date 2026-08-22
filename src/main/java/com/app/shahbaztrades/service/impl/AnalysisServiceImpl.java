@@ -45,7 +45,7 @@ public class AnalysisServiceImpl implements AnalysisService {
     private final MongoConfigService mongoConfigService;
     private final StrategyService strategyService;
     private final ChartInkService chartInkService;
-    private final AngelOneService angelOneService;
+    private final MarketDataQuery marketDataQuery;
     private final MongoTemplate mongoTemplate;
     private final GenAiRedisRepo<AIAnalysis> genAiRedisRepo;
     private final TvNewsRedisRepo<List<TradingViewNewsResponse.NewsItem>> tvNewsRedisRepo;
@@ -202,7 +202,7 @@ public class AnalysisServiceImpl implements AnalysisService {
 
         try {
             Map<LocalDate, SmartApiLtpResponse.CandleDetail> stockHistory =
-                    angelOneService.getHistoricalData(token, symbol);
+                    marketDataQuery.getHistoricalData(token, symbol);
             historicalData.put(symbol, stockHistory != null ? stockHistory : Collections.emptyMap());
         } catch (Exception e) {
             log.error("Failed fetching data for {}: {}", symbol, e.getMessage());

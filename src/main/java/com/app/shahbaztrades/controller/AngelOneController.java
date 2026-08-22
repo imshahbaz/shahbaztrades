@@ -4,7 +4,11 @@ import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
 import com.app.shahbaztrades.model.dto.angelone.websocket.AngelOneWsSubscribeDto;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.model.dto.angelone.websocket.Ltp;
+import com.app.shahbaztrades.service.BrokerSession;
+import com.app.shahbaztrades.service.MarketDataQuery;
+import com.app.shahbaztrades.service.MarketFeed;
+import com.app.shahbaztrades.service.MarketFeedAdmin;
 import com.app.shahbaztrades.util.HelperUtil;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -23,24 +27,27 @@ import java.util.concurrent.CompletableFuture;
 @RequestMapping("/api/angelone")
 public class AngelOneController {
 
-    private final AngelOneService angelOneService;
+    private final MarketFeed marketFeed;
+    private final MarketFeedAdmin marketFeedAdmin;
+    private final MarketDataQuery marketDataQuery;
+    private final BrokerSession brokerSession;
 
     @PublicEndpoint
     @PostMapping("/refresh-session")
     public void refreshSession() {
-        angelOneService.refreshBrokerSession();
+        brokerSession.refreshBrokerSession();
     }
 
     @PublicEndpoint
     @PostMapping("/ws/connect")
     public void connect() {
-        angelOneService.startWebSocket();
+        marketFeedAdmin.start();
     }
 
     @PublicEndpoint
     @PostMapping("/ws/disconnect")
     public void disconnect() {
-        angelOneService.disconnect();
+        marketFeedAdmin.disconnect();
     }
 
     @PublicEndpoint
@@ -48,7 +55,7 @@ public class AngelOneController {
     public void subscribe(@RequestBody @Valid AngelOneWsSubscribeDto request) {
         for (String token : request.getTokens()) {
             try {
-                angelOneService.subscribe(token, request.getExchangeType());
+                marketFeed.subscribe(token, request.getExchangeType());
                 startMonitoring(token);
             } catch (Exception e) {
                 log.error("Failed to subscribe to token: {}", token, e);
@@ -62,15 +69,13 @@ public class AngelOneController {
             long timeoutMillis = 30 * 1000L; // 30 Seconds timeout for the loop
 
             while (System.currentTimeMillis() - startTime < timeoutMillis) {
-                double ltp = angelOneService.getLTP(token);
-
-                if (ltp == -2) {
-                    log.warn("Monitor stopping for {}: WebSocket connection lost", token);
-                    return;
-                }
-
-                if (ltp > 0) {
-                    log.info("LTP for {}: {}", token, ltp);
+                switch (marketFeed.getLtp(token)) {
+                    case Ltp.FeedDown _ -> {
+                        log.warn("Monitor stopping for {}: WebSocket connection lost", token);
+                        return;
+                    }
+                    case Ltp.Price(double value) -> log.info("LTP for {}: {}", token, value);
+                    case Ltp.NotSubscribed _ -> log.trace("No tick yet for {}", token);
                 }
 
                 if (!HelperUtil.pollWait(200)) {
@@ -85,7 +90,7 @@ public class AngelOneController {
     @PublicEndpoint
     @GetMapping("/ltp")
     public ResponseEntity<ApiResponse<SmartApiLtpResponse.MarketTicker>> getMultipleLtp(@RequestParam @NotBlank String token) {
-        return ResponseEntity.ok(ApiResponse.ok(angelOneService.getMarketTicker(token), "Ltp Fetched Successfully"));
+        return ResponseEntity.ok(ApiResponse.ok(marketDataQuery.getMarketTicker(token), "Ltp Fetched Successfully"));
     }
 
 }
