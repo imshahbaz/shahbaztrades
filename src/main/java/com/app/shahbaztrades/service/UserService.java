@@ -10,8 +10,6 @@ import java.util.Set;
 
 public interface UserService {
 
-    String USER_ID_SEQ = "userid";
-
     User createUser(UserDto userDto);
 
     User findByUserIdOrEmailOrMobile(Long userId, String email, Long mobile);
@@ -26,4 +24,7 @@ public interface UserService {
 
     /** @return false when no such user exists. */
     boolean updateZerodhaConfig(long userId, User.ZerodhaConfig config);
+
+    /** @return false when no such user exists. */
+    boolean updateRupeezyConfig(long userId, User.RupeezyConfig config);
 }

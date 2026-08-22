@@ -4,7 +4,7 @@ import com.app.shahbaztrades.components.marketdata.BarSeriesStore;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestMarginDto;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkSignalEvent;
 import com.app.shahbaztrades.model.enums.PollerType;
-import com.app.shahbaztrades.service.impl.StrategyRegistry;
+import com.app.shahbaztrades.components.strategy.StrategyRegistry;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.MarketSlots;
 import lombok.RequiredArgsConstructor;

@@ -6,10 +6,9 @@ import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginResponseDTO;
 import com.app.shahbaztrades.model.enums.BrokerType;
-import com.app.shahbaztrades.service.RupeezyService;
 import com.app.shahbaztrades.service.SessionManagerService;
+import com.app.shahbaztrades.components.broker.BrokerAuthServiceFactory;
 import com.app.shahbaztrades.service.ZerodhaAutoLoginService;
-import com.app.shahbaztrades.service.ZerodhaService;
 import com.app.shahbaztrades.util.Constants;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -28,9 +27,8 @@ import java.util.concurrent.ExecutionException;
 public class SessionManagerController {
 
     private final SessionManagerService sessionManagerService;
-    private final ZerodhaService zerodhaService;
     private final ZerodhaAutoLoginService zerodhaAutoLoginService;
-    private final RupeezyService rupeezyService;
+    private final BrokerAuthServiceFactory brokerAuthServiceFactory;
 
     @PublicEndpoint
     @PostMapping("/init-zerodha-session")
@@ -55,12 +53,7 @@ public class SessionManagerController {
     @AdminOnly
     @PostMapping("/broker/revoke-auth")
     public ResponseEntity<ApiResponse<Void>> revokeBrokerAuth(@RequestParam @Min(1) long userId, @RequestParam @NotNull BrokerType brokerType) {
-        if (BrokerType.ZERODHA.equals(brokerType)) {
-            zerodhaService.revokeZerodhaAuth(userId);
-        } else {
-            rupeezyService.revokeRupeezyAuth(userId);
-        }
-
+        brokerAuthServiceFactory.forBroker(brokerType).revokeAuth(userId);
         return ResponseEntity.ok(ApiResponse.ok(null, "Auth revoke request submitted"));
     }
 

@@ -4,6 +4,7 @@ import com.app.shahbaztrades.components.angelone.SmartStreamConnection;
 import com.app.shahbaztrades.components.angelone.SmartStreamTickDecoder;
 import com.app.shahbaztrades.components.marketdata.TickAggregator;
 import com.app.shahbaztrades.components.observer.MarketTickPipeline;
+import com.app.shahbaztrades.components.strategy.StrategyRegistry;
 import com.app.shahbaztrades.model.dto.angelone.websocket.Ltp;
 import com.app.shahbaztrades.model.dto.angelone.websocket.SmartStreamParams;
 import com.app.shahbaztrades.model.dto.angelone.websocket.SmartStreamRequest;

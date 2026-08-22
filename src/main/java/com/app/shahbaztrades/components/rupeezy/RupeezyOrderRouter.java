@@ -12,7 +12,7 @@ import com.app.shahbaztrades.model.dto.rupeezy.RupeezyTokenCache;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.model.enums.RupeezyOrderType;
-import com.app.shahbaztrades.service.RupeezyService;
+
 import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -26,7 +26,7 @@ import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
 public class RupeezyOrderRouter implements OrderRoutingStrategy {
 
     private final RupeezyClient rupeezyClient;
-    private final RupeezyService rupeezyService;
+    private final RupeezyTokenStore rupeezyTokenStore;
 
     @Override
     public BrokerType getBrokerType() {
@@ -117,7 +117,7 @@ public class RupeezyOrderRouter implements OrderRoutingStrategy {
     }
 
     private RupeezyTokenCache getTokenCache(Long userId) {
-        var cache = rupeezyService.getTokenCache(userId);
+        var cache = rupeezyTokenStore.find(userId);
         if (cache == null) {
             throw new NotFoundException("Access token not found");
         }

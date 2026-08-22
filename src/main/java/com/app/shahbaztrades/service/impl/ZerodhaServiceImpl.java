@@ -11,6 +11,8 @@ import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
 import com.app.shahbaztrades.model.entity.User;
+import com.app.shahbaztrades.model.enums.BrokerType;
+import com.app.shahbaztrades.service.BrokerAuthService;
 import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.service.ZerodhaService;
 import com.app.shahbaztrades.validator.BrokerConfigValidator;
@@ -28,7 +30,7 @@ import java.io.IOException;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ZerodhaServiceImpl implements ZerodhaService {
+public class ZerodhaServiceImpl implements ZerodhaService, BrokerAuthService {
 
     private static final String AUTH_CACHE = "zerodhaAuthCache";
 
@@ -92,9 +94,20 @@ public class ZerodhaServiceImpl implements ZerodhaService {
     }
 
     @Override
-    public void revokeZerodhaAuth(long userId) {
+    public BrokerType getBrokerType() {
+        return BrokerType.ZERODHA;
+    }
+
+    @Override
+    public void revokeAuth(long userId) {
         tokenStore.delete(userId);
         zerodhaClientFactory.evict(userId);
+    }
+
+    /** Zerodha supports unattended TOTP login via the session manager. */
+    @Override
+    public boolean supportsAutoLogin() {
+        return true;
     }
 
     private String generateAccessToken(String requestToken, Long userId) {

@@ -22,7 +22,4 @@ public interface ZerodhaService {
     ApiResponse<String> getAuth(UserDto userDto);
 
     Long setConfig(User.ZerodhaConfig config, UserDto userDto);
-
-    /** Drops the stored token and cached client, forcing a fresh login. */
-    void revokeZerodhaAuth(long userId);
 }

@@ -29,6 +29,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
+    private static final String USER_ID_SEQ = "userid";
+
     private final MongoTemplate mongoTemplate;
     private final UserRepo userRepo;
     private final SequenceGeneratorService sequenceGeneratorService;
@@ -152,6 +154,13 @@ public class UserServiceImpl implements UserService {
     public boolean updateZerodhaConfig(long userId, User.ZerodhaConfig config) {
         Query query = new Query(Criteria.where(User.Fields.userId).is(userId));
         Update update = new Update().set(User.Fields.zerodhaConfig, config);
+        return mongoTemplate.updateFirst(query, update, User.class).getModifiedCount() > 0;
+    }
+
+    @Override
+    public boolean updateRupeezyConfig(long userId, User.RupeezyConfig config) {
+        Query query = new Query(Criteria.where(User.Fields.userId).is(userId));
+        Update update = new Update().set(User.Fields.rupeezyConfig, config);
         return mongoTemplate.updateFirst(query, update, User.class).getModifiedCount() > 0;
     }
 

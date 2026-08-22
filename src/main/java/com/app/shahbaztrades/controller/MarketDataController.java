@@ -6,7 +6,7 @@ import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
 import com.app.shahbaztrades.service.MarginService;
-import com.app.shahbaztrades.service.impl.StrategyRegistry;
+import com.app.shahbaztrades.components.strategy.StrategyRegistry;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.components.broker.BrokerAuthServiceFactory;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
@@ -30,6 +31,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
 
     private final OrderService orderService;
     private final ZerodhaAutoLoginService zerodhaAutoLoginService;
+    private final BrokerAuthServiceFactory brokerAuthServiceFactory;
     private final StrategyOrderService strategyOrderService;
     private final StringRedisTemplate stringRedisTemplate;
     private final UserService userService;
@@ -47,13 +49,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
                 return res;
             }
 
-            orders.forEach(order -> {
-                if (order.getBroker().equals(BrokerType.ZERODHA)) {
-                    res.add(order.getUserId());
-                } else {
-                    usersToRemind.add(order.getUserId());
-                }
-            });
+            orders.forEach(order -> partition(order.getBroker(), order.getUserId(), res, usersToRemind));
 
             return res;
         }, taskExecutor);
@@ -65,13 +61,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
                 return res;
             }
 
-            orders.forEach(order -> {
-                if (order.getBroker().equals(BrokerType.ZERODHA)) {
-                    res.add(order.getUserId());
-                } else {
-                    usersToRemind.add(order.getUserId());
-                }
-            });
+            orders.forEach(order -> partition(order.getBroker(), order.getUserId(), res, usersToRemind));
 
             return res;
         }, taskExecutor);
@@ -105,4 +95,13 @@ public class SessionManagerServiceImpl implements SessionManagerService {
         zerodhaAutoLoginService.autoConnectZerodhaSession(userService.findByUserIdOrEmailOrMobile(userDto.getUserId(), "", 0L));
         return true;
     }
+    /** Brokers we can log in for go to auto-login; the rest have to be nudged to do it themselves. */
+    private void partition(BrokerType broker, long userId, Set<Long> autoLogin, Set<Long> toRemind) {
+        if (brokerAuthServiceFactory.forBroker(broker).supportsAutoLogin()) {
+            autoLogin.add(userId);
+        } else {
+            toRemind.add(userId);
+        }
+    }
+
 }

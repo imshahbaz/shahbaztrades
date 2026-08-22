@@ -4,13 +4,9 @@ import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.model.entity.FcmToken;
 import com.app.shahbaztrades.repo.FcmTokenRepository;
 import com.app.shahbaztrades.service.FcmService;
-import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.util.DateUtil;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.*;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -19,8 +15,6 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +22,7 @@ import java.util.Map;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class FcmServiceImpl implements FcmService {
 
     private static final String DEFAULT = "default";
@@ -36,25 +31,6 @@ public class FcmServiceImpl implements FcmService {
     private final FcmTokenRepository fcmTokenRepository;
     private final MongoTemplate mongoTemplate;
 
-    public FcmServiceImpl(MongoConfigService mongoConfigService, FcmTokenRepository fcmTokenRepository,
-                          MongoTemplate mongoTemplate, JsonMapper jsonMapper) throws IOException {
-        this.fcmTokenRepository = fcmTokenRepository;
-
-        FirebaseOptions options = FirebaseOptions.builder()
-                .setCredentials(GoogleCredentials.fromStream(
-                        new ByteArrayInputStream(jsonMapper.writeValueAsBytes(
-                                mongoConfigService.getConfig().getFcmConfig().getServiceAccount()
-                        ))
-                ))
-                .build();
-
-        if (FirebaseApp.getApps().isEmpty()) {
-            FirebaseApp.initializeApp(options);
-        }
-
-        this.messaging = FirebaseMessaging.getInstance();
-        this.mongoTemplate = mongoTemplate;
-    }
 
     @Override
     public void saveToken(long userId, String token) {

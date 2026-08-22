@@ -9,9 +9,7 @@ import com.app.shahbaztrades.model.enums.Environments;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import jakarta.annotation.PostConstruct;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -33,14 +31,6 @@ public class MongoConfigServiceImpl implements MongoConfigService {
     private final MongoTemplate mongoTemplate;
     private ServerConfigurations backendConfigs;
     private ClientConfigurations clientConfigs;
-
-    @Getter
-    @Setter
-    private String angelOneJwtToken;
-
-    @Getter
-    @Setter
-    private String angelOneFeedToken;
 
     @PostConstruct
     public void init() {

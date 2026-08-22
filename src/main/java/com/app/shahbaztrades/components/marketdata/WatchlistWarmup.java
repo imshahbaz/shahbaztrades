@@ -3,7 +3,7 @@ package com.app.shahbaztrades.components.marketdata;
 import com.app.shahbaztrades.service.ChartInkService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.MarketDataQuery;
-import com.app.shahbaztrades.service.impl.StrategyRegistry;
+import com.app.shahbaztrades.components.strategy.StrategyRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;

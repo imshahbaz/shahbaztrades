@@ -2,7 +2,7 @@ package com.app.shahbaztrades.components.marketdata;
 
 import com.app.shahbaztrades.model.dto.angelone.websocket.LiveTick;
 import com.app.shahbaztrades.model.enums.ExchangeType;
-import com.app.shahbaztrades.service.impl.StrategyRegistry;
+import com.app.shahbaztrades.components.strategy.StrategyRegistry;
 import com.app.shahbaztrades.util.DateUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

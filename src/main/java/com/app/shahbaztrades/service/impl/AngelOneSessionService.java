@@ -29,6 +29,10 @@ public class AngelOneSessionService implements BrokerSession {
     private final SmartApiFeignClient smartApiFeignClient;
     private final AngelOneLoginDataRedisRepo<AngelOneLoginResponse.LoginData> angelOneLoginDataRedisRepo;
 
+    /** Held in memory for the session; re-established on startup and whenever the broker rejects them. */
+    private volatile String jwtToken;
+    private volatile String feedToken;
+
     @Override
     @EventListener(ApplicationReadyEvent.class)
     public void refreshBrokerSession() {
@@ -51,12 +55,12 @@ public class AngelOneSessionService implements BrokerSession {
 
     @Override
     public String jwtToken() {
-        return mongoConfigService.getAngelOneJwtToken();
+        return jwtToken;
     }
 
     @Override
     public String feedToken() {
-        return mongoConfigService.getAngelOneFeedToken();
+        return feedToken;
     }
 
     @Override
@@ -70,7 +74,7 @@ public class AngelOneSessionService implements BrokerSession {
     }
 
     private void storeTokens(AngelOneLoginResponse.LoginData loginData) {
-        mongoConfigService.setAngelOneJwtToken(loginData.getJwtToken());
-        mongoConfigService.setAngelOneFeedToken(loginData.getFeedToken());
+        this.jwtToken = loginData.getJwtToken();
+        this.feedToken = loginData.getFeedToken();
     }
 }
