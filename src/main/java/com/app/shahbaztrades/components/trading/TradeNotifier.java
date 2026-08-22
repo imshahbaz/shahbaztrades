@@ -9,9 +9,9 @@ import org.springframework.stereotype.Component;
 import java.util.Collections;
 
 /**
- * Builds the user-facing messages for continuous trading. Keeps message wording out of the trading
- * logic, which otherwise has to fully qualify {@code Constants} to dodge the KiteConnect class of
- * the same name.
+ * Builds the user-facing messages for trading. Keeps message wording out of the trading logic,
+ * which otherwise has to fully qualify {@code Constants} to dodge the KiteConnect class of the
+ * same name.
  */
 @RequiredArgsConstructor
 @Component
@@ -27,6 +27,16 @@ public class TradeNotifier {
     public void sellExecuted(long userId, int quantity, String symbol, double price) {
         publish(userId, Constants.NOTIFICATION_TITLE_SELL,
                 String.format(Constants.NOTIFICATION_MESSAGE_SELL, quantity, symbol, price));
+    }
+
+    public void marketSellPlaced(long userId, int quantity, String symbol) {
+        publish(userId, Constants.NOTIFICATION_TITLE_PLACED,
+                String.format(Constants.NOTIFICATION_MESSAGE_SELL_MARKET, quantity, symbol));
+    }
+
+    public void stopLossPlaced(long userId, int quantity, String symbol, double price) {
+        publish(userId, Constants.NOTIFICATION_TITLE_PLACED,
+                String.format(Constants.NOTIFICATION_MESSAGE_SELL_SL, quantity, symbol, price));
     }
 
     /** Entry filled but the exit could not be placed: the user has an unprotected position. */
