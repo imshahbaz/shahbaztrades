@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.components.trading;
 
+import com.app.shahbaztrades.util.ThreadUtil;
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
 import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
@@ -7,7 +8,6 @@ import com.app.shahbaztrades.model.dto.strategy.ActiveTrade;
 import com.app.shahbaztrades.model.dto.strategy.TradeCompletionEvent;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.StrategyOrder;
-import com.app.shahbaztrades.util.HelperUtil;
 import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +28,7 @@ public class ContinuousTradeExecutor {
     private final OrderRouterFactory orderRouterFactory;
     private final TradeWatchdog tradeWatchdog;
     private final TradeNotifier tradeNotifier;
+    private final TargetPricePolicy targetPricePolicy;
 
     /**
      * Buys at market, then places the limit exit and starts watching the position.
@@ -49,11 +50,11 @@ public class ContinuousTradeExecutor {
             var orderResp = orderRouter.placeMTFOrder(userId, entryReq);
             entryPlaced = true;
 
-            HelperUtil.pollWait(ENTRY_FILL_WAIT_MS);
+            ThreadUtil.pollWait(ENTRY_FILL_WAIT_MS);
 
             var orderDetails = orderRouter.getOrderDetails(userId, orderResp.getOrderId());
             double entryPrice = orderDetails.getAveragePrice().doubleValue();
-            double targetPrice = HelperUtil.dynamicTargetPrice(order.getAmount(), orderDetails.getAveragePrice(), qty);
+            double targetPrice = targetPricePolicy.targetFor(order.getAmount(), orderDetails.getAveragePrice(), qty);
 
             log.info("Entry Executed at: {} | Target Set at: {}", entryPrice, targetPrice);
 

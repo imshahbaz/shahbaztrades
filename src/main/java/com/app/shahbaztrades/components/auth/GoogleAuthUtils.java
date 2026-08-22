@@ -1,8 +1,8 @@
 package com.app.shahbaztrades.components.auth;
 
+import com.app.shahbaztrades.util.HttpUtil;
 import com.app.shahbaztrades.model.dto.auth.GoogleUser;
 import com.app.shahbaztrades.service.MongoConfigService;
-import com.app.shahbaztrades.util.HelperUtil;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.auth.oauth2.TokenVerifier;
 import lombok.extern.slf4j.Slf4j;
@@ -34,9 +34,6 @@ public class GoogleAuthUtils {
 
         try {
             var result = verifier.verify(idTokenString);
-            if (result == null) {
-                return null;
-            }
             return jsonMapper.convertValue(result.getPayload(), GoogleUser.class);
         } catch (TokenVerifier.VerificationException e) {
             log.warn("Google ID token verification failed: {}", e.getMessage());
@@ -69,7 +66,7 @@ public class GoogleAuthUtils {
                 "grant_type", "authorization_code"
         );
 
-        Map<String, Object> response = HelperUtil.REST_TEMPLATE.postForObject(url, params, Map.class);
+        Map<String, Object> response = HttpUtil.REST_TEMPLATE.postForObject(url, params, Map.class);
         if (response == null || !response.containsKey("access_token")) {
             throw new IllegalStateException("Failed to exchange code for access token");
         }
@@ -78,7 +75,7 @@ public class GoogleAuthUtils {
 
     private GoogleUser fetchGoogleUserInfo(String accessToken) {
         String url = "https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + accessToken;
-        return HelperUtil.REST_TEMPLATE.getForObject(url, GoogleUser.class);
+        return HttpUtil.REST_TEMPLATE.getForObject(url, GoogleUser.class);
     }
 
 }

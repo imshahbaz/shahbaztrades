@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.util.AuthUtil;
 import com.app.shahbaztrades.components.auth.GoogleAuthUtils;
 import com.app.shahbaztrades.config.security.JwtService;
 import com.app.shahbaztrades.exceptions.BadRequestException;
@@ -16,10 +17,10 @@ import com.app.shahbaztrades.repo.redis.AuthDataRedisRepo;
 import com.app.shahbaztrades.service.AuthService;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.service.UserService;
-import com.app.shahbaztrades.util.HelperUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -41,10 +42,11 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final AuthDataRedisRepo<UserDto> authDataRedisRepo;
     private final AuthDataRedisRepo<User> userAuthDataRedisRepo;
+    private final AsyncTaskExecutor taskExecutor;
 
     @Override
     public String logout() {
-        return HelperUtil.createAuthCookie("", -1, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
+        return AuthUtil.createAuthCookie("", -1, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
     }
 
     @Override
@@ -75,14 +77,14 @@ public class AuthServiceImpl implements AuthService {
 
             var user = userService.findOrCreateGoogleUser(gUser);
             String tokenStr = jwtService.generateToken(user.toDto());
-            String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
+            String cookie = AuthUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
             return new AuthCookieResponse<>(tokenStr, "Google Token", cookie);
         }
 
 
         String id = UUID.randomUUID().toString();
-        String signedUuid = HelperUtil.signState(id, mongoConfigService.getConfig().getGoogleAuth().getEncryptionKey());
-        HelperUtil.EXECUTOR.execute(() -> {
+        String signedUuid = AuthUtil.signState(id, mongoConfigService.getConfig().getGoogleAuth().getEncryptionKey());
+        taskExecutor.execute(() -> {
             try {
                 var gUser = googleAuthUtils.validateIdToken(code);
                 if (Objects.isNull(gUser)) {
@@ -120,10 +122,10 @@ public class AuthServiceImpl implements AuthService {
             throw new NotFoundException("User not found");
         }
 
-        if (HelperUtil.ENCODER.matches(request.getPassword(), user.getPassword())) {
+        if (AuthUtil.ENCODER.matches(request.getPassword(), user.getPassword())) {
             var dto = user.toDto();
             var tokenStr = jwtService.generateToken(dto);
-            var cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
+            var cookie = AuthUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
             servletResponse.addHeader(HttpHeaders.SET_COOKIE, cookie);
             return ResponseEntity.ok(ApiResponse.ok(dto, "Login Success"));
         }
@@ -143,9 +145,9 @@ public class AuthServiceImpl implements AuthService {
             }
 
             String id = UUID.randomUUID().toString();
-            String signedUuid = HelperUtil.signState(id, mongoConfigService.getConfig().getGoogleAuth().getEncryptionKey());
+            String signedUuid = AuthUtil.signState(id, mongoConfigService.getConfig().getGoogleAuth().getEncryptionKey());
 
-            HelperUtil.EXECUTOR.execute(() -> {
+            taskExecutor.execute(() -> {
                 var gUser = googleAuthUtils.googleCallbackProcessing(code, id);
                 if (Objects.isNull(gUser)) {
                     return;
@@ -161,7 +163,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private AuthCallbackResponse processStandardCallback(String code) {
-        String id = HelperUtil.extractAndVerify(code,
+        String id = AuthUtil.extractAndVerify(code,
                 mongoConfigService.getConfig().getGoogleAuth().getEncryptionKey());
 
         if (id == null) {
@@ -175,7 +177,7 @@ public class AuthServiceImpl implements AuthService {
 
         var userDto = user.toDto();
         String tokenStr = jwtService.generateToken(userDto);
-        String cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
+        String cookie = AuthUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
         authDataRedisRepo.set(String.valueOf(userDto.getUserId()), userDto, Duration.ofHours(1));
         userAuthDataRedisRepo.delete(id);
 

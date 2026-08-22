@@ -8,7 +8,7 @@ import com.app.shahbaztrades.repo.MarginRepo;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.util.Constants;
-import com.app.shahbaztrades.util.HelperUtil;
+import com.app.shahbaztrades.components.rupeezy.RupeezyMarginParser;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.MappingIterator;
@@ -117,7 +117,7 @@ public class MarginServiceImpl implements MarginService {
             if (!updates.isEmpty()) {
                 try {
                     String html = rupeezyWebClient.getMtfStockListPage(Constants.DEFAULT_UA);
-                    HelperUtil.addRupeezyMargin(updates, html);
+                    RupeezyMarginParser.addRupeezyMargin(updates, html);
                 } catch (Exception e) {
                     log.error("Error while updating rupeezy margins", e);
                 }

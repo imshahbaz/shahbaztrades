@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.controller;
 
+import com.app.shahbaztrades.util.ThreadUtil;
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
@@ -9,11 +10,11 @@ import com.app.shahbaztrades.service.BrokerSession;
 import com.app.shahbaztrades.service.MarketDataQuery;
 import com.app.shahbaztrades.service.MarketFeed;
 import com.app.shahbaztrades.service.MarketFeedAdmin;
-import com.app.shahbaztrades.util.HelperUtil;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +32,7 @@ public class AngelOneController {
     private final MarketFeedAdmin marketFeedAdmin;
     private final MarketDataQuery marketDataQuery;
     private final BrokerSession brokerSession;
+    private final AsyncTaskExecutor taskExecutor;
 
     @PublicEndpoint
     @PostMapping("/refresh-session")
@@ -78,13 +80,13 @@ public class AngelOneController {
                     case Ltp.NotSubscribed _ -> log.trace("No tick yet for {}", token);
                 }
 
-                if (!HelperUtil.pollWait(200)) {
+                if (!ThreadUtil.pollWait(200)) {
                     log.info("Monitor for {} cancelled", token);
                     return;
                 }
             }
             log.info("Monitor for {} finished after 30 seconds", token);
-        }, HelperUtil.EXECUTOR);
+        }, taskExecutor);
     }
 
     @PublicEndpoint

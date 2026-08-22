@@ -14,9 +14,9 @@ import com.app.shahbaztrades.service.StrategyService;
 import com.app.shahbaztrades.service.TradeEngine;
 import com.app.shahbaztrades.util.Cache;
 import com.app.shahbaztrades.util.DateUtil;
-import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
@@ -55,6 +55,7 @@ public class TradeEngineImpl implements TradeEngine {
     private final PollingHelper pollingHelper;
     private final TradeCandidateSelector tradeCandidateSelector;
     private final ContinuousTradeExecutor continuousTradeExecutor;
+    private final AsyncTaskExecutor taskExecutor;
 
     @Override
     public void continuousTrade() {
@@ -96,7 +97,7 @@ public class TradeEngineImpl implements TradeEngine {
 
         // One poller per strategy, however many orders subscribe to it.
         if (processedStrategies.add(strategyName)) {
-            HelperUtil.EXECUTOR.execute(() -> pollingHelper.runPollerTask(strategyName, false));
+            taskExecutor.execute(() -> pollingHelper.runPollerTask(strategyName, false));
         }
     }
 
@@ -116,7 +117,7 @@ public class TradeEngineImpl implements TradeEngine {
         }
 
         for (var order : list) {
-            HelperUtil.EXECUTOR.execute(() -> processSignalForOrder(order, matched));
+            taskExecutor.execute(() -> processSignalForOrder(order, matched));
         }
     }
 

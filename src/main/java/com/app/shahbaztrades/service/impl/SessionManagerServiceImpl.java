@@ -6,9 +6,9 @@ import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.Constants;
-import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
@@ -34,6 +34,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
     private final StringRedisTemplate stringRedisTemplate;
     private final UserService userService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final AsyncTaskExecutor taskExecutor;
 
     @Override
     @Async("taskExecutor")
@@ -55,7 +56,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
             });
 
             return res;
-        }, HelperUtil.EXECUTOR);
+        }, taskExecutor);
 
         var strategyOrderFuture = CompletableFuture.supplyAsync(() -> {
             var res = new HashSet<Long>();
@@ -73,7 +74,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
             });
 
             return res;
-        }, HelperUtil.EXECUTOR);
+        }, taskExecutor);
 
         CompletableFuture.allOf(orderFuture, strategyOrderFuture).join();
         var userIds = orderFuture.get();

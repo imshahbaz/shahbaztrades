@@ -15,11 +15,11 @@ import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.service.ZerodhaAutoLoginService;
 import com.app.shahbaztrades.service.ZerodhaService;
 import com.app.shahbaztrades.util.Constants;
-import com.app.shahbaztrades.util.HelperUtil;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
@@ -44,6 +44,7 @@ public class ZerodhaAutoLoginServiceImpl implements ZerodhaAutoLoginService {
     private final SessionManagerClient sessionManagerClient;
     private final CacheManager cacheManager;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final AsyncTaskExecutor taskExecutor;
 
     @Override
     public void autoLogin(Set<Long> userIds) {
@@ -55,7 +56,7 @@ public class ZerodhaAutoLoginServiceImpl implements ZerodhaAutoLoginService {
 
         for (User user : users) {
             if (user.isZerodhaAutoLoginEnabled()) {
-                HelperUtil.EXECUTOR.execute(() -> attemptAutoLogin(user));
+                taskExecutor.execute(() -> attemptAutoLogin(user));
             } else {
                 remindToLogIn(user);
             }

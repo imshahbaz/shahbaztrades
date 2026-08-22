@@ -1,5 +1,7 @@
 package com.app.shahbaztrades.components.strategy;
 
+import com.app.shahbaztrades.util.ThreadUtil;
+import com.app.shahbaztrades.util.PriceUtil;
 import com.app.shahbaztrades.components.analysis.TechnicalMetricsProvider;
 import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
 import com.app.shahbaztrades.components.trading.TradeNotifier;
@@ -11,7 +13,6 @@ import com.app.shahbaztrades.model.enums.OrderStatus;
 import com.app.shahbaztrades.repo.OrderProgressRepository;
 import com.app.shahbaztrades.model.dto.angelone.websocket.Ltp;
 import com.app.shahbaztrades.service.MarketFeed;
-import com.app.shahbaztrades.util.HelperUtil;
 import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -55,7 +56,7 @@ public abstract class AbstractDailyTradingStrategy implements DailyTradingStrate
             var orderRouter = orderRouterFactory.getRouter(order.getBroker());
             var req = TradeOrderRequest.builder().symbol(order.getSymbol()).quantity(order.getQuantity())
                     .transactionType(Constants.TRANSACTION_TYPE_BUY)
-                    .price(ltp == null ? null : HelperUtil.fixToTick(ltp * PRE_MARKET_LIMIT_MULTIPLIER)).build();
+                    .price(ltp == null ? null : PriceUtil.fixToTick(ltp * PRE_MARKET_LIMIT_MULTIPLIER)).build();
             var res = orderRouter.placePreMarketOrder(order.getUserId(), req);
             order.setEntry(Order.ExecutionRecord.builder().brokerOrderId(res.getOrderId()).build());
             order.setOrderStatus(OrderStatus.PLACED);
@@ -120,7 +121,7 @@ public abstract class AbstractDailyTradingStrategy implements DailyTradingStrate
             return null;
         }
 
-        HelperUtil.pollWait(SUBSCRIBE_SETTLE_MILLIS);
+        ThreadUtil.pollWait(SUBSCRIBE_SETTLE_MILLIS);
         return marketFeed.getLtp(token) instanceof Ltp.Price(double value) ? value : null;
     }
 

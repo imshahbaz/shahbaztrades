@@ -1,6 +1,6 @@
 package com.app.shahbaztrades.components.trading;
 
-import com.app.shahbaztrades.util.HelperUtil;
+import com.app.shahbaztrades.util.PriceUtil;
 import org.springframework.stereotype.Component;
 
 /**
@@ -54,7 +54,7 @@ public class TrailingStopPolicy {
 
     /** Price for the resting stop, tick-aligned so the broker will accept it. */
     public double stopLossPrice(double buyPrice) {
-        return HelperUtil.fixToTick(buyPrice * PROFIT_ACTIVATION_MULTIPLIER);
+        return PriceUtil.fixToTick(buyPrice * PROFIT_ACTIVATION_MULTIPLIER);
     }
 
     public enum StopLossAction {NONE, SQUARE_OFF, PLACE_STOP_LOSS}

@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.util.AuthUtil;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
@@ -11,7 +12,6 @@ import com.app.shahbaztrades.model.enums.UserTheme;
 import com.app.shahbaztrades.repo.UserRepo;
 import com.app.shahbaztrades.repo.redis.AuthDataRedisRepo;
 import com.app.shahbaztrades.service.UserService;
-import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -43,7 +43,7 @@ public class UserServiceImpl implements UserService {
         }
 
         if (StringUtils.isEmpty(userDto.getPassword())) {
-            userDto.setPassword(HelperUtil.generateRandomString(10));
+            userDto.setPassword(AuthUtil.generateRandomString(10));
         }
 
         user = userDto.toEntity();

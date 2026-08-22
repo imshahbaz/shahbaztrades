@@ -4,9 +4,9 @@ import com.app.shahbaztrades.model.dto.angelone.websocket.LiveTick;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.service.impl.StrategyRegistry;
 import com.app.shahbaztrades.util.DateUtil;
-import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -38,6 +38,7 @@ public class TickAggregator {
     private final Set<String> activeWorkers = ConcurrentHashMap.newKeySet();
     private final BarSeriesStore barSeriesStore;
     private final StrategyRegistry strategyRegistry;
+    private final AsyncTaskExecutor taskExecutor;
 
     /**
      * Hands a tick to the token's worker. Dropped when no worker is running for that token, which is
@@ -63,7 +64,7 @@ public class TickAggregator {
         for (String token : activeTokens) {
             webSocketSubscriber.accept(token, ExchangeType.NSE.getValue());
             if (activeWorkers.add(token)) {
-                HelperUtil.EXECUTOR.execute(() -> runTokenEventLoop(token));
+                taskExecutor.execute(() -> runTokenEventLoop(token));
             }
         }
     }
