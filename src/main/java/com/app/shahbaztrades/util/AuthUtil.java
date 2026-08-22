@@ -20,7 +20,6 @@ public final class AuthUtil {
     public static final SecureRandom RANDOM = new SecureRandom();
 
     private static final String ALPHA_NUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    private static final int OTP_LENGTH = 6;
     private static final String HMAC_ALGO = "HmacSHA256";
     private static final String AUTH_COOKIE = "auth_token";
 

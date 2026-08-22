@@ -2,22 +2,22 @@ package com.app.shahbaztrades.components.analysis;
 
 import com.app.shahbaztrades.util.HttpUtil;
 import com.app.shahbaztrades.model.dto.analysis.TradingViewNewsResponse;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
-
+/** Reads TradingView's public news feed. A bean, so callers can stand it in for a stub. */
+@Component
 public class TradingViewClient {
 
-    public static final String NEWS_ENDPOINT = "https://news-mediator.tradingview.com/public/news-flow/v2/news";
+    private static final String NEWS_ENDPOINT = "https://news-mediator.tradingview.com/public/news-flow/v2/news";
 
-    public static TradingViewNewsResponse getStockNews(String symbol) {
+    /** @return the feed payload, or null if TradingView answered with a non-2xx status. */
+    public TradingViewNewsResponse getStockNews(String symbol) {
         URI uri = UriComponentsBuilder.fromUriString(NEWS_ENDPOINT)
                 .queryParam("client", "chart").queryParam("user_prostatus", "non_pro")
                 .queryParam("filter", "lang:en").queryParam("filter", "symbol:NSE:" + symbol)
