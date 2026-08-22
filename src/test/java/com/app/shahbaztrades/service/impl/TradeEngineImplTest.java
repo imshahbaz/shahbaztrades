@@ -1,6 +1,10 @@
 package com.app.shahbaztrades.service.impl;
 
-import com.app.shahbaztrades.components.helper.PollingHelper;
+import com.app.shahbaztrades.components.polling.PollingHelper;
+import com.app.shahbaztrades.components.trading.ContinuousTradeExecutor;
+import com.app.shahbaztrades.components.trading.TradeCandidateSelector;
+import com.app.shahbaztrades.model.enums.PollerType;
+import org.springframework.core.task.support.TaskExecutorAdapter;
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
 import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
 import com.app.shahbaztrades.components.orderrouting.OrderRoutingStrategy;
@@ -60,13 +64,18 @@ class TradeEngineImplTest {
     private OrderRoutingStrategy orderRouter;
     @Mock
     private PollingHelper pollingHelper;
+    @Mock
+    private TradeCandidateSelector tradeCandidateSelector;
+    @Mock
+    private ContinuousTradeExecutor continuousTradeExecutor;
 
     private TradeEngineImpl engine;
 
     @BeforeEach
     void setUp() {
         engine = new TradeEngineImpl(strategyOrderService, strategyService, eventPublisher,
-                marketFeed, tradeWatchdog, orderRouterFactory, pollingHelper);
+                tradeWatchdog, pollingHelper, tradeCandidateSelector, continuousTradeExecutor,
+                new TaskExecutorAdapter(Runnable::run));
     }
 
     private StrategyOrder order(String id, String strategyName) {
@@ -96,8 +105,8 @@ class TradeEngineImplTest {
         engine.continuousTrade();
 
         // Two orders share RSI15MIN: a second poller would double-fire every signal.
-        verify(pollingHelper, timeout(2000)).runPollerTask("RSI15MIN", false);
-        verify(pollingHelper, timeout(2000)).runPollerTask("MACD15MIN", false);
+        verify(pollingHelper, timeout(2000)).runPollerTask("RSI15MIN", PollerType.LOCAL_STRATEGY);
+        verify(pollingHelper, timeout(2000)).runPollerTask("MACD15MIN", PollerType.LOCAL_STRATEGY);
     }
 
     @Test
@@ -107,7 +116,7 @@ class TradeEngineImplTest {
 
         engine.continuousTrade();
 
-        verify(pollingHelper, never()).runPollerTask(anyString(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(pollingHelper, never()).runPollerTask(anyString(), any(PollerType.class));
     }
 
     @Test
@@ -117,7 +126,7 @@ class TradeEngineImplTest {
         engine.continuousTrade();
 
         verify(strategyService, never()).getCachedStrategies();
-        verify(pollingHelper, never()).runPollerTask(anyString(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(pollingHelper, never()).runPollerTask(anyString(), any(PollerType.class));
     }
 
     // --- signal handling --------------------------------------------------
@@ -142,28 +151,21 @@ class TradeEngineImplTest {
     // --- trade completion -------------------------------------------------
 
     @Test
-    void tradeCompletionListener_notifiesAndUnwatchesWhenTheExitIsFullyFilled() throws Exception {
-        when(orderRouterFactory.getRouter(BrokerType.RUPEEZY)).thenReturn(orderRouter);
-        when(orderRouter.getOrderDetails(anyLong(), anyString()))
-                .thenReturn(TradeOrderResponse.builder().orderId("X1").pendingQuantity(0).build());
+    void tradeCompletionListener_clearsTheTriggerOnceTheExecutorSettlesTheExit() throws Exception {
         var activeTrade = trade();
+        var event = new TradeCompletionEvent(7L, activeTrade);
+        when(continuousTradeExecutor.closeIfFilled(event)).thenReturn(true);
 
-        engine.tradeCompletionListener(new TradeCompletionEvent(7L, activeTrade));
+        engine.tradeCompletionListener(event);
 
-        verify(tradeWatchdog).unwatch(activeTrade);
-        ArgumentCaptor<Object> event = ArgumentCaptor.forClass(Object.class);
-        verify(eventPublisher).publishEvent(event.capture());
-        assertInstanceOf(NotificationRequest.class, event.getValue());
-        assertEquals(7L, ((NotificationRequest) event.getValue()).userId());
+        verify(continuousTradeExecutor).closeIfFilled(event);
         verify(tradeWatchdog).clearTrigger(activeTrade);
     }
 
     @Test
     void tradeCompletionListener_keepsWatchingWhileTheExitIsOnlyPartiallyFilled() throws Exception {
-        when(orderRouterFactory.getRouter(BrokerType.RUPEEZY)).thenReturn(orderRouter);
-        when(orderRouter.getOrderDetails(anyLong(), anyString()))
-                .thenReturn(TradeOrderResponse.builder().orderId("X1").pendingQuantity(4).build());
         var activeTrade = trade();
+        when(continuousTradeExecutor.closeIfFilled(any(TradeCompletionEvent.class))).thenReturn(false);
 
         engine.tradeCompletionListener(new TradeCompletionEvent(7L, activeTrade));
 
@@ -175,7 +177,8 @@ class TradeEngineImplTest {
 
     @Test
     void tradeCompletionListener_clearsTheTriggerEvenWhenTheBrokerCallFails() {
-        when(orderRouterFactory.getRouter(BrokerType.RUPEEZY)).thenThrow(new IllegalStateException("down"));
+        when(continuousTradeExecutor.closeIfFilled(any(TradeCompletionEvent.class)))
+                .thenThrow(new IllegalStateException("down"));
         var activeTrade = trade();
 
         try {

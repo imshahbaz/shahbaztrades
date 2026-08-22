@@ -10,7 +10,7 @@ import com.app.shahbaztrades.model.dto.rupeezy.RupeezySessionResponse;
 import com.app.shahbaztrades.model.dto.rupeezy.RupeezyTokenCache;
 import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
 import com.app.shahbaztrades.model.entity.User;
-import com.app.shahbaztrades.repo.redis.RupeezyTokenCacheRedisRepo;
+import com.app.shahbaztrades.components.rupeezy.RupeezyTokenStore;
 import com.app.shahbaztrades.service.RupeezyService;
 import com.app.shahbaztrades.service.UserService;
 import com.mongodb.client.result.UpdateResult;
@@ -52,7 +52,7 @@ class RupeezyServiceImplTest {
     @Mock
     private MongoTemplate mongoTemplate;
     @Mock
-    private RupeezyTokenCacheRedisRepo<RupeezyTokenCache> rupeezyTokenCacheRedisRepo;
+    private RupeezyTokenStore rupeezyTokenStore;
 
     private RupeezyServiceImpl service;
 
@@ -60,14 +60,7 @@ class RupeezyServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new RupeezyServiceImpl(rupeezyClient, userService, mongoTemplate, rupeezyTokenCacheRedisRepo);
-        // The in-process cache is a static field on the interface: reset it between tests.
-        RupeezyService.rupeezyTokenCache.invalidateAll();
-    }
-
-    @AfterEach
-    void tearDown() {
-        RupeezyService.rupeezyTokenCache.invalidateAll();
+        service = new RupeezyServiceImpl(rupeezyClient, userService, rupeezyTokenStore);
     }
 
     private User user(String appId, String apiSecret) {
@@ -98,8 +91,7 @@ class RupeezyServiceImplTest {
 
         service.login(new BrokerLoginDto("request-token", 7L));
 
-        assertEquals("tok-1", RupeezyService.rupeezyTokenCache.get(7L).getAccessToken());
-        verify(rupeezyTokenCacheRedisRepo).set(eq("7"), any(RupeezyTokenCache.class), any(Duration.class));
+        verify(rupeezyTokenStore).save(eq(7L), any(RupeezyTokenCache.class));
     }
 
     @Test
@@ -129,7 +121,7 @@ class RupeezyServiceImplTest {
                 .thenReturn(session("error", null));
 
         assertThrows(NotFoundException.class, () -> service.login(new BrokerLoginDto("bad", 7L)));
-        assertNull(RupeezyService.rupeezyTokenCache.get(7L));
+        verify(rupeezyTokenStore, org.mockito.Mockito.never()).save(anyLong(), any(RupeezyTokenCache.class));
     }
 
     @Test
@@ -140,41 +132,15 @@ class RupeezyServiceImplTest {
 
     // --- token cache ------------------------------------------------------
 
-    @Test
-    void getTokenCache_promotesTheRedisEntryIntoTheLocalCache() {
-        var cached = RupeezyTokenCache.builder().apiSecret("secret").accessToken("tok-1").build();
-        when(rupeezyTokenCacheRedisRepo.get("7")).thenReturn(cached);
 
-        assertSame(cached, service.getTokenCache(7L));
 
-        // A second read must be served locally, so Redis is hit exactly once.
-        assertSame(cached, service.getTokenCache(7L));
-        verify(rupeezyTokenCacheRedisRepo).get("7");
-    }
-
-    @Test
-    void getTokenCache_returnsNullWhenNeitherLayerHasAToken() {
-        when(rupeezyTokenCacheRedisRepo.get("7")).thenReturn(null);
-        assertNull(service.getTokenCache(7L));
-    }
-
-    @Test
-    void revokeRupeezyAuth_clearsBothLayers() {
-        RupeezyService.rupeezyTokenCache.set(7L,
-                RupeezyTokenCache.builder().accessToken("tok").build(), Duration.ofHours(1));
-
-        service.revokeRupeezyAuth(7L);
-
-        assertNull(RupeezyService.rupeezyTokenCache.get(7L));
-        verify(rupeezyTokenCacheRedisRepo).delete("7");
-    }
 
     // --- getAuth ----------------------------------------------------------
 
     @Test
     void getAuth_reportsSuccessWhenTheTokenStillWorks() {
         stubUser(user("app", "secret"));
-        when(rupeezyTokenCacheRedisRepo.get("7"))
+        when(rupeezyTokenStore.find(7L))
                 .thenReturn(RupeezyTokenCache.builder().apiSecret("secret").accessToken("tok").build());
         when(rupeezyClient.getUserFunds(anyString(), anyString())).thenReturn(Map.of("nse", Map.of()));
 
@@ -188,7 +154,7 @@ class RupeezyServiceImplTest {
     void getAuth_reportsExpiryAndReturnsTheAppIdWhenThereIsNoToken() {
         // The frontend uses the returned appId to build the re-login URL.
         stubUser(user("app", "secret"));
-        when(rupeezyTokenCacheRedisRepo.get("7")).thenReturn(null);
+        when(rupeezyTokenStore.find(7L)).thenReturn(null);
 
         var response = service.getAuth(USER_DTO);
 
@@ -200,7 +166,7 @@ class RupeezyServiceImplTest {
     @Test
     void getAuth_reportsExpiryWhenTheFundsCallFails() {
         stubUser(user("app", "secret"));
-        when(rupeezyTokenCacheRedisRepo.get("7"))
+        when(rupeezyTokenStore.find(7L))
                 .thenReturn(RupeezyTokenCache.builder().apiSecret("secret").accessToken("tok").build());
         when(rupeezyClient.getUserFunds(anyString(), anyString())).thenThrow(new RuntimeException("401"));
 
@@ -210,7 +176,7 @@ class RupeezyServiceImplTest {
     @Test
     void getAuth_reportsExpiryWhenFundsComeBackWithoutAnNseSegment() {
         stubUser(user("app", "secret"));
-        when(rupeezyTokenCacheRedisRepo.get("7"))
+        when(rupeezyTokenStore.find(7L))
                 .thenReturn(RupeezyTokenCache.builder().apiSecret("secret").accessToken("tok").build());
         when(rupeezyClient.getUserFunds(anyString(), anyString())).thenReturn(Map.of());
 
@@ -227,8 +193,7 @@ class RupeezyServiceImplTest {
 
     @Test
     void setConfig_persistsAndReturnsTheUserId() {
-        when(mongoTemplate.updateFirst(any(Query.class), any(Update.class), eq(User.class)))
-                .thenReturn(UpdateResult.acknowledged(1, 1L, null));
+        when(userService.updateRupeezyConfig(eq(7L), any(User.RupeezyConfig.class))).thenReturn(true);
 
         assertEquals(7L, service.setConfig(user("app", "secret").getRupeezyConfig(), USER_DTO));
     }
@@ -237,13 +202,12 @@ class RupeezyServiceImplTest {
     void setConfig_rejectsAnIncompleteConfig() {
         assertThrows(BadRequestException.class,
                 () -> service.setConfig(user("app", "").getRupeezyConfig(), USER_DTO));
-        verify(mongoTemplate, never()).updateFirst(any(Query.class), any(Update.class), eq(User.class));
+        verify(userService, never()).updateRupeezyConfig(anyLong(), any(User.RupeezyConfig.class));
     }
 
     @Test
     void setConfig_throwsWhenNoUserDocumentMatched() {
-        when(mongoTemplate.updateFirst(any(Query.class), any(Update.class), eq(User.class)))
-                .thenReturn(UpdateResult.acknowledged(0, 0L, null));
+        when(userService.updateRupeezyConfig(eq(7L), any(User.RupeezyConfig.class))).thenReturn(false);
 
         assertThrows(UnauthorizedException.class,
                 () -> service.setConfig(user("app", "secret").getRupeezyConfig(), USER_DTO));

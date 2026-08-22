@@ -26,15 +26,23 @@ import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.model.enums.TimeFrame;
 import com.app.shahbaztrades.model.enums.UserTheme;
-import com.app.shahbaztrades.service.AnalysisService;
+import com.app.shahbaztrades.service.GenAiAnalysisService;
+import com.app.shahbaztrades.service.StockNewsService;
+import com.app.shahbaztrades.service.StrategyBacktestService;
 import com.app.shahbaztrades.service.BrokerSession;
 import com.app.shahbaztrades.service.MarketDataQuery;
 import com.app.shahbaztrades.service.MarketFeed;
 import com.app.shahbaztrades.service.MarketFeedAdmin;
+import com.app.shahbaztrades.components.broker.BrokerAuthServiceFactory;
 import com.app.shahbaztrades.service.AuthService;
+import com.app.shahbaztrades.service.BrokerAuthService;
+import com.app.shahbaztrades.service.ZerodhaAutoLoginService;
+import com.app.shahbaztrades.service.GoogleAuthService;
 import com.app.shahbaztrades.service.ChartInkService;
 import com.app.shahbaztrades.service.FcmService;
 import com.app.shahbaztrades.service.HoldingsService;
+import com.app.shahbaztrades.service.MarginSyncService;
+import com.app.shahbaztrades.service.PortfolioValuationService;
 import com.app.shahbaztrades.service.KronosPredictionService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.service.MongoConfigService;
@@ -109,12 +117,14 @@ class ControllerSliceTest {
 
         @Mock
         private AuthService authService;
+        @Mock
+        private GoogleAuthService googleAuthService;
 
         @Test
         void logout_sendsTheClearingCookie() throws Exception {
             when(authService.logout()).thenReturn("auth_token=; Path=/; HttpOnly");
 
-            mvc(new AuthController(authService)).perform(post("/api/auth/logout"))
+            mvc(new AuthController(authService, googleAuthService)).perform(post("/api/auth/logout"))
                     .andExpect(status().isOk())
                     .andExpect(header().string(HttpHeaders.SET_COOKIE, "auth_token=; Path=/; HttpOnly"));
         }
@@ -123,7 +133,7 @@ class ControllerSliceTest {
         void getCurrentUser_readsTheUserFromTheRequestAttribute() throws Exception {
             when(authService.getMe(any(UserDto.class))).thenReturn(USER);
 
-            mvc(new AuthController(authService))
+            mvc(new AuthController(authService, googleAuthService))
                     .perform(get("/api/auth/me").requestAttr("user", USER))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.userId").value(7));
@@ -131,10 +141,10 @@ class ControllerSliceTest {
 
         @Test
         void validateGoogleToken_setsTheCookieOnlyWhenTheServiceSuppliesOne() throws Exception {
-            when(authService.validateGoogleToken(eq("code"), eq(false)))
+            when(googleAuthService.validateGoogleToken(eq("code"), eq(false)))
                     .thenReturn(new AuthCookieResponse<>("handle", "Processing token", null));
 
-            mvc(new AuthController(authService))
+            mvc(new AuthController(authService, googleAuthService))
                     .perform(post("/api/auth/google/token").param("code", "code"))
                     .andExpect(status().isOk())
                     .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE))
@@ -143,10 +153,10 @@ class ControllerSliceTest {
 
         @Test
         void googleCallback_returnsA307RedirectForTheRedirectFlow() throws Exception {
-            when(authService.googleAuthCallback(any(), any()))
+            when(googleAuthService.googleAuthCallback(any(), any()))
                     .thenReturn(AuthCallbackResponse.redirect("https://app.example.com/cb"));
 
-            mvc(new AuthController(authService))
+            mvc(new AuthController(authService, googleAuthService))
                     .perform(get("/api/auth/google/callback").param("code", "c").param("state", "redirect|x"))
                     .andExpect(status().isTemporaryRedirect())
                     .andExpect(header().string(HttpHeaders.LOCATION, "https://app.example.com/cb"));
@@ -154,10 +164,10 @@ class ControllerSliceTest {
 
         @Test
         void googleCallback_returnsTheSessionCookieForTheStandardFlow() throws Exception {
-            when(authService.googleAuthCallback(any(), any()))
+            when(googleAuthService.googleAuthCallback(any(), any()))
                     .thenReturn(AuthCallbackResponse.session("auth_token=jwt", USER, "User created"));
 
-            mvc(new AuthController(authService))
+            mvc(new AuthController(authService, googleAuthService))
                     .perform(get("/api/auth/google/callback").param("code", "c").param("state", "standard"))
                     .andExpect(status().isOk())
                     .andExpect(header().string(HttpHeaders.SET_COOKIE, "auth_token=jwt"))
@@ -166,10 +176,10 @@ class ControllerSliceTest {
 
         @Test
         void googleCallback_mapsAnInvalidStateTo401() throws Exception {
-            when(authService.googleAuthCallback(any(), any()))
+            when(googleAuthService.googleAuthCallback(any(), any()))
                     .thenThrow(new UnauthorizedException("Invalid state"));
 
-            mvc(new AuthController(authService))
+            mvc(new AuthController(authService, googleAuthService))
                     .perform(get("/api/auth/google/callback").param("code", "c").param("state", "bogus"))
                     .andExpect(status().isUnauthorized());
         }
@@ -181,13 +191,15 @@ class ControllerSliceTest {
 
         @Mock
         private HoldingsService holdingsService;
+        @Mock
+        private PortfolioValuationService portfolioValuationService;
 
         @Test
         void getAllHoldings_bindsTheBrokerTypeEnum() throws Exception {
             when(holdingsService.getAllHoldings(eq(BrokerType.ZERODHA), any(UserDto.class)))
                     .thenReturn(List.of(HoldingDto.builder().symbol("TCS").build()));
 
-            mvc(new HoldingsControllers(holdingsService))
+            mvc(new HoldingsControllers(holdingsService, portfolioValuationService))
                     .perform(get("/api/holdings/all").param("brokerType", "ZERODHA").requestAttr("user", USER))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data[0].symbol").value("TCS"));
@@ -195,7 +207,7 @@ class ControllerSliceTest {
 
         @Test
         void getAllHoldings_rejectsAnUnknownBrokerTypeWith400() throws Exception {
-            mvc(new HoldingsControllers(holdingsService))
+            mvc(new HoldingsControllers(holdingsService, portfolioValuationService))
                     .perform(get("/api/holdings/all").param("brokerType", "ROBINHOOD").requestAttr("user", USER))
                     .andExpect(status().isBadRequest());
         }
@@ -204,7 +216,7 @@ class ControllerSliceTest {
         void getAllHoldings_mapsAMissingPortfolioTo404() throws Exception {
             when(holdingsService.getAllHoldings(any(), any())).thenThrow(new NotFoundException("Holdings not found"));
 
-            mvc(new HoldingsControllers(holdingsService))
+            mvc(new HoldingsControllers(holdingsService, portfolioValuationService))
                     .perform(get("/api/holdings/all").param("brokerType", "ZERODHA").requestAttr("user", USER))
                     .andExpect(status().isNotFound());
         }
@@ -213,7 +225,7 @@ class ControllerSliceTest {
         void deleteHoldings_bindsBothThePathVariableAndTheBrokerParam() throws Exception {
             when(holdingsService.deleteHoldings(eq(BrokerType.ZERODHA), any(), eq("TCS"))).thenReturn(true);
 
-            mvc(new HoldingsControllers(holdingsService))
+            mvc(new HoldingsControllers(holdingsService, portfolioValuationService))
                     .perform(delete("/api/holdings/TCS").param("brokerType", "ZERODHA").requestAttr("user", USER))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data").value(true));
@@ -224,7 +236,7 @@ class ControllerSliceTest {
             when(holdingsService.deleteHoldingDetail(eq(BrokerType.ZERODHA), any(), eq("TCS"), eq(3)))
                     .thenReturn(true);
 
-            mvc(new HoldingsControllers(holdingsService))
+            mvc(new HoldingsControllers(holdingsService, portfolioValuationService))
                     .perform(delete("/api/holdings/detail/TCS/3").param("brokerType", "ZERODHA")
                             .requestAttr("user", USER))
                     .andExpect(status().isOk());
@@ -232,10 +244,10 @@ class ControllerSliceTest {
 
         @Test
         void updatePortfolio_triggersTheAsyncRefresh() throws Exception {
-            mvc(new HoldingsControllers(holdingsService)).perform(post("/api/holdings/update-portfolio"))
+            mvc(new HoldingsControllers(holdingsService, portfolioValuationService)).perform(post("/api/holdings/update-portfolio"))
                     .andExpect(status().isOk());
 
-            verify(holdingsService).updatePortfolio();
+            verify(portfolioValuationService).updatePortfolio();
         }
     }
 
@@ -318,9 +330,15 @@ class ControllerSliceTest {
         @Mock
         private MarginService marginService;
         @Mock
+        private MarginSyncService marginSyncService;
+        @Mock
         private ChartInkService chartInkService;
         @Mock
-        private AnalysisService analysisService;
+        private StockNewsService stockNewsService;
+        @Mock
+        private GenAiAnalysisService genAiAnalysisService;
+        @Mock
+        private StrategyBacktestService strategyBacktestService;
         @Mock
         private NseService nseService;
         @Mock
@@ -332,6 +350,8 @@ class ControllerSliceTest {
         @Mock
         private BrokerSession brokerSession;
         @Mock
+        private org.springframework.core.task.AsyncTaskExecutor taskExecutor;
+        @Mock
         private KronosPredictionService kronosPredictionService;
         @Mock
         private StrategyService strategyService;
@@ -340,7 +360,7 @@ class ControllerSliceTest {
         void getMargin_upperCasesTheSymbolBeforeLookup() throws Exception {
             when(marginService.getMargin("TCS")).thenReturn(Margin.builder().symbol("TCS").build());
 
-            mvc(new MarginController(marginService)).perform(get("/api/margin/symbol/tcs"))
+            mvc(new MarginController(marginService, marginSyncService)).perform(get("/api/margin/symbol/tcs"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.symbol").value("TCS"));
         }
@@ -349,7 +369,7 @@ class ControllerSliceTest {
         void getMargin_mapsAnUnknownSymbolTo404() throws Exception {
             when(marginService.getMargin("NOPE")).thenThrow(new NotFoundException("Margin not found"));
 
-            mvc(new MarginController(marginService)).perform(get("/api/margin/symbol/nope"))
+            mvc(new MarginController(marginService, marginSyncService)).perform(get("/api/margin/symbol/nope"))
                     .andExpect(status().isNotFound());
         }
 
@@ -358,10 +378,10 @@ class ControllerSliceTest {
             var file = new MockMultipartFile("file", "mtf.json", MediaType.APPLICATION_JSON_VALUE,
                     "{}".getBytes());
 
-            mvc(new MarginController(marginService)).perform(multipart("/api/margin/json").file(file))
+            mvc(new MarginController(marginService, marginSyncService)).perform(multipart("/api/margin/json").file(file))
                     .andExpect(status().isOk());
 
-            verify(marginService).syncMTF("{}".getBytes());
+            verify(marginSyncService).syncMTF("{}".getBytes());
         }
 
         @Test
@@ -377,19 +397,19 @@ class ControllerSliceTest {
 
         @Test
         void getStockNews_returnsTheNewsItems() throws Exception {
-            when(analysisService.getStockNews("TCS"))
+            when(stockNewsService.getStockNews("TCS"))
                     .thenReturn(List.of(new TradingViewNewsResponse.NewsItem("Headline", 1L)));
 
-            mvc(new NewsController(analysisService)).perform(get("/api/news/TCS"))
+            mvc(new NewsController(stockNewsService, genAiAnalysisService, strategyBacktestService)).perform(get("/api/news/TCS"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data[0].title").value("Headline"));
         }
 
         @Test
         void getAiAnalysis_mapsAMissingAnalysisTo404() throws Exception {
-            when(analysisService.getGenAiAnalysis("TCS")).thenThrow(new NotFoundException("Analysis Not Found"));
+            when(genAiAnalysisService.getGenAiAnalysis("TCS")).thenThrow(new NotFoundException("Analysis Not Found"));
 
-            mvc(new NewsController(analysisService)).perform(get("/api/news/ai/TCS"))
+            mvc(new NewsController(stockNewsService, genAiAnalysisService, strategyBacktestService)).perform(get("/api/news/ai/TCS"))
                     .andExpect(status().isNotFound());
         }
 
@@ -397,9 +417,9 @@ class ControllerSliceTest {
         void getAiAnalysis_returnsTheParsedModelOutput() throws Exception {
             var analysis = new AIAnalysis();
             analysis.setAction("BUY");
-            when(analysisService.getGenAiAnalysis("TCS")).thenReturn(analysis);
+            when(genAiAnalysisService.getGenAiAnalysis("TCS")).thenReturn(analysis);
 
-            mvc(new NewsController(analysisService)).perform(get("/api/news/ai/TCS"))
+            mvc(new NewsController(stockNewsService, genAiAnalysisService, strategyBacktestService)).perform(get("/api/news/ai/TCS"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.action").value("BUY"));
         }
@@ -420,7 +440,7 @@ class ControllerSliceTest {
             ticker.setLtp(3200.0);
             when(marketDataQuery.getMarketTicker("11536")).thenReturn(ticker);
 
-            mvc(new AngelOneController(marketFeed, marketFeedAdmin, marketDataQuery, brokerSession))
+            mvc(new AngelOneController(marketFeed, marketFeedAdmin, marketDataQuery, brokerSession, taskExecutor))
                     .perform(get("/api/angelone/ltp").param("token", "11536"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.ltp").value(3200.0));
@@ -428,7 +448,7 @@ class ControllerSliceTest {
 
         @Test
         void websocketLifecycleEndpoints_delegateToTheService() throws Exception {
-            var controller = new AngelOneController(marketFeed, marketFeedAdmin, marketDataQuery, brokerSession);
+            var controller = new AngelOneController(marketFeed, marketFeedAdmin, marketDataQuery, brokerSession, taskExecutor);
 
             mvc(controller).perform(post("/api/angelone/ws/connect")).andExpect(status().isOk());
             mvc(controller).perform(post("/api/angelone/ws/disconnect")).andExpect(status().isOk());
@@ -505,6 +525,14 @@ class ControllerSliceTest {
         @Mock
         private RupeezyService rupeezyService;
         @Mock
+        private ZerodhaAutoLoginService zerodhaAutoLoginService;
+        @Mock
+        private BrokerAuthServiceFactory brokerAuthServiceFactory;
+        @Mock
+        private BrokerAuthService zerodhaAuth;
+        @Mock
+        private BrokerAuthService rupeezyAuth;
+        @Mock
         private SessionManagerService sessionManagerService;
 
         @Test
@@ -562,7 +590,7 @@ class ControllerSliceTest {
 
         @Test
         void zerodhaCallback_requiresTheSessionManagerSourceHeader() throws Exception {
-            var controller = new SessionManagerController(sessionManagerService, zerodhaService, rupeezyService);
+            var controller = new SessionManagerController(sessionManagerService, zerodhaAutoLoginService, brokerAuthServiceFactory);
             String body = JSON.writeValueAsString(
                     ZerodhaLoginResponseDTO.builder().status("SUCCESS").userid(7L).requestToken("req").build());
 
@@ -571,13 +599,13 @@ class ControllerSliceTest {
                             .contentType(MediaType.APPLICATION_JSON).content(body))
                     .andExpect(status().isUnauthorized());
 
-            verify(zerodhaService, org.mockito.Mockito.never())
+            verify(zerodhaAutoLoginService, org.mockito.Mockito.never())
                     .sessionManagerCallback(any(ZerodhaLoginResponseDTO.class));
         }
 
         @Test
         void zerodhaCallback_acceptsTheCorrectSourceHeader() throws Exception {
-            var controller = new SessionManagerController(sessionManagerService, zerodhaService, rupeezyService);
+            var controller = new SessionManagerController(sessionManagerService, zerodhaAutoLoginService, brokerAuthServiceFactory);
             String body = JSON.writeValueAsString(
                     ZerodhaLoginResponseDTO.builder().status("SUCCESS").userid(7L).requestToken("req").build());
 
@@ -586,25 +614,27 @@ class ControllerSliceTest {
                             .contentType(MediaType.APPLICATION_JSON).content(body))
                     .andExpect(status().isOk());
 
-            verify(zerodhaService).sessionManagerCallback(any(ZerodhaLoginResponseDTO.class));
+            verify(zerodhaAutoLoginService).sessionManagerCallback(any(ZerodhaLoginResponseDTO.class));
         }
 
         @Test
         void revokeBrokerAuth_routesToTheRequestedBroker() throws Exception {
-            var controller = new SessionManagerController(sessionManagerService, zerodhaService, rupeezyService);
+            var controller = new SessionManagerController(sessionManagerService, zerodhaAutoLoginService, brokerAuthServiceFactory);
+            when(brokerAuthServiceFactory.forBroker(BrokerType.ZERODHA)).thenReturn(zerodhaAuth);
+            when(brokerAuthServiceFactory.forBroker(BrokerType.RUPEEZY)).thenReturn(rupeezyAuth);
 
             mvc(controller).perform(post("/api/session-manager/broker/revoke-auth")
                     .param("userId", "7").param("brokerType", "ZERODHA")).andExpect(status().isOk());
             mvc(controller).perform(post("/api/session-manager/broker/revoke-auth")
                     .param("userId", "7").param("brokerType", "RUPEEZY")).andExpect(status().isOk());
 
-            verify(zerodhaService).revokeZerodhaAuth(7L);
-            verify(rupeezyService).revokeRupeezyAuth(7L);
+            verify(zerodhaAuth).revokeAuth(7L);
+            verify(rupeezyAuth).revokeAuth(7L);
         }
 
         @Test
         void autoConnectZerodhaSession_mapsAnInFlightRequestTo409() throws Exception {
-            var controller = new SessionManagerController(sessionManagerService, zerodhaService, rupeezyService);
+            var controller = new SessionManagerController(sessionManagerService, zerodhaAutoLoginService, brokerAuthServiceFactory);
             when(sessionManagerService.autoConnectZerodhaSession(any(UserDto.class)))
                     .thenThrow(new ResourceAlreadyExistsException("Request already exists"));
 

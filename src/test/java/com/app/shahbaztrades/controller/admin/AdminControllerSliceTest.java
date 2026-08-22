@@ -1,7 +1,8 @@
 package com.app.shahbaztrades.controller.admin;
 
 import com.app.shahbaztrades.model.entity.ServerConfigurations;
-import com.app.shahbaztrades.components.helper.MarketDataContainer;
+import com.app.shahbaztrades.components.marketdata.TickAggregator;
+import com.app.shahbaztrades.components.marketdata.WatchlistWarmup;
 import com.app.shahbaztrades.components.observer.MarketTickPipeline;
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
 import com.app.shahbaztrades.controller.StrategyTradingController;
@@ -307,7 +308,9 @@ class AdminControllerSliceTest {
         @Mock
         private TradeEngine tradeEngine;
         @Mock
-        private MarketDataContainer marketDataContainer;
+        private WatchlistWarmup watchlistWarmup;
+        @Mock
+        private TickAggregator tickAggregator;
 
         @Test
         void serverStats_reportsPipelineWatchdogAndWebsocketState() throws Exception {
@@ -339,15 +342,15 @@ class AdminControllerSliceTest {
 
         @Test
         void tradingLifecycleEndpoints_triggerTheirComponents() throws Exception {
-            var controller = new StrategyTradingController(tradeEngine, marketDataContainer, marketFeed);
+            var controller = new StrategyTradingController(tradeEngine, watchlistWarmup, tickAggregator, marketFeed);
 
             mvc(controller).perform(post("/api/strategy-trading/continuous")).andExpect(status().isOk());
             mvc(controller).perform(post("/api/strategy-trading/warmup")).andExpect(status().isOk());
             mvc(controller).perform(post("/api/strategy-trading/start-container")).andExpect(status().isOk());
 
             verify(tradeEngine).continuousTrade();
-            verify(marketDataContainer).warmupContainer();
-            verify(marketDataContainer).startWorkersForActiveWatchlist(any());
+            verify(watchlistWarmup).warmup();
+            verify(tickAggregator).startWorkersForActiveWatchlist(any());
         }
     }
 }

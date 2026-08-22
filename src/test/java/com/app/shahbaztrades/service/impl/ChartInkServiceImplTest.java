@@ -75,21 +75,25 @@ class ChartInkServiceImplTest {
     // --- tokens -----------------------------------------------------------
 
     @Test
-    void refreshTokens_storesTheScrapedToken() {
+    void csrfToken_isScrapedOnceAndReusedForLaterCalls() {
         when(chartinkClient.fetchCsrfToken()).thenReturn("xsrf-1");
         stubStrategy();
         when(chartinkClient.fetchData(eq("xsrf-1"), anyMap())).thenReturn("{\"data\":[]}");
 
-        service.refreshTokens();
+        service.fetchData("RSI15MIN");
         service.fetchData("RSI15MIN");
 
-        verify(chartinkClient).fetchData(eq("xsrf-1"), anyMap());
+        // The token is cached, so the cookie is only scraped for the first call.
+        verify(chartinkClient).fetchCsrfToken();
+        verify(chartinkClient, times(2)).fetchData(eq("xsrf-1"), anyMap());
     }
 
     @Test
-    void refreshTokens_throwsWhenChartinkReturnsNoCookie() {
+    void fetchData_throwsWhenChartinkReturnsNoCsrfCookie() {
+        stubStrategy();
         when(chartinkClient.fetchCsrfToken()).thenReturn(null);
-        assertThrows(NotFoundException.class, () -> service.refreshTokens());
+
+        assertThrows(NotFoundException.class, () -> service.fetchData("RSI15MIN"));
     }
 
     // --- fetchData --------------------------------------------------------

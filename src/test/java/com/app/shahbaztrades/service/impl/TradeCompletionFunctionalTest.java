@@ -1,6 +1,14 @@
 package com.app.shahbaztrades.service.impl;
 
-import com.app.shahbaztrades.components.helper.PollingHelper;
+import com.app.shahbaztrades.components.polling.PollingHelper;
+import com.app.shahbaztrades.components.trading.BrokerMarginPolicyFactory;
+import com.app.shahbaztrades.components.trading.ContinuousTradeExecutor;
+import com.app.shahbaztrades.components.trading.RupeezyMarginPolicy;
+import com.app.shahbaztrades.components.trading.TargetPricePolicy;
+import com.app.shahbaztrades.components.trading.TradeCandidateSelector;
+import com.app.shahbaztrades.components.trading.TradeNotifier;
+import com.app.shahbaztrades.components.trading.ZerodhaMarginPolicy;
+import org.springframework.core.task.support.TaskExecutorAdapter;
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
 import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
 import com.app.shahbaztrades.components.orderrouting.OrderRoutingStrategy;
@@ -326,11 +334,39 @@ class TradeCompletionFunctionalTest {
 
         @Bean
         TradeEngineImpl tradeEngine(StrategyOrderService strategyOrderService, StrategyService strategyService,
-                                    ApplicationEventPublisher publisher, MarketFeed marketFeed,
-                                    TradeWatchdog tradeWatchdog, OrderRouterFactory orderRouterFactory,
-                                    PollingHelper pollingHelper) {
-            return new TradeEngineImpl(strategyOrderService, strategyService, publisher, marketFeed,
-                    tradeWatchdog, orderRouterFactory, pollingHelper);
+                                    ApplicationEventPublisher publisher, TradeWatchdog tradeWatchdog,
+                                    PollingHelper pollingHelper, TradeCandidateSelector selector,
+                                    ContinuousTradeExecutor executor) {
+            return new TradeEngineImpl(strategyOrderService, strategyService, publisher, tradeWatchdog,
+                    pollingHelper, selector, executor, new TaskExecutorAdapter(Runnable::run));
+        }
+
+        @Bean
+        TradeCandidateSelector tradeCandidateSelector(MarketFeed marketFeed,
+                                                      BrokerMarginPolicyFactory brokerMarginPolicyFactory) {
+            return new TradeCandidateSelector(marketFeed, brokerMarginPolicyFactory);
+        }
+
+        @Bean
+        BrokerMarginPolicyFactory brokerMarginPolicyFactory() {
+            return new BrokerMarginPolicyFactory(List.of(new ZerodhaMarginPolicy(), new RupeezyMarginPolicy()));
+        }
+
+        @Bean
+        ContinuousTradeExecutor continuousTradeExecutor(OrderRouterFactory orderRouterFactory,
+                                                        TradeWatchdog tradeWatchdog, TradeNotifier tradeNotifier,
+                                                        TargetPricePolicy targetPricePolicy) {
+            return new ContinuousTradeExecutor(orderRouterFactory, tradeWatchdog, tradeNotifier, targetPricePolicy);
+        }
+
+        @Bean
+        TradeNotifier tradeNotifier(ApplicationEventPublisher publisher) {
+            return new TradeNotifier(publisher);
+        }
+
+        @Bean
+        TargetPricePolicy targetPricePolicy() {
+            return new TargetPricePolicy();
         }
     }
 
@@ -383,15 +419,6 @@ class TradeCompletionFunctionalTest {
             throw new UnsupportedOperationException("not exercised by the completion flow");
         }
 
-        @Override
-        public void updateMTFStopLossOrder(Long userId, TradeOrderRequest request) {
-            throw new UnsupportedOperationException("not exercised by the completion flow");
-        }
-
-        @Override
-        public void cancelOrder(Long userId, String orderId) {
-            throw new UnsupportedOperationException("not exercised by the completion flow");
-        }
 
         @Override
         public void convertSLToMarket(Long userId, TradeOrderRequest request) {

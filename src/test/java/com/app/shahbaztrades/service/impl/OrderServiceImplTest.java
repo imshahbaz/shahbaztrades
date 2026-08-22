@@ -75,8 +75,7 @@ class OrderServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new OrderServiceImpl(orderRepo, mongoTemplate, marginService, eventPublisher,
-                tradeWatchdog, orderRouterFactory, userService, dailyTradingStrategyRegistry);
+        service = new OrderServiceImpl(orderRepo, mongoTemplate, marginService, userService);
     }
 
     private void stubZerodhaUser() {
@@ -239,75 +238,9 @@ class OrderServiceImplTest {
 
     // --- daily batch jobs -------------------------------------------------
 
-    @Test
-    void initiateMtfOrders_dispatchesEachOrderToItsStrategy() {
-        when(mongoTemplate.find(any(Query.class), eq(Order.class)))
-                .thenReturn(List.of(order("o1", "TARGET PROFIT"), order("o2", "TRAILING PROFIT")));
-        when(dailyTradingStrategyRegistry.getStrategy(anyString())).thenReturn(strategy);
 
-        service.initiateMtfOrders();
 
-        verify(strategy, times(2)).initialiseTrade(any(Order.class), anyMap());
-    }
 
-    @Test
-    void initiateMtfOrders_sharesOneMetricsMapAcrossOrdersToAvoidRefetchingAtr() {
-        when(mongoTemplate.find(any(Query.class), eq(Order.class)))
-                .thenReturn(List.of(order("o1", "TARGET PROFIT"), order("o2", "TARGET PROFIT")));
-        when(dailyTradingStrategyRegistry.getStrategy(anyString())).thenReturn(strategy);
 
-        service.initiateMtfOrders();
 
-        @SuppressWarnings("rawtypes")
-        ArgumentCaptor<Map> metrics = ArgumentCaptor.forClass(Map.class);
-        verify(strategy, times(2)).initialiseTrade(any(Order.class), metrics.capture());
-        assertSame(metrics.getAllValues().getFirst(), metrics.getAllValues().getLast(),
-                "a fresh map per order would re-download ATR history for every duplicate symbol");
-    }
-
-    @Test
-    void initiateMtfOrders_keepsGoingWhenOneOrderFails() {
-        // One user's broker outage must not stop every other user's morning orders.
-        when(mongoTemplate.find(any(Query.class), eq(Order.class)))
-                .thenReturn(List.of(order("o1", "BAD"), order("o2", "TRAILING PROFIT")));
-        when(dailyTradingStrategyRegistry.getStrategy("BAD")).thenThrow(new NotFoundException("no strategy"));
-        when(dailyTradingStrategyRegistry.getStrategy("TRAILING PROFIT")).thenReturn(strategy);
-
-        service.initiateMtfOrders();
-
-        verify(strategy).initialiseTrade(any(Order.class), anyMap());
-    }
-
-    @Test
-    void initiateMtfOrders_isANoOpWhenThereAreNoOrders() {
-        when(mongoTemplate.find(any(Query.class), eq(Order.class))).thenReturn(List.of());
-
-        service.initiateMtfOrders();
-
-        verify(dailyTradingStrategyRegistry, never()).getStrategy(anyString());
-    }
-
-    @Test
-    void updateMtfOrderStatus_dispatchesEachOrderAndSurvivesFailures() {
-        when(mongoTemplate.find(any(Query.class), eq(Order.class)))
-                .thenReturn(List.of(order("o1", "BAD"), order("o2", "TARGET PROFIT")));
-        when(dailyTradingStrategyRegistry.getStrategy("BAD")).thenThrow(new NotFoundException("no strategy"));
-        when(dailyTradingStrategyRegistry.getStrategy("TARGET PROFIT")).thenReturn(strategy);
-
-        service.updateMtfOrderStatus();
-
-        verify(strategy).updateTradeStatus(any(Order.class));
-    }
-
-    @Test
-    void startTrading_dispatchesEachOrderAndSurvivesFailures() {
-        when(mongoTemplate.find(any(Query.class), eq(Order.class)))
-                .thenReturn(List.of(order("o1", "BAD"), order("o2", "TARGET PROFIT")));
-        when(dailyTradingStrategyRegistry.getStrategy("BAD")).thenThrow(new NotFoundException("no strategy"));
-        when(dailyTradingStrategyRegistry.getStrategy("TARGET PROFIT")).thenReturn(strategy);
-
-        service.startTrading();
-
-        verify(strategy).startTrading(any(Order.class));
-    }
 }

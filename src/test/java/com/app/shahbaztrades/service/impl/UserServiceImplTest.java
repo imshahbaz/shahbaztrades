@@ -102,7 +102,7 @@ class UserServiceImplTest {
     @Test
     void createUser_assignsTheNextSequenceId() {
         when(mongoTemplate.findOne(any(Query.class), eq(User.class))).thenReturn(null);
-        when(sequenceGeneratorService.getNextSequence(UserService.USER_ID_SEQ)).thenReturn(101L);
+        when(sequenceGeneratorService.getNextSequence("userid")).thenReturn(101L);
         when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         User created = service.createUser(UserDto.builder().email("a@b.com").password("pw").build());
@@ -136,7 +136,7 @@ class UserServiceImplTest {
     @Test
     void findOrCreateGoogleUser_createsWhenTheEmailIsUnknown() {
         when(mongoTemplate.findOne(any(Query.class), eq(User.class))).thenReturn(null);
-        when(sequenceGeneratorService.getNextSequence(UserService.USER_ID_SEQ)).thenReturn(5L);
+        when(sequenceGeneratorService.getNextSequence("userid")).thenReturn(5L);
         when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         User user = service.findOrCreateGoogleUser(GoogleUser.builder()

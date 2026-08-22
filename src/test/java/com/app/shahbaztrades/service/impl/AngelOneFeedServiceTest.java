@@ -2,9 +2,9 @@ package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.angelone.SmartStreamConnection;
 import com.app.shahbaztrades.components.angelone.SmartStreamTickDecoder;
-import com.app.shahbaztrades.components.helper.MarketDataContainer;
+import com.app.shahbaztrades.components.marketdata.TickAggregator;
+import com.app.shahbaztrades.components.strategy.StrategyRegistry;
 import com.app.shahbaztrades.components.observer.MarketTickPipeline;
-import com.app.shahbaztrades.model.dto.angelone.websocket.LiveTick;
 import com.app.shahbaztrades.model.dto.angelone.websocket.Ltp;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,7 +14,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -32,7 +31,7 @@ class AngelOneFeedServiceTest {
     @Mock
     private SmartStreamConnection connection;
     @Mock
-    private MarketDataContainer marketDataContainer;
+    private TickAggregator tickAggregator;
     @Mock
     private MarketTickPipeline marketTickPipeline;
     @Mock
@@ -42,7 +41,7 @@ class AngelOneFeedServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new AngelOneFeedService(connection, marketDataContainer, marketTickPipeline, strategyRegistry);
+        service = new AngelOneFeedService(connection, tickAggregator, marketTickPipeline, strategyRegistry);
     }
 
     // --- ltp lookup -------------------------------------------------------
@@ -83,25 +82,12 @@ class AngelOneFeedServiceTest {
     // --- tick fan-out -----------------------------------------------------
 
     @Test
-    void onTick_publishesToThePipelineAndSkipsTheBufferWithoutAnActiveWorker() {
-        when(marketDataContainer.checkActiveWorker("11536")).thenReturn(false);
-
+    void onTick_fansOutToBothThePipelineAndTheBarAggregator() {
         service.onTick(new SmartStreamTickDecoder.Tick("11536", 3200.5));
 
+        // The aggregator decides for itself whether a worker wants the tick.
         verify(marketTickPipeline).publish("11536", 3200.5);
-        verify(marketDataContainer, never()).getTickBuffer(anyString());
-    }
-
-    @Test
-    void onTick_buffersTheTickForAnActiveBarSeriesWorker() {
-        var buffer = new LinkedBlockingQueue<LiveTick>();
-        when(marketDataContainer.checkActiveWorker("11536")).thenReturn(true);
-        when(marketDataContainer.getTickBuffer("11536")).thenReturn(buffer);
-
-        service.onTick(new SmartStreamTickDecoder.Tick("11536", 3200.5));
-
-        assertEquals(1, buffer.size());
-        assertEquals(3200.5, buffer.peek().price());
+        verify(tickAggregator).accept("11536", 3200.5);
     }
 
     // --- subscriptions ----------------------------------------------------

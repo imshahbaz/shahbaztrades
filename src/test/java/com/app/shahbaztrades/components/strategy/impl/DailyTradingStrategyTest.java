@@ -3,7 +3,9 @@ package com.app.shahbaztrades.components.strategy.impl;
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
 import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
 import com.app.shahbaztrades.components.orderrouting.OrderRoutingStrategy;
-import com.app.shahbaztrades.components.yahoo.YahooClient;
+import com.app.shahbaztrades.components.analysis.TechnicalMetricsProvider;
+import com.app.shahbaztrades.components.trading.TradeNotifier;
+import com.app.shahbaztrades.repo.OrderProgressRepository;
 import com.app.shahbaztrades.model.dto.analysis.TechnicalMetrics;
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
@@ -60,7 +62,11 @@ class DailyTradingStrategyTest {
     @Mock
     private OrderRoutingStrategy orderRouter;
     @Mock
-    private YahooClient yahooClient;
+    private TechnicalMetricsProvider technicalMetricsProvider;
+    @Mock
+    private OrderProgressRepository orderProgressRepository;
+    @Mock
+    private TradeNotifier tradeNotifier;
     @Mock
     private MarketFeed marketFeed;
     @Mock
@@ -71,10 +77,10 @@ class DailyTradingStrategyTest {
 
     @BeforeEach
     void setUp() {
-        targetProfit = new TargetProfitStrategy(mongoTemplate, eventPublisher,
-                orderRouterFactory, yahooClient, marketFeed);
-        trailingProfit = new TrailingProfitStrategy(mongoTemplate, yahooClient, eventPublisher,
-                orderRouterFactory, marketFeed, tradeWatchdog);
+        targetProfit = new TargetProfitStrategy(orderProgressRepository, tradeNotifier,
+                orderRouterFactory, marketFeed, technicalMetricsProvider);
+        trailingProfit = new TrailingProfitStrategy(orderProgressRepository, tradeNotifier,
+                orderRouterFactory, marketFeed, technicalMetricsProvider, tradeWatchdog);
         lenient().when(orderRouterFactory.getRouter(BrokerType.ZERODHA)).thenReturn(orderRouter);
     }
 
@@ -110,7 +116,7 @@ class DailyTradingStrategyTest {
 
         assertEquals(OrderStatus.PLACED, order.getOrderStatus());
         assertEquals("B1", order.getEntry().getBrokerOrderId());
-        verify(mongoTemplate).updateFirst(any(Query.class), any(Update.class), eq(Order.class));
+        verify(orderProgressRepository).saveProgress(order);
     }
 
     @Test
@@ -187,7 +193,7 @@ class DailyTradingStrategyTest {
         targetProfit.initialiseTrade(order, new HashMap<>());
 
         assertEquals(OrderStatus.FAILED, order.getOrderStatus());
-        verify(mongoTemplate).updateFirst(any(Query.class), any(Update.class), eq(Order.class));
+        verify(orderProgressRepository).saveProgress(order);
     }
 
     @Test
@@ -195,15 +201,16 @@ class DailyTradingStrategyTest {
         when(marketFeed.getLtp("11536")).thenReturn(Ltp.of(3200.0));
         when(orderRouter.placePreMarketOrder(anyLong(), any(TradeOrderRequest.class)))
                 .thenReturn(TradeOrderResponse.builder().orderId("B1").build());
-        when(yahooClient.getMonthlyHistoricalData("TCS")).thenReturn(candles());
+        when(technicalMetricsProvider.atrFor("TCS"))
+                .thenReturn(TechnicalMetrics.builder().atrValue(40).expectedMovePercent(1.25).build());
         Map<String, TechnicalMetrics> metrics = new HashMap<>();
 
         targetProfit.initialiseTrade(order(OrderStatus.PENDING, null), metrics);
         targetProfit.initialiseTrade(order(OrderStatus.PENDING, null), metrics);
 
         assertNotNull(metrics.get("TCS"));
-        // The second order for the same symbol must hit the shared map, not Yahoo.
-        verify(yahooClient).getMonthlyHistoricalData("TCS");
+        // The second order for the same symbol must hit the shared map, not recompute.
+        verify(technicalMetricsProvider).atrFor("TCS");
     }
 
     // --- updateTradeStatus ------------------------------------------------
@@ -219,7 +226,7 @@ class DailyTradingStrategyTest {
 
         assertEquals(OrderStatus.BOUGHT, order.getOrderStatus());
         assertEquals(0, new BigDecimal("3210.5").compareTo(order.getEntry().getAveragePrice()));
-        verify(eventPublisher).publishEvent(any(NotificationRequest.class));
+        verify(tradeNotifier).buyExecuted(eq(7L), eq(10), eq("TCS"), eq(3210.5));
     }
 
     @Test

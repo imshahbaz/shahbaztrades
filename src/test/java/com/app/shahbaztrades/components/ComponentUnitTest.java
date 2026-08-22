@@ -122,6 +122,11 @@ class ComponentUnitTest {
             }
 
             @Override
+            public String watchlistKey() {
+                return "TEST_SCREENER";
+            }
+
+            @Override
             public String getName() {
                 return "TEST";
             }

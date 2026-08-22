@@ -5,7 +5,7 @@ import com.app.shahbaztrades.model.dto.auth.AuthRequest;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.model.enums.UserRole;
 import com.app.shahbaztrades.model.enums.UserTheme;
-import com.app.shahbaztrades.util.HelperUtil;
+import com.app.shahbaztrades.util.AuthUtil;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,7 +20,7 @@ class UserMappingTest {
         User user = UserDto.builder().email("jane@example.com").password("s3cret").build().toEntity();
 
         assertNotEquals("s3cret", user.getPassword());
-        assertTrue(HelperUtil.ENCODER.matches("s3cret", user.getPassword()));
+        assertTrue(AuthUtil.ENCODER.matches("s3cret", user.getPassword()));
     }
 
     @Test

@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -62,15 +63,17 @@ class AngelOneSessionServiceTest {
     }
 
     @Test
-    void credentialsAreReadThroughFromTheStoredConfig() {
+    void apiCredentialsAreReadThroughFromTheStoredConfig() {
         stubConfig();
-        when(mongoConfigService.getAngelOneJwtToken()).thenReturn("jwt");
-        when(mongoConfigService.getAngelOneFeedToken()).thenReturn("feed");
 
-        assertEquals("jwt", service.jwtToken());
-        assertEquals("feed", service.feedToken());
         assertEquals("api-key", service.apiKey());
         assertEquals("client", service.clientId());
+    }
+
+    @Test
+    void tokensAreEmptyUntilASessionIsEstablished() {
+        assertNull(service.jwtToken());
+        assertNull(service.feedToken());
     }
 
     @Test
@@ -82,8 +85,8 @@ class AngelOneSessionServiceTest {
 
         service.refreshBrokerSession();
 
-        verify(mongoConfigService).setAngelOneJwtToken("jwt-1");
-        verify(mongoConfigService).setAngelOneFeedToken("feed-1");
+        assertEquals("jwt-1", service.jwtToken());
+        assertEquals("feed-1", service.feedToken());
         // A fresh TOTP login burns a one-time code, so it must be avoided when possible.
         verify(angelOneClient, never()).getWebsocketLogin(any());
     }
@@ -98,7 +101,7 @@ class AngelOneSessionServiceTest {
 
         service.refreshBrokerSession();
 
-        verify(mongoConfigService).setAngelOneJwtToken("jwt-2");
+        assertEquals("jwt-2", service.jwtToken());
         verify(angelOneLoginDataRedisRepo).set(eq("oneklik"),
                 any(AngelOneLoginResponse.LoginData.class), any(Duration.class));
     }
@@ -111,7 +114,7 @@ class AngelOneSessionServiceTest {
 
         service.refreshBrokerSession();
 
-        verify(mongoConfigService).setAngelOneJwtToken("jwt-3");
+        assertEquals("jwt-3", service.jwtToken());
         verify(smartApiFeignClient, never()).getUserProfile(anyString(), anyString());
     }
 
@@ -123,6 +126,6 @@ class AngelOneSessionServiceTest {
 
         service.refreshBrokerSession();
 
-        verify(mongoConfigService, never()).setAngelOneJwtToken(anyString());
+        assertNull(service.jwtToken());
     }
 }
