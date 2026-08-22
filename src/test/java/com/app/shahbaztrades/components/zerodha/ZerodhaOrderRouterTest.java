@@ -3,7 +3,7 @@ package com.app.shahbaztrades.components.zerodha;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.enums.BrokerType;
-import com.app.shahbaztrades.service.ZerodhaService;
+import com.app.shahbaztrades.components.zerodha.ZerodhaClientFactory;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import com.zerodhatech.kiteconnect.utils.Constants;
@@ -34,7 +34,7 @@ import static org.mockito.Mockito.when;
 class ZerodhaOrderRouterTest {
 
     @Mock
-    private ZerodhaService zerodhaService;
+    private ZerodhaClientFactory zerodhaClientFactory;
     @Mock
     private KiteConnect kiteConnect;
 
@@ -42,8 +42,8 @@ class ZerodhaOrderRouterTest {
 
     @BeforeEach
     void setUp() throws Throwable {
-        router = new ZerodhaOrderRouter(zerodhaService);
-        lenient().when(zerodhaService.getKiteClient(7L)).thenReturn(kiteConnect);
+        router = new ZerodhaOrderRouter(zerodhaClientFactory);
+        lenient().when(zerodhaClientFactory.forUser(7L)).thenReturn(kiteConnect);
     }
 
     private OrderResponse response(String orderId) {
@@ -162,24 +162,7 @@ class ZerodhaOrderRouterTest {
         assertEquals(-1, params.getValue().marketProtection);
     }
 
-    @Test
-    void updateMTFStopLossOrder_forwardsThePriceAndTrigger() throws Throwable {
-        router.updateMTFStopLossOrder(7L, request());
 
-        ArgumentCaptor<OrderParams> params = ArgumentCaptor.forClass(OrderParams.class);
-        verify(kiteConnect).modifyOrder(org.mockito.ArgumentMatchers.eq("O1"), params.capture(), anyString());
-        assertEquals(3300.0, params.getValue().price);
-        assertEquals(3300.0, params.getValue().triggerPrice);
-    }
-
-    @Test
-    void cancelOrder_wrapsKiteExceptionsAsIllegalState() throws Throwable {
-        when(kiteConnect.cancelOrder(anyString(), anyString(), any()))
-                .thenThrow(new KiteException("nope") {
-                });
-
-        assertThrows(IllegalStateException.class, () -> router.cancelOrder(7L, "O1"));
-    }
 
     // --- reads ------------------------------------------------------------
 

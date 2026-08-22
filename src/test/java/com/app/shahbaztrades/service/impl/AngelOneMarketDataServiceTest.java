@@ -1,24 +1,15 @@
 package com.app.shahbaztrades.service.impl;
 
-import com.app.shahbaztrades.model.entity.ServerConfigurations;
-import com.app.shahbaztrades.components.angelone.AngelOneClient;
 import com.app.shahbaztrades.components.angelone.AngelOneRateLimiter;
 import com.app.shahbaztrades.components.angelone.SmartApiFeignClient;
-import com.app.shahbaztrades.components.helper.MarketDataContainer;
-import com.app.shahbaztrades.components.observer.MarketTickPipeline;
-import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpDto;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
-import com.app.shahbaztrades.model.dto.angelone.websocket.AngelOneLoginResponse;
 import com.app.shahbaztrades.model.entity.redis.AngelOneHistoricalDataRedis;
-import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.repo.redis.AngelOneHistoricalDataRedisRepo;
-import com.app.shahbaztrades.repo.redis.AngelOneLoginDataRedisRepo;
 import com.app.shahbaztrades.repo.redis.MarketTickerRedisRepo;
-import com.app.shahbaztrades.service.MongoConfigService;
-import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.app.shahbaztrades.service.BrokerSession;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,12 +17,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -43,58 +34,32 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Covers the non-websocket surface of AngelOneServiceImpl: LTP sentinels, the ticker and
- * historical-data caches, and broker-session refresh.
- */
+/** REST market data and its Redis caches. */
 @ExtendWith(MockitoExtension.class)
-class AngelOneServiceImplTest {
+class AngelOneMarketDataServiceTest {
 
-    @Mock
-    private AngelOneClient angelOneClient;
-    @Mock
-    private MongoConfigService mongoConfigService;
     @Mock
     private SmartApiFeignClient smartApiFeignClient;
     @Mock
     private AngelOneRateLimiter angelOneRateLimiter;
     @Mock
-    private MarketDataContainer marketDataContainer;
-    @Mock
-    private MarketTickPipeline marketTickPipeline;
-    @Mock
-    private StrategyRegistry strategyRegistry;
+    private BrokerSession brokerSession;
     @Mock
     private AngelOneHistoricalDataRedisRepo angelOneHistoricalDataRedisRepo;
     @Mock
-    private AngelOneLoginDataRedisRepo<AngelOneLoginResponse.LoginData> angelOneLoginDataRedisRepo;
-    @Mock
     private MarketTickerRedisRepo<SmartApiLtpResponse.MarketTicker> marketTickerRedisRepo;
 
-    private AngelOneServiceImpl service;
+    private AngelOneMarketDataService service;
 
     @BeforeEach
     void setUp() {
-        service = new AngelOneServiceImpl(JsonMapper.builder().build(), angelOneClient, mongoConfigService,
-                smartApiFeignClient, angelOneRateLimiter, marketDataContainer, marketTickPipeline,
-                strategyRegistry, angelOneHistoricalDataRedisRepo, angelOneLoginDataRedisRepo,
-                marketTickerRedisRepo);
+        service = new AngelOneMarketDataService(smartApiFeignClient, angelOneRateLimiter, brokerSession,
+                angelOneHistoricalDataRedisRepo, marketTickerRedisRepo);
     }
 
-    private void stubApiKey() {
-        var angelOne = new ServerConfigurations.AngelOneConfig();
-        angelOne.setApiKey("api-key");
-        angelOne.setClientId("client");
-        var config = new ServerConfigurations();
-        config.setAngelOneConfig(angelOne);
-        lenient().when(mongoConfigService.getConfig()).thenReturn(config);
-    }
-
-    private AngelOneLoginResponse.LoginData loginData(String jwt, String feed) {
-        var data = new AngelOneLoginResponse.LoginData();
-        data.setJwtToken(jwt);
-        data.setFeedToken(feed);
-        return data;
+    private void stubCredentials() {
+        lenient().when(brokerSession.jwtToken()).thenReturn("jwt");
+        lenient().when(brokerSession.apiKey()).thenReturn("api-key");
     }
 
     private SmartApiLtpResponse.MarketTicker ticker(double ltp) {
@@ -102,43 +67,6 @@ class AngelOneServiceImplTest {
         ticker.setLtp(ltp);
         ticker.setSymbolToken("11536");
         return ticker;
-    }
-
-    // --- connection state -------------------------------------------------
-
-    @Test
-    void aFreshServiceReportsDisconnectedWithNoReconnectAttempts() {
-        assertFalse(service.isWebSocketConnected());
-        assertEquals(0, service.getReconnectAttempts());
-    }
-
-    @Test
-    void getLTP_returnsMinusTwoWhileTheSocketIsDown() {
-        // -2 tells callers "no feed at all", which is different from "price not seen yet".
-        assertEquals(-2, service.getLTP("11536"));
-    }
-
-    @Test
-    void subscribe_failsFastWhenThereIsNoOpenSession() {
-        assertThrows(BadRequestException.class, () -> service.subscribe("11536", ExchangeType.NSE.getValue()));
-    }
-
-    @Test
-    void startWebSocket_isANoOpWithoutABrokerJwt() {
-        when(mongoConfigService.getAngelOneJwtToken()).thenReturn(null);
-
-        service.startWebSocket();
-
-        assertFalse(service.isWebSocketConnected());
-    }
-
-    @Test
-    void disconnect_isIdempotentAndLeavesTheServiceDisconnected() {
-        service.disconnect();
-        service.disconnect();
-
-        assertFalse(service.isWebSocketConnected());
-        assertEquals(-2, service.getLTP("11536"));
     }
 
     // --- market ticker ----------------------------------------------------
@@ -155,7 +83,7 @@ class AngelOneServiceImplTest {
 
     @Test
     void getMarketTicker_fetchesAndCachesOnAMiss() {
-        stubApiKey();
+        stubCredentials();
         when(marketTickerRedisRepo.get("11536")).thenReturn(null);
         var data = new SmartApiLtpResponse.MarketData(List.of(ticker(3200.0)));
         when(smartApiFeignClient.getMultipleLtp(anyString(), eq("api-key"), any(SmartApiLtpDto.class)))
@@ -169,7 +97,7 @@ class AngelOneServiceImplTest {
 
     @Test
     void getMarketTicker_throwsWhenTheBrokerReturnsNothingUsable() {
-        stubApiKey();
+        stubCredentials();
         when(marketTickerRedisRepo.get("11536")).thenReturn(null);
         when(smartApiFeignClient.getMultipleLtp(anyString(), anyString(), any(SmartApiLtpDto.class)))
                 .thenReturn(new SmartApiLtpResponse<>(true, "ok", null,
@@ -180,7 +108,7 @@ class AngelOneServiceImplTest {
 
     @Test
     void getMarketTicker_throwsWhenTheBrokerCallReturnsNull() {
-        stubApiKey();
+        stubCredentials();
         when(marketTickerRedisRepo.get("11536")).thenReturn(null);
         when(smartApiFeignClient.getMultipleLtp(anyString(), anyString(), any(SmartApiLtpDto.class)))
                 .thenReturn(null);
@@ -201,14 +129,14 @@ class AngelOneServiceImplTest {
         var data = service.getHistoricalData("11536", "TCS");
 
         assertEquals(1, data.size());
-        assertTrue(data.containsKey(java.time.LocalDate.of(2026, 8, 14)));
+        assertTrue(data.containsKey(LocalDate.of(2026, 8, 14)));
         verify(smartApiFeignClient, never())
                 .getHistoricalData(anyString(), anyString(), any(HistoricalDataRequest.class));
     }
 
     @Test
     void getHistoricalData_fetchesRateLimitedAndPersistsOnAMiss() {
-        stubApiKey();
+        stubCredentials();
         when(angelOneHistoricalDataRedisRepo.findById("TCS")).thenReturn(Optional.empty());
         List<List<Object>> raw = List.of(
                 List.of("2026-08-14T09:15:00+05:30", 100.0, 105.0, 99.0, 104.0, 1000L));
@@ -225,66 +153,11 @@ class AngelOneServiceImplTest {
 
     @Test
     void getHistoricalData_throwsWhenTheBrokerReturnsNull() {
-        stubApiKey();
+        stubCredentials();
         when(angelOneHistoricalDataRedisRepo.findById("TCS")).thenReturn(Optional.empty());
         when(smartApiFeignClient.getHistoricalData(anyString(), anyString(), any(HistoricalDataRequest.class)))
                 .thenReturn(null);
 
         assertThrows(NotFoundException.class, () -> service.getHistoricalData("11536", "TCS"));
-    }
-
-    // --- broker session ---------------------------------------------------
-
-    @Test
-    void refreshBrokerSession_reusesACachedTokenThatStillValidates() {
-        stubApiKey();
-        when(angelOneLoginDataRedisRepo.get("oneklik")).thenReturn(loginData("jwt-1", "feed-1"));
-        when(smartApiFeignClient.getUserProfile(anyString(), eq("api-key")))
-                .thenReturn(new SmartApiLtpResponse<>(true, "ok", null, new Object()));
-
-        service.refreshBrokerSession();
-
-        verify(mongoConfigService).setAngelOneJwtToken("jwt-1");
-        verify(mongoConfigService).setAngelOneFeedToken("feed-1");
-        // A fresh TOTP login burns a one-time code, so it must be avoided when possible.
-        verify(angelOneClient, never()).getWebsocketLogin(any());
-    }
-
-    @Test
-    void refreshBrokerSession_reLogsInWhenTheCachedTokenIsRejected() {
-        stubApiKey();
-        when(angelOneLoginDataRedisRepo.get("oneklik")).thenReturn(loginData("stale", "feed"));
-        when(smartApiFeignClient.getUserProfile(anyString(), anyString()))
-                .thenReturn(new SmartApiLtpResponse<>(false, "Invalid Token", "AG8001", null));
-        when(angelOneClient.getWebsocketLogin(any())).thenReturn(loginData("jwt-2", "feed-2"));
-
-        service.refreshBrokerSession();
-
-        verify(mongoConfigService).setAngelOneJwtToken("jwt-2");
-        verify(angelOneLoginDataRedisRepo).set(eq("oneklik"),
-                any(AngelOneLoginResponse.LoginData.class), any(Duration.class));
-    }
-
-    @Test
-    void refreshBrokerSession_logsInFreshWhenRedisHasNothing() {
-        stubApiKey();
-        when(angelOneLoginDataRedisRepo.get("oneklik")).thenReturn(null);
-        when(angelOneClient.getWebsocketLogin(any())).thenReturn(loginData("jwt-3", "feed-3"));
-
-        service.refreshBrokerSession();
-
-        verify(mongoConfigService).setAngelOneJwtToken("jwt-3");
-        verify(smartApiFeignClient, never()).getUserProfile(anyString(), anyString());
-    }
-
-    @Test
-    void refreshBrokerSession_leavesTokensAloneWhenTheLoginFails() {
-        stubApiKey();
-        when(angelOneLoginDataRedisRepo.get("oneklik")).thenReturn(null);
-        when(angelOneClient.getWebsocketLogin(any())).thenReturn(null);
-
-        service.refreshBrokerSession();
-
-        verify(mongoConfigService, never()).setAngelOneJwtToken(anyString());
     }
 }

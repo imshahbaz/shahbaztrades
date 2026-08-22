@@ -4,7 +4,6 @@ import com.app.shahbaztrades.model.dto.scheduler.CronTaskDto;
 import com.app.shahbaztrades.model.dto.scheduler.ScheduledTaskDto;
 import com.app.shahbaztrades.model.enums.SchedulerTaskType;
 import com.app.shahbaztrades.util.DateUtil;
-import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.CronSchedule;
@@ -25,14 +24,14 @@ public class ScheduledTaskExecutor {
 
     public void executeTask(ScheduledTaskDto scheduledTask) {
         log.info("Executing scheduled task {}", scheduledTask.getTaskId());
-        var res = HelperUtil.executeCallBack(scheduledTask.getCallBack());
+        var res = SchedulerCallbackClient.execute(scheduledTask.getCallBack());
         log.info("Executed scheduled task {} responseStatus {}", scheduledTask.getTaskId(), res.getStatusCode());
         redissonClient.getMap(scheduledTask.getType().getValue()).remove(scheduledTask.getTaskId());
     }
 
     public void executeCron(CronTaskDto cronTaskDto) {
         log.info("Executing cron {}", cronTaskDto.getCronId());
-        var res = HelperUtil.executeCallBack(cronTaskDto.getCallBack());
+        var res = SchedulerCallbackClient.execute(cronTaskDto.getCallBack());
         log.info("Executed cron {} responseStatus {}", cronTaskDto.getCronId(), res.getStatusCode());
     }
 

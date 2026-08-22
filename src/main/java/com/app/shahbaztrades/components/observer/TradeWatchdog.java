@@ -4,115 +4,72 @@ import com.app.shahbaztrades.model.dto.order.ActiveMtfTrade;
 import com.app.shahbaztrades.model.dto.order.MtfTickEvent;
 import com.app.shahbaztrades.model.dto.strategy.ActiveTrade;
 import com.app.shahbaztrades.model.dto.strategy.TradeCompletionEvent;
-import com.app.shahbaztrades.util.Cache;
 import com.app.shahbaztrades.util.DateUtil;
-import com.google.common.util.concurrent.Striped;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 
-import java.time.Duration;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
 
+/**
+ * Turns the tick stream into trade events.
+ * <p>
+ * Two kinds of position are watched and they react to a tick differently — a continuous trade fires
+ * once when it reaches its target, an MTF position reports every price change so its trail can be
+ * re-evaluated. Only those two reactions live here; all the registry bookkeeping is
+ * {@link WatchRegistry}'s, held once per trade type.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class TradeWatchdog {
 
-    private final Cache<String, List<ActiveTrade>> tradeWatchCache = new Cache<>();
-    private final Cache<String, List<ActiveMtfTrade>> mtfTradeWatchCache = new Cache<>();
+    private final WatchRegistry<ActiveTrade> targetWatches =
+            new WatchRegistry<>(ActiveTrade::getToken, ActiveTrade::getStrategyOrderId);
+    private final WatchRegistry<ActiveMtfTrade> mtfWatches =
+            new WatchRegistry<>(trade -> trade.getOrder().getMargin().getToken(),
+                    trade -> trade.getOrder().getId());
     private final ApplicationEventPublisher applicationEventPublisher;
-    private final Striped<Lock> tokenLocks = Striped.lock(8192);
-    private final Striped<Lock> mtfTokenLocks = Striped.lock(8192);
-    private final Set<String> triggeredTrades = ConcurrentHashMap.newKeySet();
-    private final Set<String> triggeredMtfTrades = ConcurrentHashMap.newKeySet();
 
-    private static int countTrades(Cache<String, ? extends List<?>> cache) {
-        int count = 0;
-        for (String key : cache.getActiveKeys()) {
-            List<?> trades = cache.get(key);
-            if (trades != null) {
-                count += trades.size();
-            }
-        }
-        return count;
-    }
+    // --- continuous trades: fire once on reaching target ------------------
 
     public void watch(ActiveTrade trade) {
-        if (DateUtil.isSquareOffTimeReached())
+        if (!targetWatches.watch(trade)) {
             return;
-
-        Lock lock = tokenLocks.get(trade.getToken());
-        lock.lock();
-        try {
-            List<ActiveTrade> trades = tradeWatchCache.get(trade.getToken());
-            if (trades == null) {
-                trades = new CopyOnWriteArrayList<>();
-                trades.add(trade);
-                Duration ttl = DateUtil.getDurationUntilMarketClose();
-                tradeWatchCache.set(trade.getToken(), trades, ttl);
-            } else {
-                trades.add(trade);
-            }
-        } finally {
-            lock.unlock();
         }
-
         log.info("Watchdog: Added {} for user {}. Target: {}",
                 trade.getSymbol(), trade.getUserId(), trade.getTargetPrice());
     }
 
     public void unwatch(ActiveTrade trade) {
-        Lock lock = tokenLocks.get(trade.getToken());
-        lock.lock();
-        try {
-            List<ActiveTrade> trades = tradeWatchCache.get(trade.getToken());
-            if (CollectionUtils.isEmpty(trades)) return;
-            trades.remove(trade);
-        } finally {
-            lock.unlock();
-        }
+        targetWatches.unwatch(trade);
     }
 
     public void clearTrigger(ActiveTrade trade) {
-        triggeredTrades.remove(trade.getStrategyOrderId());
+        targetWatches.release(trade);
+    }
+
+    // --- MTF positions: report every price change -------------------------
+
+    public void watchMtfTrade(ActiveMtfTrade trade) {
+        if (!mtfWatches.watch(trade)) {
+            return;
+        }
+        log.info("Watchdog: Added {} for user {} for Mtf Trade: {}",
+                trade.getOrder().getMargin().getSymbol(), trade.getOrder().getUserId(), trade.getOrder().getId());
+    }
+
+    public void unwatchMtfTrade(ActiveMtfTrade trade) {
+        mtfWatches.unwatch(trade);
     }
 
     public void clearMtfTrigger(ActiveMtfTrade trade) {
-        triggeredMtfTrades.remove(trade.getOrder().getId());
+        mtfWatches.release(trade);
     }
 
-    public int getWatchedTokenCount() {
-        return tradeWatchCache.getActiveKeys().size();
-    }
-
-    public int getWatchedTradeCount() {
-        return countTrades(tradeWatchCache);
-    }
-
-    public int getMtfWatchedTokenCount() {
-        return mtfTradeWatchCache.getActiveKeys().size();
-    }
-
-    public int getMtfWatchedTradeCount() {
-        return countTrades(mtfTradeWatchCache);
-    }
-
-    public int getInFlightTriggerCount() {
-        return triggeredTrades.size();
-    }
-
-    public int getInFlightMtfTriggerCount() {
-        return triggeredMtfTrades.size();
-    }
+    // --- tick handling ----------------------------------------------------
 
     public void onTick(String token, double ltp) {
         if (ltp <= 0) {
@@ -124,37 +81,55 @@ public class TradeWatchdog {
     }
 
     private void checkTargetHits(String token, double ltp) {
-        List<ActiveTrade> trades = tradeWatchCache.get(token);
-        if (CollectionUtils.isEmpty(trades)) {
-            return;
-        }
-
-        for (ActiveTrade trade : trades) {
-            if (ltp >= trade.getTargetPrice() && triggeredTrades.add(trade.getStrategyOrderId())) {
+        for (ActiveTrade trade : targetWatches.watching(token)) {
+            if (ltp >= trade.getTargetPrice() && targetWatches.claim(trade)) {
                 applicationEventPublisher.publishEvent(new TradeCompletionEvent(trade.getUserId(), trade));
             }
         }
     }
 
     private void checkMtfTicks(String token, double ltp) {
-        List<ActiveMtfTrade> trades = mtfTradeWatchCache.get(token);
-        if (CollectionUtils.isEmpty(trades)) {
-            return;
-        }
+        for (ActiveMtfTrade trade : mtfWatches.watching(token)) {
+            if (ltp == trade.getPrevLtp()) {
+                continue;
+            }
 
-        for (ActiveMtfTrade trade : trades) {
-            if (ltp != trade.getPrevLtp()) {
-                if (ltp > trade.getPeakPrice()) {
-                    trade.setPeakPrice(ltp);
-                }
+            if (ltp > trade.getPeakPrice()) {
+                trade.setPeakPrice(ltp);
+            }
 
-                if (triggeredMtfTrades.add(trade.getOrder().getId())) {
-                    trade.setPrevLtp(ltp);
-                    trade.setLtp(ltp);
-                    applicationEventPublisher.publishEvent(new MtfTickEvent(trade, ltp, trade.getPeakPrice()));
-                }
+            if (mtfWatches.claim(trade)) {
+                trade.setPrevLtp(ltp);
+                trade.setLtp(ltp);
+                applicationEventPublisher.publishEvent(new MtfTickEvent(trade, ltp, trade.getPeakPrice()));
             }
         }
+    }
+
+    // --- monitoring -------------------------------------------------------
+
+    public int getWatchedTokenCount() {
+        return targetWatches.watchedTokenCount();
+    }
+
+    public int getWatchedTradeCount() {
+        return targetWatches.watchedTradeCount();
+    }
+
+    public int getMtfWatchedTokenCount() {
+        return mtfWatches.watchedTokenCount();
+    }
+
+    public int getMtfWatchedTradeCount() {
+        return mtfWatches.watchedTradeCount();
+    }
+
+    public int getInFlightTriggerCount() {
+        return targetWatches.inFlightCount();
+    }
+
+    public int getInFlightMtfTriggerCount() {
+        return mtfWatches.inFlightCount();
     }
 
     @Scheduled(fixedDelay = 1, timeUnit = TimeUnit.SECONDS)
@@ -163,55 +138,12 @@ public class TradeWatchdog {
             return;
         }
 
-        if (!tradeWatchCache.getActiveKeys().isEmpty()) {
+        if (targetWatches.purge()) {
             log.info("Market session over. Purging watchdog cache.");
-            tradeWatchCache.invalidateAll();
-            triggeredTrades.clear();
         }
 
-        if (!mtfTradeWatchCache.getActiveKeys().isEmpty()) {
+        if (mtfWatches.purge()) {
             log.info("Market session over. Purging mtf watchdog cache.");
-            mtfTradeWatchCache.invalidateAll();
-            triggeredMtfTrades.clear();
         }
     }
-
-    public void watchMtfTrade(ActiveMtfTrade trade) {
-        if (DateUtil.isSquareOffTimeReached())
-            return;
-
-        var token = trade.getOrder().getMargin().getToken();
-        Lock lock = mtfTokenLocks.get(token);
-        lock.lock();
-        try {
-            List<ActiveMtfTrade> trades = mtfTradeWatchCache.get(token);
-            if (trades == null) {
-                trades = new CopyOnWriteArrayList<>();
-                trades.add(trade);
-                Duration ttl = DateUtil.getDurationUntilMarketClose();
-                mtfTradeWatchCache.set(token, trades, ttl);
-            } else {
-                trades.add(trade);
-            }
-        } finally {
-            lock.unlock();
-        }
-
-        log.info("Watchdog: Added {} for user {} for Mtf Trade: {}",
-                trade.getOrder().getMargin().getSymbol(), trade.getOrder().getUserId(), trade.getOrder().getId());
-    }
-
-    public void unwatchMtfTrade(ActiveMtfTrade trade) {
-        var token = trade.getOrder().getMargin().getToken();
-        Lock lock = mtfTokenLocks.get(token);
-        lock.lock();
-        try {
-            List<ActiveMtfTrade> trades = mtfTradeWatchCache.get(token);
-            if (CollectionUtils.isEmpty(trades)) return;
-            trades.remove(trade);
-        } finally {
-            lock.unlock();
-        }
-    }
-
 }

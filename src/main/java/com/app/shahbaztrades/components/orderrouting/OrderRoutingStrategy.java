@@ -12,10 +12,6 @@ public interface OrderRoutingStrategy {
 
     TradeOrderResponse placeMTFStopLossOrder(Long userId, TradeOrderRequest request);
 
-    void updateMTFStopLossOrder(Long userId, TradeOrderRequest request);
-
-    void cancelOrder(Long userId, String orderId);
-
     void convertSLToMarket(Long userId, TradeOrderRequest request);
 
     TradeOrderResponse getOrderDetails(Long userId, String orderId);

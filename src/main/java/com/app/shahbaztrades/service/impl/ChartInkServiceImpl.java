@@ -37,8 +37,7 @@ public class ChartInkServiceImpl implements ChartInkService {
     private final StrategyService strategyService;
     private final ChartInkResultRedisRepo<List<StockMarginDto>> chartInkResultRedisRepo;
 
-    @Override
-    public void refreshTokens() {
+    private void refreshTokens() {
         String token = chartinkClient.fetchCsrfToken();
         if (StringUtils.isBlank(token)) {
             throw new NotFoundException("XSRF-TOKEN not found in Chartink cookies");

@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.components.trading.BrokerMarginPolicyFactory;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.UserDto;
@@ -8,27 +9,22 @@ import com.app.shahbaztrades.model.entity.Holdings;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.repo.HoldingsRepo;
 import com.app.shahbaztrades.repo.redis.HoldingsDataRedisRepo;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.service.MarketDataQuery;
 import com.app.shahbaztrades.service.HoldingsService;
 import com.app.shahbaztrades.service.MarginService;
 import com.app.shahbaztrades.util.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
@@ -42,7 +38,8 @@ public class HoldingsServiceImpl implements HoldingsService {
     private final HoldingsRepo holdingsRepo;
     private final MarginService marginService;
     private final MongoTemplate mongoTemplate;
-    private final AngelOneService angelOneService;
+    private final MarketDataQuery marketDataQuery;
+    private final BrokerMarginPolicyFactory brokerMarginPolicyFactory;
     private final HoldingsDataRedisRepo<Holdings> holdingsDataRedisRepo;
 
     @Override
@@ -79,7 +76,7 @@ public class HoldingsServiceImpl implements HoldingsService {
         holdingInfo.getHoldingDetails().addAll(holdingDetails);
 
         holdingsRepo.save(holdings);
-        holdingsDataRedisRepo.delete(String.valueOf(userDto.getUserId()));
+        invalidateCache(userDto.getUserId());
 
         return true;
     }
@@ -97,7 +94,7 @@ public class HoldingsServiceImpl implements HoldingsService {
 
         var result = mongoTemplate.updateFirst(query, update, Holdings.class);
         if (result.getModifiedCount() > 0) {
-            holdingsDataRedisRepo.delete(String.valueOf(userDto.getUserId()));
+            invalidateCache(userDto.getUserId());
             return true;
         }
 
@@ -136,7 +133,7 @@ public class HoldingsServiceImpl implements HoldingsService {
         holdingDetail.setBuyDate(detail.getBuyDate());
 
         holdingsRepo.save(holdings);
-        holdingsDataRedisRepo.delete(String.valueOf(userDto.getUserId()));
+        invalidateCache(userDto.getUserId());
         return true;
     }
 
@@ -163,83 +160,12 @@ public class HoldingsServiceImpl implements HoldingsService {
         }
 
         holdingsRepo.save(holdings);
-        holdingsDataRedisRepo.delete(String.valueOf(userDto.getUserId()));
+        invalidateCache(userDto.getUserId());
         return true;
     }
 
-    @Override
-    @Async("taskExecutor")
-    public void updatePortfolio() {
-        var zerodhaField = Holdings.Fields.brokerHoldingMap + Constants.DOT + BrokerType.ZERODHA.name();
-
-        // Only load users who actually hold Zerodha positions, instead of the whole collection.
-        var holdings = mongoTemplate.find(new Query(Criteria.where(zerodhaField).exists(true)), Holdings.class);
-        if (CollectionUtils.isEmpty(holdings)) {
-            return;
-        }
-
-        Map<String, Double> ltpMap = new HashMap<>();
-        var keys = new ArrayList<String>(holdings.size());
-        var bulkOps = mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, Holdings.class);
-        boolean hasUpdates = false;
-
-        for (var info : holdings) {
-            var zerodhaHoldings = info.getBrokerHoldingMap().get(BrokerType.ZERODHA);
-            if (CollectionUtils.isEmpty(zerodhaHoldings)) {
-                continue;
-            }
-
-            processZerodhaHoldings(zerodhaHoldings, ltpMap);
-
-            // Update only the Zerodha sub-array for this user, not the entire document.
-            bulkOps.updateOne(
-                    new Query(Criteria.where(Constants.MONGO_ID).is(info.getUserId())),
-                    new Update().set(zerodhaField, zerodhaHoldings));
-            hasUpdates = true;
-            keys.add(String.valueOf(info.getUserId()));
-        }
-
-        if (hasUpdates) {
-            bulkOps.execute();
-            holdingsDataRedisRepo.deleteAll(keys);
-        }
-    }
-
-    private void processZerodhaHoldings(List<Holdings.HoldingInfo> zerodhaHoldings, Map<String, Double> ltpMap) {
-        for (var det : zerodhaHoldings) {
-            var margin = marginService.getMarginCache().get(det.getSymbol());
-            if (margin == null) {
-                continue;
-            }
-
-            det.setMargin(margin.getRequiredMargin().floatValue());
-            updateLtpForHolding(det, margin.getToken(), ltpMap);
-        }
-    }
-
-    private void updateLtpForHolding(Holdings.HoldingInfo det, String token, Map<String, Double> ltpMap) {
-        Double ltp = ltpMap.get(det.getSymbol());
-        if (ltp == null) {
-            ltp = fetchLtpFromAngelOne(det.getSymbol(), token);
-            if (ltp == null || ltp <= 0) {
-                ltpMap.put(det.getSymbol(), 0d);
-                return;
-            }
-        }
-
-        if (ltp > 0) {
-            det.setLtp(BigDecimal.valueOf(ltp));
-            ltpMap.put(det.getSymbol(), ltp);
-        }
-    }
-
-    private Double fetchLtpFromAngelOne(String symbol, String token) {
-        try {
-            return angelOneService.getMarketTicker(token).getLtp();
-        } catch (Exception e) {
-            log.error("Error while getting ltp for symbol {}", symbol, e);
-            return null;
-        }
+    private void invalidateCache(long userId) {
+        holdingsDataRedisRepo.delete(String.valueOf(userId));
     }
 
     private Holdings findHoldingsById(long userId) {
@@ -274,28 +200,31 @@ public class HoldingsServiceImpl implements HoldingsService {
         return holdingInfos.stream()
                 .filter(info -> info.getSymbol().equals(symbol))
                 .findFirst()
-                .orElseGet(() -> createHoldingInfo(
-                        holdingInfos,
-                        symbol
-                ));
+                .orElseGet(() -> createHoldingInfo(holdingInfos, brokerType, symbol));
     }
 
     private Holdings.HoldingInfo createHoldingInfo(
             List<Holdings.HoldingInfo> holdingInfos,
+            BrokerType brokerType,
             String symbol) {
 
         var margin = marginService.getMarginCache().get(symbol);
+        if (margin == null) {
+            throw new NotFoundException("Margin not found for " + symbol);
+        }
 
         double ltp = 0;
         try {
-            ltp = angelOneService.getMarketTicker(margin.getToken()).getLtp();
+            ltp = marketDataQuery.getMarketTicker(margin.getToken()).getLtp();
         } catch (Exception e) {
             log.error("Error while getting ltp for symbol {}", symbol, e);
         }
 
+        var leverage = brokerMarginPolicyFactory.getPolicy(brokerType).leverageFor(margin);
+
         var holdingInfo = Holdings.HoldingInfo.builder()
                 .symbol(symbol)
-                .margin(margin.getRequiredMargin().floatValue())
+                .margin(leverage == null ? 0f : leverage.floatValue())
                 .ltp(BigDecimal.valueOf(ltp))
                 .build();
 

@@ -4,6 +4,7 @@ import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.service.MarginService;
+import com.app.shahbaztrades.service.MarginSyncService;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -22,6 +23,7 @@ import java.util.Collection;
 public class MarginController {
 
     private final MarginService marginService;
+    private final MarginSyncService marginSyncService;
 
     @PublicEndpoint
     @GetMapping("/all")
@@ -46,14 +48,14 @@ public class MarginController {
     @PostMapping(value = "/json", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<Void>> syncMtf(@RequestParam("file") MultipartFile file) throws IOException {
         byte[] bytes = file.getBytes();
-        marginService.syncMTF(bytes);
+        marginSyncService.syncMTF(bytes);
         return ResponseEntity.ok(ApiResponse.ok(null, "MTF data synced successfully"));
     }
 
     @PublicEndpoint
     @PostMapping("/sync-token")
     public ResponseEntity<ApiResponse<Void>> syncAngelOneToken() {
-        marginService.syncAngelOneToken();
+        marginSyncService.syncAngelOneToken();
         return ResponseEntity.ok(ApiResponse.ok(null, "Angel one token synced successfully"));
     }
 

@@ -3,6 +3,7 @@ package com.app.shahbaztrades.controller;
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.order.OrderDto;
+import com.app.shahbaztrades.service.MtfTradeEngine;
 import com.app.shahbaztrades.service.OrderService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -22,6 +23,7 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final MtfTradeEngine mtfTradeEngine;
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<OrderDto>> getOrderById(@PathVariable @NotBlank String id) {
@@ -61,21 +63,21 @@ public class OrderController {
     @PublicEndpoint
     @PostMapping("/initiate-mtf")
     public ResponseEntity<ApiResponse<Void>> initiateMtfOrders() {
-        orderService.initiateMtfOrders();
+        mtfTradeEngine.initiateMtfOrders();
         return new ResponseEntity<>(ApiResponse.ok(null, "Orders initiated successfully"), HttpStatus.OK);
     }
 
     @PublicEndpoint
     @PostMapping("/update-status")
     public ResponseEntity<ApiResponse<Void>> updateOrderStatus() {
-        orderService.updateMtfOrderStatus();
+        mtfTradeEngine.updateMtfOrderStatus();
         return ResponseEntity.ok(ApiResponse.ok(null, "Order status update triggered"));
     }
 
     @PublicEndpoint
     @PostMapping("/start-trading")
     public ResponseEntity<ApiResponse<Void>> startTrading() {
-        orderService.startTrading();
+        mtfTradeEngine.startTrading();
         return ResponseEntity.ok(ApiResponse.ok(null, "Trading started successfully"));
     }
 

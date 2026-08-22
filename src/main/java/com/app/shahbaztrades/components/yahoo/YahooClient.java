@@ -1,11 +1,11 @@
 package com.app.shahbaztrades.components.yahoo;
 
+import com.app.shahbaztrades.util.HttpUtil;
 import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
 import com.app.shahbaztrades.model.dto.yahoo.YahooChartResponse;
 import com.app.shahbaztrades.model.enums.YahooTimeRange;
 import com.app.shahbaztrades.repo.redis.YahooMonthlyHistoricalDataRepo;
 import com.app.shahbaztrades.util.DateUtil;
-import com.app.shahbaztrades.util.HelperUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -32,7 +32,7 @@ public class YahooClient {
         this.yahooMonthlyHistoricalDataRepo = yahooMonthlyHistoricalDataRepo;
         this.restClient = RestClient.builder()
                 .baseUrl(BASE_URL)
-                .requestFactory(HelperUtil.requestFactory(Duration.ofSeconds(15)))
+                .requestFactory(HttpUtil.requestFactory(Duration.ofSeconds(15)))
                 .defaultHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36")
                 .defaultHeader("Accept", MediaType.APPLICATION_JSON_VALUE)
                 .build();

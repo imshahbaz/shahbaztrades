@@ -7,6 +7,7 @@ import com.app.shahbaztrades.model.dto.auth.AuthCallbackResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthCookieResponse;
 import com.app.shahbaztrades.model.dto.auth.AuthRequest;
 import com.app.shahbaztrades.service.AuthService;
+import com.app.shahbaztrades.service.GoogleAuthService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final GoogleAuthService googleAuthService;
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout() {
@@ -40,7 +42,7 @@ public class AuthController {
     @PublicEndpoint
     @PostMapping("/google/token")
     public ResponseEntity<ApiResponse<String>> validateGoogleToken(@RequestParam @NotBlank String code, @RequestHeader(required = false) boolean nativeFlow) {
-        AuthCookieResponse<String> result = authService.validateGoogleToken(code, nativeFlow);
+        AuthCookieResponse<String> result = googleAuthService.validateGoogleToken(code, nativeFlow);
         ResponseEntity.BodyBuilder builder = ResponseEntity.ok();
         if (result.cookie() != null) {
             builder.header(HttpHeaders.SET_COOKIE, result.cookie());
@@ -51,7 +53,7 @@ public class AuthController {
     @PublicEndpoint
     @GetMapping("/google/callback")
     public ResponseEntity<?> getGoogleCallback(@RequestParam @NotBlank String code, @RequestParam @NotBlank String state) {
-        AuthCallbackResponse result = authService.googleAuthCallback(code, state);
+        AuthCallbackResponse result = googleAuthService.googleAuthCallback(code, state);
         if (result.isRedirect()) {
             return ResponseEntity.status(HttpStatus.TEMPORARY_REDIRECT)
                     .header(HttpHeaders.LOCATION, result.redirectUrl())

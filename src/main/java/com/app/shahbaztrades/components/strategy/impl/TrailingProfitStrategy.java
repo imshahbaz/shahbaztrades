@@ -1,16 +1,16 @@
 package com.app.shahbaztrades.components.strategy.impl;
 
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
+import com.app.shahbaztrades.components.analysis.TechnicalMetricsProvider;
 import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
 import com.app.shahbaztrades.components.strategy.AbstractDailyTradingStrategy;
-import com.app.shahbaztrades.components.yahoo.YahooClient;
+import com.app.shahbaztrades.components.trading.TradeNotifier;
 import com.app.shahbaztrades.model.dto.order.ActiveMtfTrade;
 import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.ExchangeType;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.repo.OrderProgressRepository;
+import com.app.shahbaztrades.service.MarketFeed;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -21,10 +21,10 @@ public class TrailingProfitStrategy extends AbstractDailyTradingStrategy {
 
     private final TradeWatchdog tradeWatchdog;
 
-    protected TrailingProfitStrategy(MongoTemplate mongoTemplate, YahooClient yahooClient,
-                                     ApplicationEventPublisher eventPublisher, OrderRouterFactory orderRouterFactory,
-                                     AngelOneService angelOneService, TradeWatchdog tradeWatchdog) {
-        super(mongoTemplate, eventPublisher, orderRouterFactory, yahooClient, angelOneService);
+    protected TrailingProfitStrategy(OrderProgressRepository orderProgressRepository, TradeNotifier tradeNotifier,
+                                     OrderRouterFactory orderRouterFactory, MarketFeed marketFeed,
+                                     TechnicalMetricsProvider technicalMetricsProvider, TradeWatchdog tradeWatchdog) {
+        super(orderProgressRepository, tradeNotifier, orderRouterFactory, marketFeed, technicalMetricsProvider);
         this.tradeWatchdog = tradeWatchdog;
     }
 
@@ -41,7 +41,7 @@ public class TrailingProfitStrategy extends AbstractDailyTradingStrategy {
         }
 
         try {
-            angelOneService.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
+            marketFeed.subscribe(order.getMargin().getToken(), ExchangeType.NSE.getValue());
         } catch (Exception _) {
             log.error("WS Subscription failed for {}", order.getSymbol());
             return;

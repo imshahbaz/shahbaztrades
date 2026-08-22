@@ -1,12 +1,12 @@
 package com.app.shahbaztrades.controller;
 
-import com.app.shahbaztrades.components.helper.MarketDataContainer;
+import com.app.shahbaztrades.components.marketdata.BarSeriesStore;
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
 import com.app.shahbaztrades.service.MarginService;
-import com.app.shahbaztrades.service.impl.StrategyRegistry;
+import com.app.shahbaztrades.components.strategy.StrategyRegistry;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +24,7 @@ public class MarketDataController {
 
     private final StrategyRegistry strategyRegistry;
     private final MarginService marginService;
-    private final MarketDataContainer marketDataContainer;
+    private final BarSeriesStore barSeriesStore;
 
     @PublicEndpoint
     @GetMapping("/bar-series/{symbol}")
@@ -34,7 +34,7 @@ public class MarketDataController {
             throw new NotFoundException("Bar Series Not Found");
         }
 
-        var response = marketDataContainer.snapshotSeries(margin.getToken()).getBarData().stream()
+        var response = barSeriesStore.snapshot(margin.getToken()).getBarData().stream()
                 .map(bar -> SmartApiLtpResponse.CandleDetail.builder().timestamp(bar.getSystemZonedBeginTime())
                         .open(bar.getOpenPrice().doubleValue())
                         .high(bar.getHighPrice().doubleValue())

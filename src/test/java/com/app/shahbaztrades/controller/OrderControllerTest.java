@@ -4,6 +4,7 @@ import com.app.shahbaztrades.exceptions.GlobalExceptionHandler;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.order.OrderDto;
 import com.app.shahbaztrades.model.enums.BrokerType;
+import com.app.shahbaztrades.service.MtfTradeEngine;
 import com.app.shahbaztrades.service.OrderService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -37,6 +38,8 @@ class OrderControllerTest {
 
     @Mock
     private OrderService orderService;
+    @Mock
+    private MtfTradeEngine mtfTradeEngine;
     @InjectMocks
     private OrderController controller;
 
@@ -168,8 +171,8 @@ class OrderControllerTest {
         mockMvc.perform(post("/api/order/update-status")).andExpect(status().isOk());
         mockMvc.perform(post("/api/order/start-trading")).andExpect(status().isOk());
 
-        verify(orderService).initiateMtfOrders();
-        verify(orderService).updateMtfOrderStatus();
-        verify(orderService).startTrading();
+        verify(mtfTradeEngine).initiateMtfOrders();
+        verify(mtfTradeEngine).updateMtfOrderStatus();
+        verify(mtfTradeEngine).startTrading();
     }
 }
