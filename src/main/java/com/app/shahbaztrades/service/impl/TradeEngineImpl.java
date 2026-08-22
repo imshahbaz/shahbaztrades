@@ -2,28 +2,19 @@ package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.helper.PollingHelper;
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
-import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
+import com.app.shahbaztrades.components.trading.ContinuousTradeExecutor;
+import com.app.shahbaztrades.components.trading.TradeCandidateSelector;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkBacktestMarginDto;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkSignalEvent;
-import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
-import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
-import com.app.shahbaztrades.model.dto.strategy.ActiveTrade;
-import com.app.shahbaztrades.model.dto.strategy.TargetStockResult;
 import com.app.shahbaztrades.model.dto.strategy.TradeCompletionEvent;
-import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.StrategyOrder;
-import com.app.shahbaztrades.model.enums.BrokerType;
-import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.model.enums.OrderStatus;
-import com.app.shahbaztrades.model.dto.angelone.websocket.Ltp;
-import com.app.shahbaztrades.service.MarketFeed;
 import com.app.shahbaztrades.service.StrategyOrderService;
 import com.app.shahbaztrades.service.StrategyService;
 import com.app.shahbaztrades.service.TradeEngine;
 import com.app.shahbaztrades.util.Cache;
 import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.HelperUtil;
-import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -32,27 +23,38 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.*;
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+/**
+ * Drives continuous trading: buckets the day's orders by strategy, matches incoming ChartInk
+ * signals to them, and holds the in-flight guard that stops one order being traded twice.
+ * <p>
+ * Choosing what to buy is {@link TradeCandidateSelector}'s job; placing and settling it is
+ * {@link ContinuousTradeExecutor}'s.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class TradeEngineImpl implements TradeEngine {
 
-    private static final int LTP_POLL_ATTEMPTS = 10;
-    private static final long LTP_POLL_INTERVAL_MS = 100;
+    /** A signal is only actionable between these offsets from its own market time. */
+    private static final int SIGNAL_WINDOW_OPEN_MINUTES = 15;
+    private static final int SIGNAL_WINDOW_CLOSE_MINUTES = 23;
+
+    /** Orders currently being traded, keyed by strategy-order id. Guards against duplicate signals. */
     private final Cache<String, Boolean> activeOrders = new Cache<>();
     private final Cache<String, List<StrategyOrder>> strategyOrders = new Cache<>();
     private final StrategyOrderService strategyOrderService;
     private final StrategyService strategyService;
     private final ApplicationEventPublisher eventPublisher;
-    private final MarketFeed marketFeed;
     private final TradeWatchdog tradeWatchdog;
-    private final OrderRouterFactory orderRouterFactory;
     private final PollingHelper pollingHelper;
+    private final TradeCandidateSelector tradeCandidateSelector;
+    private final ContinuousTradeExecutor continuousTradeExecutor;
 
     @Override
     public void continuousTrade() {
@@ -67,7 +69,6 @@ public class TradeEngineImpl implements TradeEngine {
         for (var order : orders) {
             processStrategyOrder(order, processedStrategies);
         }
-
     }
 
     private void processStrategyOrder(StrategyOrder order, Set<String> processedStrategies) {
@@ -85,22 +86,18 @@ public class TradeEngineImpl implements TradeEngine {
         var list = strategyOrders.get(strategyName);
         if (list == null) {
             list = new CopyOnWriteArrayList<>();
-            list.add(order);
-        } else {
-            list.add(order);
         }
+        list.add(order);
 
         strategyOrders.set(strategyName, list, DateUtil.getDurationUntilMarketClose());
 
         order.setOrderStatus(OrderStatus.COMPLETED);
         eventPublisher.publishEvent(order);
 
-        if (processedStrategies.contains(strategyName)) {
-            return;
+        // One poller per strategy, however many orders subscribe to it.
+        if (processedStrategies.add(strategyName)) {
+            HelperUtil.EXECUTOR.execute(() -> pollingHelper.runPollerTask(strategyName, false));
         }
-
-        processedStrategies.add(strategyName);
-        HelperUtil.EXECUTOR.execute(() -> pollingHelper.runPollerTask(strategyName, false));
     }
 
     @EventListener
@@ -112,214 +109,60 @@ public class TradeEngineImpl implements TradeEngine {
         }
 
         var now = DateUtil.getCurrentDateTime();
-        ChartInkBacktestMarginDto matched = null;
-        for (int i = event.signals().size() - 1; i >= 0; i--) {
-            var signal = event.signals().get(i);
-            if (now.isAfter(signal.getMarketTime().plusMinutes(15)) && now.isBefore(signal.getMarketTime().plusMinutes(23))) {
-                matched = signal;
-                break;
-            }
-        }
-
+        var matched = mostRecentActionableSignal(event, now);
         if (matched == null || CollectionUtils.isEmpty(matched.getMargins())) {
             log.info("No signal found for strategy {} at {}", event.strategyName(), now);
             return;
         }
 
-        final ChartInkBacktestMarginDto finalSignal = matched;
         for (var order : list) {
-            HelperUtil.EXECUTOR.execute(() -> processSignalForOrder(order, finalSignal));
+            HelperUtil.EXECUTOR.execute(() -> processSignalForOrder(order, matched));
         }
+    }
+
+    /** Scans newest first: an older signal is only used when nothing fresher is in the window. */
+    private ChartInkBacktestMarginDto mostRecentActionableSignal(ChartInkSignalEvent event, LocalDateTime now) {
+        for (int i = event.signals().size() - 1; i >= 0; i--) {
+            var signal = event.signals().get(i);
+            if (now.isAfter(signal.getMarketTime().plusMinutes(SIGNAL_WINDOW_OPEN_MINUTES))
+                    && now.isBefore(signal.getMarketTime().plusMinutes(SIGNAL_WINDOW_CLOSE_MINUTES))) {
+                return signal;
+            }
+        }
+        return null;
     }
 
     private void processSignalForOrder(StrategyOrder order, ChartInkBacktestMarginDto signal) {
         Boolean active = activeOrders.get(order.getId());
-        if (active != null && active)
+        if (active != null && active) {
             return;
+        }
 
-        var targetStock = findTargetStock(signal, order.getAmount(), order.getBroker());
-        if (targetStock == null)
+        var targetStock = tradeCandidateSelector.select(signal, order.getAmount(), order.getBroker());
+        if (targetStock == null) {
             return;
+        }
 
+        // Sizing can take a second, so the real claim happens here, not at the check above.
         if (!activeOrders.setIfAbsent(order.getId(), Boolean.TRUE, DateUtil.getDurationUntilMarketClose())) {
             log.info("Order {} already being processed, skipping duplicate signal", order.getId());
             return;
         }
 
-        boolean entryPlaced = punchSingleTrade(targetStock.margin(), targetStock.qty(), order.getUserId(), order);
-        if (!entryPlaced) {
+        if (!continuousTradeExecutor.openTrade(order, targetStock.margin(), targetStock.qty())) {
             activeOrders.remove(order.getId());
-        }
-    }
-
-    private TargetStockResult findTargetStock(ChartInkBacktestMarginDto signal, BigDecimal orderAmount, BrokerType brokerType) {
-        try {
-            List<Margin> targetList;
-            if (brokerType.equals(BrokerType.ZERODHA) || signal.getMargins().size() <= 1) {
-                targetList = signal.getMargins();
-            } else {
-                targetList = signal.getMargins().stream().sorted(Comparator.comparing(Margin::getRupeezyMargin).reversed())
-                        .toList();
-            }
-
-            for (var margin : targetList) {
-                var target = processTargetMargin(margin, orderAmount, brokerType);
-                if (target != null) {
-                    return target;
-                }
-            }
-        } catch (InterruptedException e) {
-            log.error("Interrupted processing signal", e);
-            Thread.currentThread().interrupt();
-        } catch (Exception e) {
-            log.error("Error processing signal", e);
-        }
-
-        return null;
-    }
-
-    private TargetStockResult processTargetMargin(Margin target, BigDecimal orderAmount, BrokerType brokerType) throws Exception {
-        Double ltp = resolveLtp(target.getToken());
-        if (ltp == null) {
-            return null;
-        }
-
-        BigDecimal requiredMargin = brokerType.equals(BrokerType.RUPEEZY) ? target.getRupeezyMargin() : target.getRequiredMargin();
-        if (requiredMargin == null || requiredMargin.signum() <= 0) {
-            return null;
-        }
-
-        int quantity = orderAmount.divide(BigDecimal.valueOf(ltp), 8, RoundingMode.HALF_UP)
-                .multiply(requiredMargin)
-                .setScale(0, RoundingMode.DOWN)
-                .intValue();
-
-        if (quantity > 0) {
-            return new TargetStockResult(target, quantity);
-        }
-
-        return null;
-    }
-
-    /** @return the live price, or null if the feed is down or the token never ticked. */
-    private Double resolveLtp(String token) throws InterruptedException {
-        return switch (marketFeed.getLtp(token)) {
-            case Ltp.Price(double value) -> value;
-            case Ltp.FeedDown _ -> null;
-            case Ltp.NotSubscribed _ -> {
-                marketFeed.subscribe(token, ExchangeType.NSE.getValue());
-                yield awaitLtp(token);
-            }
-        };
-    }
-
-    private Double awaitLtp(String token) throws InterruptedException {
-        for (int attempt = 0; attempt <= LTP_POLL_ATTEMPTS; attempt++) {
-            switch (marketFeed.getLtp(token)) {
-                case Ltp.Price(double value) -> {
-                    return value;
-                }
-                // The socket died mid-wait; further polling cannot succeed.
-                case Ltp.FeedDown _ -> {
-                    return null;
-                }
-                case Ltp.NotSubscribed _ -> {
-                    if (attempt < LTP_POLL_ATTEMPTS) {
-                        Thread.sleep(LTP_POLL_INTERVAL_MS);
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    private boolean punchSingleTrade(Margin targetStock, int qty, long userId, StrategyOrder order) {
-        log.info("Initiating trade for User: {} | Symbol: {} | Qty: {}", userId, targetStock.getSymbol(), qty);
-
-        boolean entryPlaced = false;
-        try {
-            var orderRouter = orderRouterFactory.getRouter(order.getBroker());
-
-            var req = TradeOrderRequest.builder().symbol(targetStock.getSymbol()).quantity(qty)
-                    .transactionType(Constants.TRANSACTION_TYPE_BUY).orderType(Constants.ORDER_TYPE_MARKET).build();
-
-            var orderResp = orderRouter.placeMTFOrder(order.getUserId(), req);
-            entryPlaced = true;
-
-            HelperUtil.pollWait(1000);
-
-            var orderDetails = orderRouter.getOrderDetails(order.getUserId(), orderResp.getOrderId());
-            double entryPrice = orderDetails.getAveragePrice().doubleValue();
-            double targetPrice = HelperUtil.dynamicTargetPrice(order.getAmount(), orderDetails.getAveragePrice(), qty);
-
-            log.info("Entry Executed at: {} | Target Set at: {}", entryPrice, targetPrice);
-
-            req = TradeOrderRequest.builder().symbol(targetStock.getSymbol()).quantity(qty).price(targetPrice)
-                    .transactionType(Constants.TRANSACTION_TYPE_SELL).orderType(Constants.ORDER_TYPE_LIMIT).build();
-
-            var exitResp = orderRouter.placeMTFOrder(order.getUserId(), req);
-
-            tradeWatchdog.watch(ActiveTrade.builder()
-                    .userId(userId)
-                    .strategyOrderId(order.getId())
-                    .symbol(targetStock.getSymbol())
-                    .token(targetStock.getToken())
-                    .quantity(qty)
-                    .entryPrice(entryPrice)
-                    .targetPrice(targetPrice)
-                    .exitOrderId(exitResp.getOrderId())
-                    .broker(order.getBroker())
-                    .build());
-
-            eventPublisher.publishEvent(new NotificationRequest(
-                    userId,
-                    com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_BUY,
-                    String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_BUY, qty, targetStock.getSymbol(), entryPrice),
-                    Collections.emptyMap()
-            ));
-
-            return true;
-
-        } catch (Exception e) {
-            log.error("Error in punchSingleTrade for {}", targetStock.getSymbol(), e);
-            if (entryPlaced) {
-                log.error("ORPHANED POSITION: entry placed for user {} symbol {} qty {} but exit/monitoring setup failed",
-                        userId, targetStock.getSymbol(), qty);
-
-                eventPublisher.publishEvent(new NotificationRequest(
-                        userId,
-                        com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_BUY,
-                        String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_ORPHANED_POSITION,
-                                qty, targetStock.getSymbol()),
-                        Collections.emptyMap()
-                ));
-            }
-
-            return entryPlaced;
         }
     }
 
     @EventListener
     @Async("taskExecutor")
-    public void tradeCompletionListener(TradeCompletionEvent event) throws Exception {
+    public void tradeCompletionListener(TradeCompletionEvent event) {
         try {
-            var orderRouter = orderRouterFactory.getRouter(event.trade().getBroker());
-            var det = orderRouter.getOrderDetails(event.userId(), event.trade().getExitOrderId());
-            if (det.getPendingQuantity() == 0) {
-                log.info("Exit order filled for {}", event.trade().getSymbol());
-                tradeWatchdog.unwatch(event.trade());
+            if (continuousTradeExecutor.closeIfFilled(event)) {
                 activeOrders.remove(event.trade().getStrategyOrderId());
-                eventPublisher.publishEvent(new NotificationRequest(
-                        event.userId(),
-                        com.app.shahbaztrades.util.Constants.NOTIFICATION_TITLE_SELL,
-                        String.format(com.app.shahbaztrades.util.Constants.NOTIFICATION_MESSAGE_SELL, event.trade().getQuantity(),
-                                event.trade().getSymbol(), event.trade().getTargetPrice()),
-                        Collections.emptyMap()
-                ));
             }
         } finally {
             tradeWatchdog.clearTrigger(event.trade());
         }
     }
-
 }
