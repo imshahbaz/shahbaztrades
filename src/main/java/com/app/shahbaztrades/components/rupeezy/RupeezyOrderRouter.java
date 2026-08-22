@@ -64,13 +64,7 @@ public class RupeezyOrderRouter implements OrderRoutingStrategy {
         return placeOrder(req, cache);
     }
 
-    @Override
-    public void updateMTFStopLossOrder(Long userId, TradeOrderRequest request) {
-        throw new UnsupportedOperationException("Not supported yet");
-    }
-
-    @Override
-    public void cancelOrder(Long userId, String orderId) {
+    private void cancelOrder(Long userId, String orderId) {
         var cache = getTokenCache(userId);
         RupeezyOrderResponseDto res;
         try {

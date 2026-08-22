@@ -112,24 +112,6 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
     }
 
     @Override
-    public void updateMTFStopLossOrder(Long userId, TradeOrderRequest request) {
-        OrderParams modParams = new OrderParams();
-        modParams.price = request.getPrice();
-        modParams.triggerPrice = request.getTriggerPrice();
-
-        withKiteClient(userId,
-                "Failed to update MTF stop-loss order for order " + request.getOrderId() + " price " + request.getPrice() + " triggerPrice " + request.getTriggerPrice(),
-                kc -> kc.modifyOrder(request.getOrderId(), modParams, getVariety()));
-    }
-
-    @Override
-    public void cancelOrder(Long userId, String orderId) {
-        withKiteClient(userId,
-                "Failed to cancel order " + orderId,
-                kc -> kc.cancelOrder(orderId, getVariety()));
-    }
-
-    @Override
     public void convertSLToMarket(Long userId, TradeOrderRequest request) {
         OrderParams params = new OrderParams();
         params.orderType = Constants.ORDER_TYPE_MARKET;
