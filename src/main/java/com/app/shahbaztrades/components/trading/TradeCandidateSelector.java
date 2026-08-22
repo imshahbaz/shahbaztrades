@@ -35,12 +35,7 @@ public class TradeCandidateSelector {
         try {
             var policy = brokerMarginPolicyFactory.getPolicy(brokerType);
 
-            var candidates = signal.getMargins();
-            if (candidates.size() > 1) {
-                candidates = policy.rankCandidates(candidates);
-            }
-
-            for (var margin : candidates) {
+            for (var margin : policy.rankCandidates(signal.getMargins())) {
                 var target = size(margin, orderAmount, policy);
                 if (target != null) {
                     return target;

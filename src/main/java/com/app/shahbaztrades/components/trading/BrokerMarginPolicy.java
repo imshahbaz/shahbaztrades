@@ -18,6 +18,9 @@ public interface BrokerMarginPolicy {
     /** The leverage multiplier this broker grants on the stock, or null when it will not fund it. */
     BigDecimal leverageFor(Margin margin);
 
-    /** Orders candidates by preference. Called only when there is more than one candidate. */
+    /**
+     * Orders candidates by preference, most preferred first. Must tolerate candidates the broker
+     * will not fund rather than throwing, since the caller treats any exception as "no trade".
+     */
     List<Margin> rankCandidates(List<Margin> candidates);
 }
