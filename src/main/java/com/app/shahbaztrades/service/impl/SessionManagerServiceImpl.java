@@ -29,7 +29,7 @@ import java.util.concurrent.ExecutionException;
 public class SessionManagerServiceImpl implements SessionManagerService {
 
     private final OrderService orderService;
-    private final ZerodhaService zerodhaService;
+    private final ZerodhaAutoLoginService zerodhaAutoLoginService;
     private final StrategyOrderService strategyOrderService;
     private final StringRedisTemplate stringRedisTemplate;
     private final UserService userService;
@@ -86,7 +86,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
                 .data(Collections.emptyMap())
                 .build()));
 
-        zerodhaService.autoLogin(userIds);
+        zerodhaAutoLoginService.autoLogin(userIds);
     }
 
     @Override
@@ -101,7 +101,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
             throw new ResourceAlreadyExistsException("Request already exists");
         }
 
-        zerodhaService.autoConnectZerodhaSession(userService.findByUserIdOrEmailOrMobile(userDto.getUserId(), "", 0L));
+        zerodhaAutoLoginService.autoConnectZerodhaSession(userService.findByUserIdOrEmailOrMobile(userDto.getUserId(), "", 0L));
         return true;
     }
 }

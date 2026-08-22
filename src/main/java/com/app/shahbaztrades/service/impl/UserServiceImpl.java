@@ -148,4 +148,11 @@ public class UserServiceImpl implements UserService {
         return userRepo.findAllById(userIds);
     }
 
+    @Override
+    public boolean updateZerodhaConfig(long userId, User.ZerodhaConfig config) {
+        Query query = new Query(Criteria.where(User.Fields.userId).is(userId));
+        Update update = new Update().set(User.Fields.zerodhaConfig, config);
+        return mongoTemplate.updateFirst(query, update, User.class).getModifiedCount() > 0;
+    }
+
 }

@@ -5,7 +5,6 @@ import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.dto.order.TradeOrderResponse;
 import com.app.shahbaztrades.model.enums.BrokerType;
-import com.app.shahbaztrades.service.ZerodhaService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
@@ -29,7 +28,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ZerodhaOrderRouter implements OrderRoutingStrategy {
 
-    private final ZerodhaService zerodhaService;
+    private final ZerodhaClientFactory zerodhaClientFactory;
 
     private static final String ORDER_TAG = "Shahbaz Trades";
     private static final int NO_MARKET_PROTECTION = -1;
@@ -45,7 +44,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
 
     private <T> T withKiteClient(Long userId, String context, KiteCall<T> call) {
         try {
-            return call.execute(zerodhaService.getKiteClient(userId));
+            return call.execute(zerodhaClientFactory.forUser(userId));
         } catch (KiteException | IOException | JSONException e) {
             log.error("{} | userId {} | error {}", context, userId, e.getMessage());
             throw new IllegalStateException(context, e);

@@ -8,6 +8,7 @@ import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginResponseDTO;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.service.RupeezyService;
 import com.app.shahbaztrades.service.SessionManagerService;
+import com.app.shahbaztrades.service.ZerodhaAutoLoginService;
 import com.app.shahbaztrades.service.ZerodhaService;
 import com.app.shahbaztrades.util.Constants;
 import jakarta.validation.constraints.Min;
@@ -28,6 +29,7 @@ public class SessionManagerController {
 
     private final SessionManagerService sessionManagerService;
     private final ZerodhaService zerodhaService;
+    private final ZerodhaAutoLoginService zerodhaAutoLoginService;
     private final RupeezyService rupeezyService;
 
     @PublicEndpoint
@@ -46,7 +48,7 @@ public class SessionManagerController {
     @PostMapping("/zerodha-callback")
     public ResponseEntity<ApiResponse<Void>> sessionManagerCallback(@RequestBody ZerodhaLoginResponseDTO request, @RequestHeader @NotBlank String source) {
         Constants.validateSessionCallback(source);
-        zerodhaService.sessionManagerCallback(request);
+        zerodhaAutoLoginService.sessionManagerCallback(request);
         return ResponseEntity.ok(ApiResponse.ok(null, "Accepted request"));
     }
 

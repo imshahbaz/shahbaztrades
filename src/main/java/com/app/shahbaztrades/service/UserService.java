@@ -23,4 +23,7 @@ public interface UserService {
     UserTheme updateUserTheme(UserDto userDto);
 
     List<User> findByIds(Set<Long> userIds);
+
+    /** @return false when no such user exists. */
+    boolean updateZerodhaConfig(long userId, User.ZerodhaConfig config);
 }
