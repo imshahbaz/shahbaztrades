@@ -14,8 +14,4 @@ public interface MarginService {
     Collection<Margin> getAllMargins();
 
     Margin getMargin(String symbol);
-
-    void syncMTF(byte[] fileBytes);
-
-    void syncAngelOneToken();
 }

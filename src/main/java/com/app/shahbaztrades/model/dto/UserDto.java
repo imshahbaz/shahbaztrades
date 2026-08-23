@@ -1,9 +1,9 @@
 package com.app.shahbaztrades.model.dto;
 
+import com.app.shahbaztrades.util.AuthUtil;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.model.enums.UserRole;
 import com.app.shahbaztrades.model.enums.UserTheme;
-import com.app.shahbaztrades.util.HelperUtil;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -44,7 +44,7 @@ public class UserDto implements Serializable {
         if (this.email != null && !this.email.isEmpty()) {
             generatedUsername = this.email.split("@")[0].toLowerCase();
         } else if (this.name != null && !this.name.isEmpty()) {
-            int randomNum = HelperUtil.RANDOM.nextInt(10) + 1;
+            int randomNum = AuthUtil.RANDOM.nextInt(10) + 1;
             generatedUsername = this.name.split(" ")[0].toLowerCase() + randomNum;
         }
 
@@ -52,7 +52,7 @@ public class UserDto implements Serializable {
                 .userId(this.userId)
                 .username(generatedUsername)
                 .email(this.email)
-                .password(HelperUtil.ENCODER.encode(this.password))
+                .password(AuthUtil.ENCODER.encode(this.password))
                 .role(UserRole.USER)
                 .theme(UserTheme.DARK)
                 .mobile(this.mobile)

@@ -10,7 +10,9 @@ import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.repo.HoldingsRepo;
 import com.app.shahbaztrades.repo.redis.HoldingsDataRedisRepo;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.components.trading.BrokerMarginPolicyFactory;
+import com.app.shahbaztrades.components.trading.ZerodhaMarginPolicy;
+import com.app.shahbaztrades.service.MarketDataQuery;
 import com.app.shahbaztrades.service.MarginService;
 import com.mongodb.client.result.UpdateResult;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,18 +50,26 @@ class HoldingsServiceImplTest {
     @Mock
     private MongoTemplate mongoTemplate;
     @Mock
-    private AngelOneService angelOneService;
+    private MarketDataQuery marketDataQuery;
     @Mock
     private HoldingsDataRedisRepo<Holdings> holdingsDataRedisRepo;
 
+    @Mock
+    private BrokerMarginPolicyFactory brokerMarginPolicyFactory;
+
     private HoldingsServiceImpl service;
+
+    /** Zerodha's real policy: leverage comes from the requiredMargin field. */
+    private void stubZerodhaMarginPolicy() {
+        when(brokerMarginPolicyFactory.getPolicy(BrokerType.ZERODHA)).thenReturn(new ZerodhaMarginPolicy());
+    }
 
     private static final UserDto USER = UserDto.builder().userId(7L).build();
 
     @BeforeEach
     void setUp() {
         service = new HoldingsServiceImpl(holdingsRepo, marginService, mongoTemplate,
-                angelOneService, holdingsDataRedisRepo);
+                marketDataQuery, brokerMarginPolicyFactory, holdingsDataRedisRepo);
     }
 
     private Holdings.HoldingDetail detail(int id, int qty) {
@@ -141,7 +151,8 @@ class HoldingsServiceImplTest {
                 Margin.builder().symbol("INFY").token("1594").requiredMargin(new BigDecimal("3.2")).build()));
         var ticker = new SmartApiLtpResponse.MarketTicker();
         ticker.setLtp(1500.0);
-        when(angelOneService.getMarketTicker("1594")).thenReturn(ticker);
+        when(marketDataQuery.getMarketTicker("1594")).thenReturn(ticker);
+        stubZerodhaMarginPolicy();
 
         assertTrue(service.createHoldings(BrokerType.ZERODHA, USER, dto("INFY", 0)));
 
@@ -154,7 +165,8 @@ class HoldingsServiceImplTest {
         when(holdingsRepo.findById(7L)).thenReturn(Optional.empty());
         when(marginService.getMarginCache()).thenReturn(Map.of("INFY",
                 Margin.builder().symbol("INFY").token("1594").requiredMargin(new BigDecimal("3.2")).build()));
-        when(angelOneService.getMarketTicker("1594")).thenThrow(new NotFoundException("Ltp not found"));
+        when(marketDataQuery.getMarketTicker("1594")).thenThrow(new NotFoundException("Ltp not found"));
+        stubZerodhaMarginPolicy();
 
         assertTrue(service.createHoldings(BrokerType.ZERODHA, USER, dto("INFY", 0)));
 
@@ -247,12 +259,4 @@ class HoldingsServiceImplTest {
 
     // --- portfolio refresh ------------------------------------------------
 
-    @Test
-    void updatePortfolio_isANoOpWhenNobodyHoldsZerodhaPositions() {
-        when(mongoTemplate.find(any(Query.class), eq(Holdings.class))).thenReturn(List.of());
-
-        service.updatePortfolio();
-
-        verify(mongoTemplate, never()).bulkOps(any(), eq(Holdings.class));
-    }
 }

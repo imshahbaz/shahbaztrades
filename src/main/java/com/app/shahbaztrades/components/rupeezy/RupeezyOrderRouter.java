@@ -12,7 +12,7 @@ import com.app.shahbaztrades.model.dto.rupeezy.RupeezyTokenCache;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.model.enums.RupeezyOrderType;
-import com.app.shahbaztrades.service.RupeezyService;
+
 import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -26,7 +26,7 @@ import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
 public class RupeezyOrderRouter implements OrderRoutingStrategy {
 
     private final RupeezyClient rupeezyClient;
-    private final RupeezyService rupeezyService;
+    private final RupeezyTokenStore rupeezyTokenStore;
 
     @Override
     public BrokerType getBrokerType() {
@@ -64,13 +64,7 @@ public class RupeezyOrderRouter implements OrderRoutingStrategy {
         return placeOrder(req, cache);
     }
 
-    @Override
-    public void updateMTFStopLossOrder(Long userId, TradeOrderRequest request) {
-        throw new UnsupportedOperationException("Not supported yet");
-    }
-
-    @Override
-    public void cancelOrder(Long userId, String orderId) {
+    private void cancelOrder(Long userId, String orderId) {
         var cache = getTokenCache(userId);
         RupeezyOrderResponseDto res;
         try {
@@ -123,7 +117,7 @@ public class RupeezyOrderRouter implements OrderRoutingStrategy {
     }
 
     private RupeezyTokenCache getTokenCache(Long userId) {
-        var cache = rupeezyService.getTokenCache(userId);
+        var cache = rupeezyTokenStore.find(userId);
         if (cache == null) {
             throw new NotFoundException("Access token not found");
         }

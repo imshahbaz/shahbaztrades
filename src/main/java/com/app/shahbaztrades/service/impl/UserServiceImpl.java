@@ -1,5 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.util.AuthUtil;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
@@ -11,7 +12,6 @@ import com.app.shahbaztrades.model.enums.UserTheme;
 import com.app.shahbaztrades.repo.UserRepo;
 import com.app.shahbaztrades.repo.redis.AuthDataRedisRepo;
 import com.app.shahbaztrades.service.UserService;
-import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -29,6 +29,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
+    private static final String USER_ID_SEQ = "userid";
+
     private final MongoTemplate mongoTemplate;
     private final UserRepo userRepo;
     private final SequenceGeneratorService sequenceGeneratorService;
@@ -43,7 +45,7 @@ public class UserServiceImpl implements UserService {
         }
 
         if (StringUtils.isEmpty(userDto.getPassword())) {
-            userDto.setPassword(HelperUtil.generateRandomString(10));
+            userDto.setPassword(AuthUtil.generateRandomString(10));
         }
 
         user = userDto.toEntity();
@@ -146,6 +148,20 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<User> findByIds(Set<Long> userIds) {
         return userRepo.findAllById(userIds);
+    }
+
+    @Override
+    public boolean updateZerodhaConfig(long userId, User.ZerodhaConfig config) {
+        Query query = new Query(Criteria.where(User.Fields.userId).is(userId));
+        Update update = new Update().set(User.Fields.zerodhaConfig, config);
+        return mongoTemplate.updateFirst(query, update, User.class).getModifiedCount() > 0;
+    }
+
+    @Override
+    public boolean updateRupeezyConfig(long userId, User.RupeezyConfig config) {
+        Query query = new Query(Criteria.where(User.Fields.userId).is(userId));
+        Update update = new Update().set(User.Fields.rupeezyConfig, config);
+        return mongoTemplate.updateFirst(query, update, User.class).getModifiedCount() > 0;
     }
 
 }

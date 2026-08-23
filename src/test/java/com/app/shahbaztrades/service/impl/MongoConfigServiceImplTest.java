@@ -129,15 +129,6 @@ class MongoConfigServiceImplTest {
     }
 
     @Test
-    void angelOneTokens_areHeldInMemoryAndReadBack() {
-        service.setAngelOneJwtToken("jwt");
-        service.setAngelOneFeedToken("feed");
-
-        assertEquals("jwt", service.getAngelOneJwtToken());
-        assertEquals("feed", service.getAngelOneFeedToken());
-    }
-
-    @Test
     void updatePartialConfig_appliesEveryRequestedField() {
         when(mongoTemplate.updateFirst(any(Query.class), any(Update.class), eq(ServerConfigurations.class)))
                 .thenReturn(UpdateResult.acknowledged(1, 1L, null));

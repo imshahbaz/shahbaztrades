@@ -6,6 +6,7 @@ import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.holdings.HoldingDto;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.service.HoldingsService;
+import com.app.shahbaztrades.service.PortfolioValuationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -24,6 +25,7 @@ import java.util.List;
 public class HoldingsControllers {
 
     private final HoldingsService holdingsService;
+    private final PortfolioValuationService portfolioValuationService;
 
     @GetMapping("/all")
     public ResponseEntity<ApiResponse<List<HoldingDto>>> getAllHoldings(@RequestParam @NotNull BrokerType brokerType, @RequestAttribute("user") UserDto userDto) {
@@ -54,7 +56,7 @@ public class HoldingsControllers {
     @PublicEndpoint
     @PostMapping("/update-portfolio")
     public ResponseEntity<ApiResponse<Boolean>> updatePortfolio() {
-        holdingsService.updatePortfolio();
+        portfolioValuationService.updatePortfolio();
         return ResponseEntity.ok(ApiResponse.ok(Boolean.TRUE, "Portfolio update started"));
     }
 }

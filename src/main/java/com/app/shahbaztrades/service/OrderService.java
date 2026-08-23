@@ -20,10 +20,4 @@ public interface OrderService {
     void deleteOrder(String id);
 
     List<Order> getTodayOrders();
-
-    void initiateMtfOrders();
-
-    void updateMtfOrderStatus();
-
-    void startTrading();
 }

@@ -5,7 +5,6 @@ import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.dto.order.TradeOrderResponse;
 import com.app.shahbaztrades.model.enums.BrokerType;
-import com.app.shahbaztrades.service.ZerodhaService;
 import com.app.shahbaztrades.util.DateUtil;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
@@ -29,7 +28,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ZerodhaOrderRouter implements OrderRoutingStrategy {
 
-    private final ZerodhaService zerodhaService;
+    private final ZerodhaClientFactory zerodhaClientFactory;
 
     private static final String ORDER_TAG = "Shahbaz Trades";
     private static final int NO_MARKET_PROTECTION = -1;
@@ -45,7 +44,7 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
 
     private <T> T withKiteClient(Long userId, String context, KiteCall<T> call) {
         try {
-            return call.execute(zerodhaService.getKiteClient(userId));
+            return call.execute(zerodhaClientFactory.forUser(userId));
         } catch (KiteException | IOException | JSONException e) {
             log.error("{} | userId {} | error {}", context, userId, e.getMessage());
             throw new IllegalStateException(context, e);
@@ -109,24 +108,6 @@ public class ZerodhaOrderRouter implements OrderRoutingStrategy {
                 kc -> kc.placeOrder(orderParams, getVariety()));
 
         return requireOrderId(userId, request.getSymbol(), orderResponse);
-    }
-
-    @Override
-    public void updateMTFStopLossOrder(Long userId, TradeOrderRequest request) {
-        OrderParams modParams = new OrderParams();
-        modParams.price = request.getPrice();
-        modParams.triggerPrice = request.getTriggerPrice();
-
-        withKiteClient(userId,
-                "Failed to update MTF stop-loss order for order " + request.getOrderId() + " price " + request.getPrice() + " triggerPrice " + request.getTriggerPrice(),
-                kc -> kc.modifyOrder(request.getOrderId(), modParams, getVariety()));
-    }
-
-    @Override
-    public void cancelOrder(Long userId, String orderId) {
-        withKiteClient(userId,
-                "Failed to cancel order " + orderId,
-                kc -> kc.cancelOrder(orderId, getVariety()));
     }
 
     @Override
