@@ -19,6 +19,6 @@ public class AngelOneRateLimiter {
             RateLimiter.of("angel-one-historical", HISTORICAL_DATA_CONFIG);
 
     public void acquireHistoricalData() {
-        historicalDataRateLimiter.acquirePermission();
+        RateLimiter.waitForPermission(historicalDataRateLimiter);
     }
 }
