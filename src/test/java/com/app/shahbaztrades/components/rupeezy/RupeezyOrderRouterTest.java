@@ -5,7 +5,7 @@ import com.app.shahbaztrades.model.dto.order.TradeOrderResponse;
 import com.app.shahbaztrades.model.dto.rupeezy.RupeezyOrderHistory;
 import com.app.shahbaztrades.model.dto.rupeezy.RupeezyTokenCache;
 import com.app.shahbaztrades.model.enums.BrokerType;
-import com.app.shahbaztrades.service.RupeezyService;
+import com.app.shahbaztrades.components.rupeezy.RupeezyTokenStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,15 +28,15 @@ class RupeezyOrderRouterTest {
     @Mock
     private RupeezyClient rupeezyClient;
     @Mock
-    private RupeezyService rupeezyService;
+    private RupeezyTokenStore rupeezyTokenStore;
 
     private RupeezyOrderRouter router;
 
     @BeforeEach
     void setUp() {
-        router = new RupeezyOrderRouter(rupeezyClient, rupeezyService);
+        router = new RupeezyOrderRouter(rupeezyClient, rupeezyTokenStore);
         RupeezyTokenCache cache = new RupeezyTokenCache();
-        lenient().when(rupeezyService.getTokenCache(anyLong())).thenReturn(cache);
+        lenient().when(rupeezyTokenStore.find(anyLong())).thenReturn(cache);
     }
 
     private RupeezyOrderHistory history(String status, RupeezyOrderHistory.OrderData... orders) {
@@ -81,7 +81,7 @@ class RupeezyOrderRouterTest {
 
     @Test
     void getOrderDetails_missingTokenCache_throwsNotFound() {
-        when(rupeezyService.getTokenCache(anyLong())).thenReturn(null);
+        when(rupeezyTokenStore.find(anyLong())).thenReturn(null);
         assertThrows(NotFoundException.class, () -> router.getOrderDetails(42L, "O1"));
     }
 }

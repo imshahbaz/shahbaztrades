@@ -24,6 +24,11 @@ public class Adx15Strategy extends AbstractContinuousTradingStrategy {
     }
 
     @Override
+    public String watchlistKey() {
+        return "MACD15MINLOCAL";
+    }
+
+    @Override
     protected boolean matches(BarSeries series) {
         int safeClosedIndex = lastClosedIndex(series);
         int availableBars = safeClosedIndex - series.getBeginIndex() + 1;

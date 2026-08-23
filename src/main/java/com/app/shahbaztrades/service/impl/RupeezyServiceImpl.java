@@ -1,6 +1,7 @@
 package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.rupeezy.RupeezyClient;
+import com.app.shahbaztrades.components.rupeezy.RupeezyTokenStore;
 import com.app.shahbaztrades.exceptions.BadRequestException;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.UnauthorizedException;
@@ -10,31 +11,25 @@ import com.app.shahbaztrades.model.dto.rupeezy.RupeezySessionRequest;
 import com.app.shahbaztrades.model.dto.rupeezy.RupeezyTokenCache;
 import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
 import com.app.shahbaztrades.model.entity.User;
-import com.app.shahbaztrades.repo.redis.RupeezyTokenCacheRedisRepo;
+import com.app.shahbaztrades.model.enums.BrokerType;
+import com.app.shahbaztrades.service.BrokerAuthService;
 import com.app.shahbaztrades.service.RupeezyService;
 import com.app.shahbaztrades.service.UserService;
-import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.validator.BrokerConfigValidator;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 
 import static com.app.shahbaztrades.util.Constants.BEARER_PREFIX;
 
 @Service
 @RequiredArgsConstructor
-public class RupeezyServiceImpl implements RupeezyService {
+public class RupeezyServiceImpl implements RupeezyService, BrokerAuthService {
 
     private final RupeezyClient rupeezyClient;
     private final UserService userService;
-    private final MongoTemplate mongoTemplate;
-    private final RupeezyTokenCacheRedisRepo<RupeezyTokenCache> rupeezyTokenCacheRedisRepo;
+    private final RupeezyTokenStore rupeezyTokenStore;
 
     @Override
     public void login(BrokerLoginDto request) {
@@ -51,8 +46,7 @@ public class RupeezyServiceImpl implements RupeezyService {
 
         var cache = RupeezyTokenCache.builder().apiSecret(user.getRupeezyConfig().getApiSecret())
                 .accessToken(res.getData().getAccessToken()).build();
-        rupeezyTokenCache.set(user.getUserId(), cache, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
-        rupeezyTokenCacheRedisRepo.set(String.valueOf(request.userId()), cache, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
+        rupeezyTokenStore.save(user.getUserId(), cache);
     }
 
     @Override
@@ -64,7 +58,7 @@ public class RupeezyServiceImpl implements RupeezyService {
             throw new NotFoundException("E001");
         }
 
-        var cache = getTokenCache(user.getUserId());
+        var cache = rupeezyTokenStore.find(user.getUserId());
         if (cache == null) {
             return ApiResponse.<String>builder()
                     .success(Boolean.FALSE)
@@ -95,11 +89,7 @@ public class RupeezyServiceImpl implements RupeezyService {
             throw new BadRequestException("Invalid request");
         }
 
-        Query query = new Query(Criteria.where(User.Fields.userId).is(userDto.getUserId()));
-        Update update = new Update();
-        update.set(User.Fields.rupeezyConfig, config);
-        var result = mongoTemplate.updateFirst(query, update, User.class);
-        if (result.getModifiedCount() < 1) {
+        if (!userService.updateRupeezyConfig(userDto.getUserId(), config)) {
             throw new UnauthorizedException("User not found");
         }
 
@@ -107,21 +97,19 @@ public class RupeezyServiceImpl implements RupeezyService {
     }
 
     @Override
-    public RupeezyTokenCache getTokenCache(long userId) {
-        var cache = rupeezyTokenCache.get(userId);
-        if (cache == null) {
-            cache = rupeezyTokenCacheRedisRepo.get(String.valueOf(userId));
-            if (cache != null) {
-                rupeezyTokenCache.set(userId, cache, Duration.ofSeconds(DateUtil.zerodhaTokenExpiry()));
-            }
-        }
-        return cache;
+    public BrokerType getBrokerType() {
+        return BrokerType.RUPEEZY;
     }
 
     @Override
-    public void revokeRupeezyAuth(long userId) {
-        rupeezyTokenCacheRedisRepo.delete(String.valueOf(userId));
-        rupeezyTokenCache.remove(userId);
+    public void revokeAuth(long userId) {
+        rupeezyTokenStore.delete(userId);
+    }
+
+    /** Rupeezy has no unattended login flow; the user must complete it themselves. */
+    @Override
+    public boolean supportsAutoLogin() {
+        return false;
     }
 
     private User getUser(Long userId) {

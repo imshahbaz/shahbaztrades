@@ -2,14 +2,15 @@ package com.app.shahbaztrades.service;
 
 import com.app.shahbaztrades.model.dto.ApiResponse;
 import com.app.shahbaztrades.model.dto.UserDto;
-import com.app.shahbaztrades.model.dto.rupeezy.RupeezyTokenCache;
 import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
 import com.app.shahbaztrades.model.entity.User;
-import com.app.shahbaztrades.util.Cache;
 
+/**
+ * Rupeezy authentication for a user who is present. Token storage belongs to
+ * {@link com.app.shahbaztrades.components.rupeezy.RupeezyTokenStore}; revoking is on
+ * {@link BrokerAuthService}, which every broker implements.
+ */
 public interface RupeezyService {
-
-    Cache<Long, RupeezyTokenCache> rupeezyTokenCache = new Cache<>();
 
     void login(BrokerLoginDto request);
 
@@ -17,7 +18,4 @@ public interface RupeezyService {
 
     Long setConfig(User.RupeezyConfig config, UserDto userDto);
 
-    RupeezyTokenCache getTokenCache(long userId);
-
-    void revokeRupeezyAuth(long userId);
 }

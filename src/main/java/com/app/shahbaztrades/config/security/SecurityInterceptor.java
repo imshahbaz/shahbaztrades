@@ -1,11 +1,11 @@
 package com.app.shahbaztrades.config.security;
 
+import com.app.shahbaztrades.util.AuthUtil;
 import com.app.shahbaztrades.exceptions.ForbiddenException;
 import com.app.shahbaztrades.exceptions.UnauthorizedException;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.enums.Environments;
 import com.app.shahbaztrades.model.enums.UserRole;
-import com.app.shahbaztrades.util.HelperUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -71,7 +71,7 @@ public class SecurityInterceptor implements HandlerInterceptor {
         var timeLeft = previousExpiry - System.currentTimeMillis();
         if (timeLeft < ROLLING_EXPIRY_THRESHOLD) {
             var tokenStr = jwtService.generateToken(userDto);
-            var cookie = HelperUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
+            var cookie = AuthUtil.createAuthCookie(tokenStr, 86400, Objects.equals(environment.getProperty("ENV"), Environments.PRODUCTION.name()));
             response.addHeader(HttpHeaders.SET_COOKIE, cookie);
         }
     }

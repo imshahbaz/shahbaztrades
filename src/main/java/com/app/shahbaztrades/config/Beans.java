@@ -1,6 +1,5 @@
 package com.app.shahbaztrades.config;
 
-import com.app.shahbaztrades.util.HelperUtil;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.springframework.context.annotation.Bean;
@@ -10,6 +9,8 @@ import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.support.TaskExecutorAdapter;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.SimpleAsyncTaskScheduler;
+
+import java.util.concurrent.Executors;
 
 @Configuration
 public class Beans {
@@ -23,9 +24,14 @@ public class Beans {
                 .build();
     }
 
+    /**
+      * Primary so that injecting an {@link AsyncTaskExecutor} is unambiguous: the task scheduler
+      * below also implements that interface.
+      */
     @Bean
+    @Primary
     public AsyncTaskExecutor taskExecutor() {
-        return new TaskExecutorAdapter(HelperUtil.EXECUTOR);
+        return new TaskExecutorAdapter(Executors.newVirtualThreadPerTaskExecutor());
     }
 
     @Bean

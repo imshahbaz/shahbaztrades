@@ -1,14 +1,15 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.components.broker.BrokerAuthServiceFactory;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.Constants;
-import com.app.shahbaztrades.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
@@ -29,11 +30,13 @@ import java.util.concurrent.ExecutionException;
 public class SessionManagerServiceImpl implements SessionManagerService {
 
     private final OrderService orderService;
-    private final ZerodhaService zerodhaService;
+    private final ZerodhaAutoLoginService zerodhaAutoLoginService;
+    private final BrokerAuthServiceFactory brokerAuthServiceFactory;
     private final StrategyOrderService strategyOrderService;
     private final StringRedisTemplate stringRedisTemplate;
     private final UserService userService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final AsyncTaskExecutor taskExecutor;
 
     @Override
     @Async("taskExecutor")
@@ -46,16 +49,10 @@ public class SessionManagerServiceImpl implements SessionManagerService {
                 return res;
             }
 
-            orders.forEach(order -> {
-                if (order.getBroker().equals(BrokerType.ZERODHA)) {
-                    res.add(order.getUserId());
-                } else {
-                    usersToRemind.add(order.getUserId());
-                }
-            });
+            orders.forEach(order -> partition(order.getBroker(), order.getUserId(), res, usersToRemind));
 
             return res;
-        }, HelperUtil.EXECUTOR);
+        }, taskExecutor);
 
         var strategyOrderFuture = CompletableFuture.supplyAsync(() -> {
             var res = new HashSet<Long>();
@@ -64,16 +61,10 @@ public class SessionManagerServiceImpl implements SessionManagerService {
                 return res;
             }
 
-            orders.forEach(order -> {
-                if (order.getBroker().equals(BrokerType.ZERODHA)) {
-                    res.add(order.getUserId());
-                } else {
-                    usersToRemind.add(order.getUserId());
-                }
-            });
+            orders.forEach(order -> partition(order.getBroker(), order.getUserId(), res, usersToRemind));
 
             return res;
-        }, HelperUtil.EXECUTOR);
+        }, taskExecutor);
 
         CompletableFuture.allOf(orderFuture, strategyOrderFuture).join();
         var userIds = orderFuture.get();
@@ -86,7 +77,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
                 .data(Collections.emptyMap())
                 .build()));
 
-        zerodhaService.autoLogin(userIds);
+        zerodhaAutoLoginService.autoLogin(userIds);
     }
 
     @Override
@@ -101,7 +92,16 @@ public class SessionManagerServiceImpl implements SessionManagerService {
             throw new ResourceAlreadyExistsException("Request already exists");
         }
 
-        zerodhaService.autoConnectZerodhaSession(userService.findByUserIdOrEmailOrMobile(userDto.getUserId(), "", 0L));
+        zerodhaAutoLoginService.autoConnectZerodhaSession(userService.findByUserIdOrEmailOrMobile(userDto.getUserId(), "", 0L));
         return true;
     }
+    /** Brokers we can log in for go to auto-login; the rest have to be nudged to do it themselves. */
+    private void partition(BrokerType broker, long userId, Set<Long> autoLogin, Set<Long> toRemind) {
+        if (brokerAuthServiceFactory.forBroker(broker).supportsAutoLogin()) {
+            autoLogin.add(userId);
+        } else {
+            toRemind.add(userId);
+        }
+    }
+
 }

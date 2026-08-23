@@ -1,10 +1,10 @@
 package com.app.shahbaztrades.components.angelone;
 
+import com.app.shahbaztrades.util.HttpUtil;
 import com.app.shahbaztrades.model.dto.angelone.MinimalInstrument;
 import com.app.shahbaztrades.model.dto.angelone.websocket.AngelOneLoginResponse;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.ServerConfigurations;
-import com.app.shahbaztrades.util.HelperUtil;
 import com.app.shahbaztrades.util.TotpUtil;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -33,11 +33,11 @@ public class AngelOneClient {
     public AngelOneClient(JsonMapper jsonMapper) {
         this.jsonMapper = jsonMapper;
         this.restClient = RestClient.builder()
-                .requestFactory(HelperUtil.requestFactory(Duration.ofSeconds(60)))
+                .requestFactory(HttpUtil.requestFactory(Duration.ofSeconds(60)))
                 .build();
         this.websocketRestClient = RestClient.builder()
                 .baseUrl("https://apiconnect.angelone.in")
-                .requestFactory(HelperUtil.requestFactory(Duration.ofSeconds(10)))
+                .requestFactory(HttpUtil.requestFactory(Duration.ofSeconds(10)))
                 .build();
     }
 

@@ -13,6 +13,9 @@ import java.util.Objects;
 
 public abstract class AbstractContinuousTradingStrategy implements ContinuousTradingStrategy {
 
+    /** The first bar of the day has no prior close, so it is scanned differently. */
+    private static final LocalTime MARKET_START_TIME = LocalTime.of(9, 15);
+
     protected final MarginService marginService;
 
     protected AbstractContinuousTradingStrategy(MarginService marginService) {

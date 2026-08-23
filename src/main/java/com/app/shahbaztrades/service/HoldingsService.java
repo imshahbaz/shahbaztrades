@@ -17,6 +17,4 @@ public interface HoldingsService {
     boolean updateHoldings(BrokerType brokerType, UserDto userDto, HoldingDto holdingDto);
 
     boolean deleteHoldingDetail(BrokerType brokerType, UserDto userDto, String symbol, int id);
-
-    void updatePortfolio();
 }

@@ -12,7 +12,7 @@ import com.app.shahbaztrades.model.entity.Strategy;
 import com.app.shahbaztrades.model.enums.TimeFrame;
 import com.app.shahbaztrades.repo.redis.GenAiRedisRepo;
 import com.app.shahbaztrades.repo.redis.TvNewsRedisRepo;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.service.MarketDataQuery;
 import com.app.shahbaztrades.service.ChartInkService;
 import com.app.shahbaztrades.service.MongoConfigService;
 import com.app.shahbaztrades.service.StrategyService;
@@ -26,10 +26,8 @@ import org.redisson.api.RLock;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -42,7 +40,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class AnalysisServiceImplTest {
+class GenAiAnalysisServiceImplTest {
 
     @Mock
     private GenAiClient genAiClient;
@@ -51,27 +49,16 @@ class AnalysisServiceImplTest {
     @Mock
     private MongoConfigService mongoConfigService;
     @Mock
-    private StrategyService strategyService;
-    @Mock
-    private ChartInkService chartInkService;
-    @Mock
-    private AngelOneService angelOneService;
-    @Mock
-    private MongoTemplate mongoTemplate;
-    @Mock
     private GenAiRedisRepo<AIAnalysis> genAiRedisRepo;
-    @Mock
-    private TvNewsRedisRepo<List<TradingViewNewsResponse.NewsItem>> tvNewsRedisRepo;
     @Mock
     private RLock lock;
 
-    private AnalysisServiceImpl service;
+    private GenAiAnalysisServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new AnalysisServiceImpl(genAiClient, yahooClient, mongoConfigService, strategyService,
-                chartInkService, angelOneService, mongoTemplate, genAiRedisRepo, tvNewsRedisRepo,
-                JsonMapper.builder().build());
+        service = new GenAiAnalysisServiceImpl(genAiClient, yahooClient, mongoConfigService,
+                genAiRedisRepo, JsonMapper.builder().build());
     }
 
     private void stubGeminiKey() {
@@ -83,18 +70,6 @@ class AnalysisServiceImplTest {
     }
 
     // --- news -------------------------------------------------------------
-
-    @Test
-    void getStockNews_servesTheCacheWithoutCallingTradingView() {
-        var cached = List.of(new TradingViewNewsResponse.NewsItem("Headline", 1L));
-        when(tvNewsRedisRepo.get("TCS")).thenReturn(cached);
-
-        assertSame(cached, service.getStockNews("TCS"));
-
-        verify(tvNewsRedisRepo, never()).set(anyString(), anyList(), any());
-    }
-
-    // --- gen-ai analysis --------------------------------------------------
 
     @Test
     void getGenAiAnalysis_servesTheCacheWithoutTakingTheDistributedLock() {
@@ -183,42 +158,5 @@ class AnalysisServiceImplTest {
         when(genAiClient.getGenAiStockAnalysis(anyString(), anyList(), anyString())).thenReturn("not json");
 
         assertThrows(NotFoundException.class, () -> service.getGenAiAnalysis("TCS"));
-    }
-
-    // --- backtest refresh -------------------------------------------------
-
-    @Test
-    void updateStrategyBacktestData_isANoOpWithoutActiveDailyStrategies() {
-        when(strategyService.getAllStrategies(TimeFrame.DAILY)).thenReturn(List.of());
-
-        service.updateStrategyBacktestData();
-
-        verify(chartInkService, never()).fetchBacktestDataWithMargin(anyString());
-        verify(strategyService, never()).refreshStrategyCache();
-    }
-
-    @Test
-    void updateStrategyBacktestData_skipsTheWriteWhenNoTradesCouldBeEvaluated() {
-        // Writing a 0% success rate off zero trades would corrupt the strategy ranking.
-        when(strategyService.getAllStrategies(TimeFrame.DAILY))
-                .thenReturn(List.of(StrategyDto.builder().name("RSI").build()));
-        when(chartInkService.fetchBacktestDataWithMargin("RSI")).thenReturn(List.of());
-
-        service.updateStrategyBacktestData();
-
-        verify(mongoTemplate, never()).updateFirst(any(Query.class), any(Update.class), eq(Strategy.class));
-        verify(strategyService).refreshStrategyCache();
-    }
-
-    @Test
-    void updateStrategyBacktestData_refreshesTheCacheAfterProcessing() {
-        when(strategyService.getAllStrategies(TimeFrame.DAILY))
-                .thenReturn(List.of(StrategyDto.builder().name("RSI").build()));
-        when(chartInkService.fetchBacktestDataWithMargin("RSI"))
-                .thenReturn(List.<ChartInkBacktestMarginDto>of());
-
-        service.updateStrategyBacktestData();
-
-        verify(strategyService).refreshStrategyCache();
     }
 }

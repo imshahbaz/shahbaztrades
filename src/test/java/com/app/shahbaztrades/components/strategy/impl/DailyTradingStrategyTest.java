@@ -3,7 +3,9 @@ package com.app.shahbaztrades.components.strategy.impl;
 import com.app.shahbaztrades.components.observer.TradeWatchdog;
 import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
 import com.app.shahbaztrades.components.orderrouting.OrderRoutingStrategy;
-import com.app.shahbaztrades.components.yahoo.YahooClient;
+import com.app.shahbaztrades.components.analysis.TechnicalMetricsProvider;
+import com.app.shahbaztrades.components.trading.TradeNotifier;
+import com.app.shahbaztrades.repo.OrderProgressRepository;
 import com.app.shahbaztrades.model.dto.analysis.TechnicalMetrics;
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
@@ -15,7 +17,8 @@ import com.app.shahbaztrades.model.entity.Order;
 import com.app.shahbaztrades.model.enums.BrokerType;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.model.enums.OrderStatus;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.model.dto.angelone.websocket.Ltp;
+import com.app.shahbaztrades.service.MarketFeed;
 import com.app.shahbaztrades.util.DateUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,9 +62,13 @@ class DailyTradingStrategyTest {
     @Mock
     private OrderRoutingStrategy orderRouter;
     @Mock
-    private YahooClient yahooClient;
+    private TechnicalMetricsProvider technicalMetricsProvider;
     @Mock
-    private AngelOneService angelOneService;
+    private OrderProgressRepository orderProgressRepository;
+    @Mock
+    private TradeNotifier tradeNotifier;
+    @Mock
+    private MarketFeed marketFeed;
     @Mock
     private TradeWatchdog tradeWatchdog;
 
@@ -70,10 +77,10 @@ class DailyTradingStrategyTest {
 
     @BeforeEach
     void setUp() {
-        targetProfit = new TargetProfitStrategy(mongoTemplate, eventPublisher,
-                orderRouterFactory, yahooClient, angelOneService);
-        trailingProfit = new TrailingProfitStrategy(mongoTemplate, yahooClient, eventPublisher,
-                orderRouterFactory, angelOneService, tradeWatchdog);
+        targetProfit = new TargetProfitStrategy(orderProgressRepository, tradeNotifier,
+                orderRouterFactory, marketFeed, technicalMetricsProvider);
+        trailingProfit = new TrailingProfitStrategy(orderProgressRepository, tradeNotifier,
+                orderRouterFactory, marketFeed, technicalMetricsProvider, tradeWatchdog);
         lenient().when(orderRouterFactory.getRouter(BrokerType.ZERODHA)).thenReturn(orderRouter);
     }
 
@@ -100,7 +107,7 @@ class DailyTradingStrategyTest {
 
     @Test
     void initialiseTrade_placesAPreMarketOrderAndRecordsTheBrokerId() throws Exception {
-        when(angelOneService.getLTP("11536")).thenReturn(3200.0);
+        when(marketFeed.getLtp("11536")).thenReturn(Ltp.of(3200.0));
         when(orderRouter.placePreMarketOrder(anyLong(), any(TradeOrderRequest.class)))
                 .thenReturn(TradeOrderResponse.builder().orderId("B1").build());
         var order = order(OrderStatus.PENDING, null);
@@ -109,13 +116,13 @@ class DailyTradingStrategyTest {
 
         assertEquals(OrderStatus.PLACED, order.getOrderStatus());
         assertEquals("B1", order.getEntry().getBrokerOrderId());
-        verify(mongoTemplate).updateFirst(any(Query.class), any(Update.class), eq(Order.class));
+        verify(orderProgressRepository).saveProgress(order);
     }
 
     @Test
     void initialiseTrade_capsThePreMarketLimitAtTwoPercentAboveLtp() throws Exception {
         // An uncapped market order at pre-open can fill at an absurd price.
-        when(angelOneService.getLTP("11536")).thenReturn(3200.0);
+        when(marketFeed.getLtp("11536")).thenReturn(Ltp.of(3200.0));
         when(orderRouter.placePreMarketOrder(anyLong(), any(TradeOrderRequest.class)))
                 .thenReturn(TradeOrderResponse.builder().orderId("B1").build());
 
@@ -127,17 +134,33 @@ class DailyTradingStrategyTest {
     }
 
     @Test
-    void initialiseTrade_subscribesAndRetriesWhenTheLtpIsUnknown() throws Exception {
-        when(angelOneService.getLTP("11536")).thenReturn(-1.0, -1.0);
+    void initialiseTrade_subscribesAndRetriesWhenTheTokenHasNotTickedYet() throws Exception {
+        when(marketFeed.getLtp("11536")).thenReturn(Ltp.NOT_SUBSCRIBED, Ltp.NOT_SUBSCRIBED);
         when(orderRouter.placePreMarketOrder(anyLong(), any(TradeOrderRequest.class)))
                 .thenReturn(TradeOrderResponse.builder().orderId("B1").build());
 
         targetProfit.initialiseTrade(order(OrderStatus.PENDING, null), new HashMap<>());
 
-        verify(angelOneService).subscribe("11536", ExchangeType.NSE.getValue());
+        verify(marketFeed).subscribe("11536", ExchangeType.NSE.getValue());
         ArgumentCaptor<TradeOrderRequest> request = ArgumentCaptor.forClass(TradeOrderRequest.class);
         verify(orderRouter).placePreMarketOrder(anyLong(), request.capture());
         // No price is available, so the router must fall back to a market order.
+        assertNull(request.getValue().getPrice());
+    }
+
+    @Test
+    void initialiseTrade_doesNotWaitOnASubscriptionWhenTheFeedIsDown() throws Exception {
+        // A dead socket cannot deliver a price, so burning a second on subscribe-and-poll is pointless.
+        when(marketFeed.getLtp("11536")).thenReturn(Ltp.FEED_DOWN);
+        when(orderRouter.placePreMarketOrder(anyLong(), any(TradeOrderRequest.class)))
+                .thenReturn(TradeOrderResponse.builder().orderId("B1").build());
+
+        targetProfit.initialiseTrade(order(OrderStatus.PENDING, null), new HashMap<>());
+
+        verify(marketFeed, never()).subscribe(anyString(), org.mockito.ArgumentMatchers.anyInt());
+        ArgumentCaptor<TradeOrderRequest> request = ArgumentCaptor.forClass(TradeOrderRequest.class);
+        verify(orderRouter).placePreMarketOrder(anyLong(), request.capture());
+        // Still placed, but unpriced: the order must not silently disappear because the feed blipped.
         assertNull(request.getValue().getPrice());
     }
 
@@ -162,7 +185,7 @@ class DailyTradingStrategyTest {
 
     @Test
     void initialiseTrade_marksTheOrderFailedWhenPlacementThrows() throws Exception {
-        when(angelOneService.getLTP("11536")).thenReturn(3200.0);
+        when(marketFeed.getLtp("11536")).thenReturn(Ltp.of(3200.0));
         when(orderRouter.placePreMarketOrder(anyLong(), any(TradeOrderRequest.class)))
                 .thenThrow(new IllegalStateException("broker down"));
         var order = order(OrderStatus.PENDING, null);
@@ -170,23 +193,24 @@ class DailyTradingStrategyTest {
         targetProfit.initialiseTrade(order, new HashMap<>());
 
         assertEquals(OrderStatus.FAILED, order.getOrderStatus());
-        verify(mongoTemplate).updateFirst(any(Query.class), any(Update.class), eq(Order.class));
+        verify(orderProgressRepository).saveProgress(order);
     }
 
     @Test
     void initialiseTrade_attachesAtrAndReusesItForRepeatSymbols() throws Exception {
-        when(angelOneService.getLTP("11536")).thenReturn(3200.0);
+        when(marketFeed.getLtp("11536")).thenReturn(Ltp.of(3200.0));
         when(orderRouter.placePreMarketOrder(anyLong(), any(TradeOrderRequest.class)))
                 .thenReturn(TradeOrderResponse.builder().orderId("B1").build());
-        when(yahooClient.getMonthlyHistoricalData("TCS")).thenReturn(candles());
+        when(technicalMetricsProvider.atrFor("TCS"))
+                .thenReturn(TechnicalMetrics.builder().atrValue(40).expectedMovePercent(1.25).build());
         Map<String, TechnicalMetrics> metrics = new HashMap<>();
 
         targetProfit.initialiseTrade(order(OrderStatus.PENDING, null), metrics);
         targetProfit.initialiseTrade(order(OrderStatus.PENDING, null), metrics);
 
         assertNotNull(metrics.get("TCS"));
-        // The second order for the same symbol must hit the shared map, not Yahoo.
-        verify(yahooClient).getMonthlyHistoricalData("TCS");
+        // The second order for the same symbol must hit the shared map, not recompute.
+        verify(technicalMetricsProvider).atrFor("TCS");
     }
 
     // --- updateTradeStatus ------------------------------------------------
@@ -202,7 +226,7 @@ class DailyTradingStrategyTest {
 
         assertEquals(OrderStatus.BOUGHT, order.getOrderStatus());
         assertEquals(0, new BigDecimal("3210.5").compareTo(order.getEntry().getAveragePrice()));
-        verify(eventPublisher).publishEvent(any(NotificationRequest.class));
+        verify(tradeNotifier).buyExecuted(eq(7L), eq(10), eq("TCS"), eq(3210.5));
     }
 
     @Test
@@ -279,7 +303,7 @@ class DailyTradingStrategyTest {
 
         trailingProfit.startTrading(order);
 
-        verify(angelOneService).subscribe("11536", ExchangeType.NSE.getValue());
+        verify(marketFeed).subscribe("11536", ExchangeType.NSE.getValue());
         ArgumentCaptor<ActiveMtfTrade> trade = ArgumentCaptor.forClass(ActiveMtfTrade.class);
         verify(tradeWatchdog).watchMtfTrade(trade.capture());
         assertEquals(3200.0, trade.getValue().getPeakPrice(), "the peak starts at the entry fill");
@@ -296,7 +320,7 @@ class DailyTradingStrategyTest {
     void trailingProfit_doesNotWatchWhenTheWebsocketSubscriptionFails() {
         // Without a live feed the trail would never move; watching would be a silent no-op.
         org.mockito.Mockito.doThrow(new IllegalStateException("ws closed"))
-                .when(angelOneService).subscribe(anyString(), org.mockito.ArgumentMatchers.anyInt());
+                .when(marketFeed).subscribe(anyString(), org.mockito.ArgumentMatchers.anyInt());
 
         trailingProfit.startTrading(order(OrderStatus.BOUGHT, "3200"));
 

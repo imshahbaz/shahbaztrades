@@ -1,23 +1,23 @@
 package com.app.shahbaztrades.components.analysis;
 
+import com.app.shahbaztrades.util.HttpUtil;
 import com.app.shahbaztrades.model.dto.analysis.TradingViewNewsResponse;
-import com.app.shahbaztrades.util.HelperUtil;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
-
+/** Reads TradingView's public news feed. A bean, so callers can stand it in for a stub. */
+@Component
 public class TradingViewClient {
 
-    public static final String NEWS_ENDPOINT = "https://news-mediator.tradingview.com/public/news-flow/v2/news";
+    private static final String NEWS_ENDPOINT = "https://news-mediator.tradingview.com/public/news-flow/v2/news";
 
-    public static TradingViewNewsResponse getStockNews(String symbol) {
+    /** @return the feed payload, or null if TradingView answered with a non-2xx status. */
+    public TradingViewNewsResponse getStockNews(String symbol) {
         URI uri = UriComponentsBuilder.fromUriString(NEWS_ENDPOINT)
                 .queryParam("client", "chart").queryParam("user_prostatus", "non_pro")
                 .queryParam("filter", "lang:en").queryParam("filter", "symbol:NSE:" + symbol)
@@ -27,7 +27,7 @@ public class TradingViewClient {
         headers.set(HttpHeaders.REFERER, "https://in.tradingview.com/");
         headers.set(HttpHeaders.USER_AGENT, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1");
 
-        var res = HelperUtil.REST_TEMPLATE.exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), TradingViewNewsResponse.class);
+        var res = HttpUtil.REST_TEMPLATE.exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), TradingViewNewsResponse.class);
 
         if (res.getStatusCode().is2xxSuccessful()) {
             return res.getBody();

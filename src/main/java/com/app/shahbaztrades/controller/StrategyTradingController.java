@@ -1,9 +1,10 @@
 package com.app.shahbaztrades.controller;
 
-import com.app.shahbaztrades.components.helper.MarketDataContainer;
+import com.app.shahbaztrades.components.marketdata.TickAggregator;
+import com.app.shahbaztrades.components.marketdata.WatchlistWarmup;
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
-import com.app.shahbaztrades.service.AngelOneService;
+import com.app.shahbaztrades.service.MarketFeed;
 import com.app.shahbaztrades.service.TradeEngine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,8 +18,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class StrategyTradingController {
 
     private final TradeEngine tradeEngine;
-    private final MarketDataContainer marketDataContainer;
-    private final AngelOneService angelOneService;
+    private final WatchlistWarmup watchlistWarmup;
+    private final TickAggregator tickAggregator;
+    private final MarketFeed marketFeed;
 
     @PublicEndpoint
     @PostMapping("/continuous")
@@ -30,14 +32,14 @@ public class StrategyTradingController {
     @PublicEndpoint
     @PostMapping("/warmup")
     public ResponseEntity<ApiResponse<Void>> warmup() {
-        marketDataContainer.warmupContainer();
+        watchlistWarmup.warmup();
         return ResponseEntity.ok(ApiResponse.ok(null, "Warmup triggered"));
     }
 
     @PublicEndpoint
     @PostMapping("/start-container")
     public ResponseEntity<ApiResponse<Void>> startContainer() {
-        marketDataContainer.startWorkersForActiveWatchlist(angelOneService::subscribe);
+        tickAggregator.startWorkersForActiveWatchlist(marketFeed::subscribe);
         return ResponseEntity.ok(ApiResponse.ok(null, "Start container triggered"));
     }
 

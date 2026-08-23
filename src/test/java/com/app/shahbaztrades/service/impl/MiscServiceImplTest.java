@@ -1,6 +1,8 @@
 package com.app.shahbaztrades.service.impl;
 
+import com.app.shahbaztrades.components.broker.BrokerAuthServiceFactory;
 import com.app.shahbaztrades.components.strategy.ContinuousTradingStrategy;
+import com.app.shahbaztrades.components.strategy.StrategyRegistry;
 import com.app.shahbaztrades.components.strategy.DailyTradingStrategy;
 import com.app.shahbaztrades.components.yahoo.YahooClient;
 import com.app.shahbaztrades.exceptions.NotFoundException;
@@ -16,6 +18,7 @@ import com.app.shahbaztrades.repo.KronosPredictionsRepo;
 import com.app.shahbaztrades.service.*;
 import com.app.shahbaztrades.util.Constants;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -28,6 +31,7 @@ import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.core.task.support.TaskExecutorAdapter;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -176,7 +180,7 @@ class MiscServiceImplTest {
         @Mock
         private OrderService orderService;
         @Mock
-        private ZerodhaService zerodhaService;
+        private ZerodhaAutoLoginService zerodhaAutoLoginService;
         @Mock
         private StrategyOrderService strategyOrderService;
         @Mock
@@ -187,8 +191,18 @@ class MiscServiceImplTest {
         private UserService userService;
         @Mock
         private ApplicationEventPublisher applicationEventPublisher;
-        @InjectMocks
+        @Mock
+        private BrokerAuthServiceFactory brokerAuthServiceFactory;
+
         private SessionManagerServiceImpl service;
+
+        @BeforeEach
+        void setUp() {
+            // Run the parallel order scans inline so assertions are deterministic.
+            service = new SessionManagerServiceImpl(orderService, zerodhaAutoLoginService, brokerAuthServiceFactory,
+                    strategyOrderService, stringRedisTemplate, userService, applicationEventPublisher,
+                    new TaskExecutorAdapter(Runnable::run));
+        }
 
         @Test
         void autoConnectZerodhaSession_claimsTheInFlightFlagThenDelegates() {
@@ -200,7 +214,7 @@ class MiscServiceImplTest {
 
             assertTrue(service.autoConnectZerodhaSession(UserDto.builder().userId(7L).build()));
 
-            verify(zerodhaService).autoConnectZerodhaSession(user);
+            verify(zerodhaAutoLoginService).autoConnectZerodhaSession(user);
         }
 
         @Test
@@ -212,7 +226,7 @@ class MiscServiceImplTest {
 
             assertThrows(ResourceAlreadyExistsException.class,
                     () -> service.autoConnectZerodhaSession(UserDto.builder().userId(7L).build()));
-            verify(zerodhaService, never()).autoConnectZerodhaSession(any(User.class));
+            verify(zerodhaAutoLoginService, never()).autoConnectZerodhaSession(any(User.class));
         }
 
         @Test
@@ -231,7 +245,7 @@ class MiscServiceImplTest {
 
             service.initiateZerodhaLogin();
 
-            verify(zerodhaService).autoLogin(java.util.Set.of());
+            verify(zerodhaAutoLoginService).autoLogin(java.util.Set.of());
             verify(applicationEventPublisher, never()).publishEvent(any(Object.class));
         }
     }
@@ -274,6 +288,9 @@ class MiscServiceImplTest {
         private ContinuousTradingStrategy macd;
 
         private StrategyRegistry registry() {
+            // The registry keys strategies by name, so unnamed mocks would collide on null.
+            when(rsi.getName()).thenReturn("RSI15MIN");
+            when(macd.getName()).thenReturn("MACD15MIN");
             return new StrategyRegistry(List.of(rsi, macd));
         }
 

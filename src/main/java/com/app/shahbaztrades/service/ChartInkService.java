@@ -9,8 +9,6 @@ import java.util.List;
 
 public interface ChartInkService {
 
-    void refreshTokens();
-
     ChartInkResponseDto fetchData(String strategyName);
 
     List<StockMarginDto> fetchWithMargin(String strategyName);
