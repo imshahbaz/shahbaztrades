@@ -57,7 +57,10 @@ public class User implements Serializable {
     @NoArgsConstructor
     @AllArgsConstructor
     @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class ZerodhaConfig {
+    public static class ZerodhaConfig implements Serializable {
+
+        @Serial
+        private static final long serialVersionUID = 1L;
 
         String apiKey;
         String apiSecret;
@@ -75,7 +78,10 @@ public class User implements Serializable {
     @NoArgsConstructor
     @AllArgsConstructor
     @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class MstockConfig {
+    public static class MstockConfig implements Serializable {
+
+        @Serial
+        private static final long serialVersionUID = 1L;
 
         String apiKey;
         String username;
@@ -86,7 +92,10 @@ public class User implements Serializable {
     @NoArgsConstructor
     @AllArgsConstructor
     @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class RupeezyConfig {
+    public static class RupeezyConfig implements Serializable {
+
+        @Serial
+        private static final long serialVersionUID = 1L;
 
         String apiSecret;
         String appId;

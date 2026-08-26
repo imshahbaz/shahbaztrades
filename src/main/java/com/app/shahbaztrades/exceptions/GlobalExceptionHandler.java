@@ -20,6 +20,10 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final String BAD_REQUEST_TITLE = "Bad Request";
+    private static final String NOT_FOUND_TITLE = "Not Found";
+    private static final String VALIDATION_FAILED_TITLE = "Validation Failed";
+
     private ProblemDetail buildProblem(HttpStatus status, String detail, String title, HttpServletResponse response) {
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
@@ -45,7 +49,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadRequestException.class)
     public ProblemDetail handleBadRequest(BadRequestException ex, HttpServletResponse response) {
-        return buildProblem(HttpStatus.BAD_REQUEST, ex.getMessage(), "Bad Request", response);
+        return buildProblem(HttpStatus.BAD_REQUEST, ex.getMessage(), BAD_REQUEST_TITLE, response);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -53,7 +57,7 @@ public class GlobalExceptionHandler {
         String detail = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining("; "));
-        return buildProblem(HttpStatus.BAD_REQUEST, detail.isBlank() ? "Validation failed" : detail, "Validation Failed", response);
+        return buildProblem(HttpStatus.BAD_REQUEST, detail.isBlank() ? "Validation failed" : detail, VALIDATION_FAILED_TITLE, response);
     }
 
     @ExceptionHandler(HandlerMethodValidationException.class)
@@ -67,23 +71,23 @@ public class GlobalExceptionHandler {
         String detail = ex.getConstraintViolations().stream()
                 .map(v -> v.getPropertyPath() + ": " + v.getMessage())
                 .collect(Collectors.joining("; "));
-        return buildProblem(HttpStatus.BAD_REQUEST, detail.isBlank() ? "Validation failed" : detail, "Validation Failed", response);
+        return buildProblem(HttpStatus.BAD_REQUEST, detail.isBlank() ? "Validation failed" : detail, VALIDATION_FAILED_TITLE, response);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ProblemDetail handleUnreadableBody(HttpServletResponse response) {
-        return buildProblem(HttpStatus.BAD_REQUEST, "Malformed or unreadable request body", "Bad Request", response);
+        return buildProblem(HttpStatus.BAD_REQUEST, "Malformed or unreadable request body", BAD_REQUEST_TITLE, response);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletResponse response) {
         return buildProblem(HttpStatus.BAD_REQUEST,
-                "Invalid value for parameter '" + ex.getName() + "'", "Bad Request", response);
+                "Invalid value for parameter '" + ex.getName() + "'", BAD_REQUEST_TITLE, response);
     }
 
     @ExceptionHandler(NotFoundException.class)
     public ProblemDetail handleNotFound(NotFoundException ex, HttpServletResponse response) {
-        return buildProblem(HttpStatus.NOT_FOUND, ex.getMessage(), "Not Found", response);
+        return buildProblem(HttpStatus.NOT_FOUND, ex.getMessage(), NOT_FOUND_TITLE, response);
     }
 
     @ExceptionHandler(ForbiddenException.class)
@@ -93,7 +97,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(NoResourceFoundException.class)
     public ProblemDetail handleNoResourceFound(HttpServletResponse response) {
-        return buildProblem(HttpStatus.NOT_FOUND, "The requested resource was not found.", "Not Found", response);
+        return buildProblem(HttpStatus.NOT_FOUND, "The requested resource was not found.", NOT_FOUND_TITLE, response);
     }
 
     @ExceptionHandler(IllegalStateException.class)
