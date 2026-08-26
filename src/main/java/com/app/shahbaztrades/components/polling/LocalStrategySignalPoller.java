@@ -47,7 +47,7 @@ public class LocalStrategySignalPoller implements SignalPoller {
 
     @Override
     public void poll(String strategyName) {
-        log.info("Target match at time {} ! Fetching manual signals for {}", LocalTime.now(), strategyName);
+        log.info("Target match at time {} ! Fetching manual signals for {}", LocalTime.now(DateUtil.IST_ZONE), strategyName);
 
         try {
             var tokens = strategyRegistry.getTokensForStrategy(strategyName);
