@@ -3,6 +3,7 @@ package com.app.shahbaztrades.components.polling;
 import com.app.shahbaztrades.model.dto.chartink.ChartInkSignalEvent;
 import com.app.shahbaztrades.model.enums.PollerType;
 import com.app.shahbaztrades.service.ChartInkService;
+import com.app.shahbaztrades.util.DateUtil;
 import com.app.shahbaztrades.util.MarketSlots;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +39,7 @@ public class ChartInkSignalPoller implements SignalPoller {
 
     @Override
     public void poll(String strategyName) {
-        log.info("Target match at time {} ! Fetching signals...", LocalTime.now());
+        log.info("Target match at time {} ! Fetching signals...", LocalTime.now(DateUtil.IST_ZONE));
 
         try {
             var signals = chartInkService.fetchTodayBacktestDataWithMargin(strategyName);

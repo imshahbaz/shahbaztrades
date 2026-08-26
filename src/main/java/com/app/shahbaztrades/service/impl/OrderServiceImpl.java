@@ -14,6 +14,7 @@ import com.app.shahbaztrades.validator.OrderValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -58,7 +59,11 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public List<OrderDto> getOrdersByUserId(long userId) {
-        Query query = Query.query(Criteria.where(Order.Fields.userId).is(userId));
+        var today = DateUtil.getTodayDate();
+        var startOfIstDay = today.atStartOfDay(DateUtil.IST_ZONE).toInstant();
+        Query query = Query.query(Criteria.where(Order.Fields.userId).is(userId)
+                .and(Order.Fields.date).gte(startOfIstDay));
+        query.with(Sort.by(Order.Fields.date).descending());
         return mongoTemplate.find(query, Order.class).stream().map(Order::toDto).toList();
     }
 
@@ -94,7 +99,9 @@ public class OrderServiceImpl implements OrderService {
         return mongoTemplate.find(ordersOn(DateUtil.getTodayDate()), Order.class);
     }
 
-    /** Resolves the symbol's margin onto the order, then runs every rule that must hold before saving. */
+    /**
+     * Resolves the symbol's margin onto the order, then runs every rule that must hold before saving.
+     */
     private Order validated(OrderDto orderDto) {
         var margin = marginService.getMarginCache().get(orderDto.getSymbol().toUpperCase());
         if (margin == null) {
@@ -108,7 +115,9 @@ public class OrderServiceImpl implements OrderService {
         return entity;
     }
 
-    /** Orders are stored as instants, so an IST calendar day is a half-open instant range. */
+    /**
+     * Orders are stored as instants, so an IST calendar day is a half-open instant range.
+     */
     private Query ordersOn(LocalDate date) {
         Instant startOfIstDay = date.atStartOfDay(DateUtil.IST_ZONE).toInstant();
         Instant endOfIstDay = date.plusDays(1).atStartOfDay(DateUtil.IST_ZONE).toInstant();
