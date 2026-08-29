@@ -73,8 +73,11 @@ public class StrategyOrderServiceImpl implements StrategyOrderService {
 
     @Override
     public List<StrategyOrderDto> getOrdersByUserId(long userId) {
-        Query query = new Query(Criteria.where(StrategyOrder.Fields.userId).is(userId));
-        query.with(Sort.by(Sort.Direction.DESC, StrategyOrder.Fields.date));
+        var today = DateUtil.getTodayDate();
+        var startOfIstDay = today.atStartOfDay(DateUtil.IST_ZONE).toInstant();
+        Query query = Query.query(Criteria.where(StrategyOrder.Fields.userId).is(userId)
+                .and(StrategyOrder.Fields.date).gte(startOfIstDay));
+        query.with(Sort.by(StrategyOrder.Fields.date).descending());
         var orders = mongoTemplate.find(query, StrategyOrder.class);
         return orders.stream().map(StrategyOrder::toDto).toList();
     }

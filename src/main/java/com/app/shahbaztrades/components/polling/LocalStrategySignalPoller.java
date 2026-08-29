@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 public class LocalStrategySignalPoller implements SignalPoller {
 
     private static final Set<LocalTime> SLOTS =
-            MarketSlots.every(LocalTime.of(9, 15), LocalTime.of(15, 0), Duration.ofMinutes(15));
+            MarketSlots.every(LocalTime.of(9, 30), LocalTime.of(15, 0), Duration.ofMinutes(15));
     /** Lets the closing tick land in the series before it is read. */
     private static final long BAR_SETTLE_SECONDS = 1;
     private static final int BAR_MINUTES = 15;
@@ -47,7 +47,7 @@ public class LocalStrategySignalPoller implements SignalPoller {
 
     @Override
     public void poll(String strategyName) {
-        log.info("Target match at time {} ! Fetching manual signals for {}", LocalTime.now(), strategyName);
+        log.info("Target match at time {} ! Fetching manual signals for {}", LocalTime.now(DateUtil.IST_ZONE), strategyName);
 
         try {
             var tokens = strategyRegistry.getTokensForStrategy(strategyName);

@@ -3,23 +3,14 @@ package com.app.shahbaztrades.service.impl;
 import com.app.shahbaztrades.components.sessionmanager.SessionManagerClient;
 import com.app.shahbaztrades.components.zerodha.ZerodhaAutoLoginLock;
 import com.app.shahbaztrades.components.zerodha.ZerodhaClientFactory;
-import com.app.shahbaztrades.components.zerodha.ZerodhaTokenStore;
 import com.app.shahbaztrades.exceptions.BadRequestException;
-import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
-import com.app.shahbaztrades.exceptions.UnauthorizedException;
-import com.app.shahbaztrades.model.dto.UserDto;
-import com.app.shahbaztrades.model.dto.zerodha.BrokerLoginDto;
 import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginRequestDTO;
 import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginResponseDTO;
 import com.app.shahbaztrades.model.entity.User;
 import com.app.shahbaztrades.service.UserService;
 import com.app.shahbaztrades.service.ZerodhaService;
-import com.app.shahbaztrades.util.Constants;
-import com.mongodb.client.result.UpdateResult;
-import com.zerodhatech.kiteconnect.KiteConnect;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,18 +20,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
-import java.time.Duration;
+
 import java.util.List;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -50,9 +33,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import com.app.shahbaztrades.components.zerodha.ZerodhaAutoLoginLock;
-import com.app.shahbaztrades.components.zerodha.ZerodhaClientFactory;
-import com.app.shahbaztrades.service.ZerodhaService;
+
 import org.springframework.core.task.support.TaskExecutorAdapter;
 
 /** Unattended Zerodha login, split out of ZerodhaServiceImplTest alongside the production split. */
@@ -75,8 +56,6 @@ class ZerodhaAutoLoginServiceImplTest {
     private ApplicationEventPublisher applicationEventPublisher;
 
     private ZerodhaAutoLoginServiceImpl service;
-
-    private static final UserDto USER_DTO = UserDto.builder().userId(7L).build();
 
     @BeforeEach
     void setUp() {

@@ -111,7 +111,11 @@ public class TickAggregator {
         ZonedDateTime tickTimeIST = tick.arrivalTime();
         // Pre-open ticks belong to no bar; folding them in would corrupt the 9:15 open.
         if (tickTimeIST.getHour() == MARKET_OPEN.getHour() && tickTimeIST.getMinute() < MARKET_OPEN.getMinute()) {
-            return;
+            if (tickTimeIST.getMinute() >= 14) {
+                tickTimeIST = tickTimeIST.plusMinutes(1);
+            } else {
+                return;
+            }
         }
 
         barSeriesStore.applyTick(token, tick.price(), computeBarEndTime(tickTimeIST));
