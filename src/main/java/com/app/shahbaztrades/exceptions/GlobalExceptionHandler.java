@@ -63,7 +63,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HandlerMethodValidationException.class)
     public ProblemDetail handleParamValidation(HandlerMethodValidationException ex, HttpServletResponse response) {
         return buildProblem(HttpStatus.BAD_REQUEST,
-                ex.getReason() == null ? "Invalid request parameters" : ex.getReason(), "Validation Failed", response);
+                ex.getReason() == null ? "Invalid request parameters" : ex.getReason(), VALIDATION_FAILED_TITLE, response);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
