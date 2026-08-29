@@ -16,7 +16,7 @@ import java.time.ZonedDateTime;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class OrderValidator {
 
-    private static final BigDecimal lowerBound = new BigDecimal("0.4");
+    private static final BigDecimal lowerBound = new BigDecimal("0.19");
     private static final BigDecimal upperBound = new BigDecimal(20);
 
     public static void validateOrderDate(LocalDate orderDate) {
