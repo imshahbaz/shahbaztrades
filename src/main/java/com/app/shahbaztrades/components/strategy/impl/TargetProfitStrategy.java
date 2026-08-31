@@ -1,6 +1,6 @@
 package com.app.shahbaztrades.components.strategy.impl;
 
-import com.app.shahbaztrades.util.PriceUtil;
+import com.app.shahbaztrades.components.trading.TargetPricePolicy;
 import com.app.shahbaztrades.components.analysis.TechnicalMetricsProvider;
 import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
 import com.app.shahbaztrades.components.strategy.AbstractDailyTradingStrategy;
@@ -14,20 +14,18 @@ import com.zerodhatech.kiteconnect.utils.Constants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-
 @Slf4j
 @Component
 public class TargetProfitStrategy extends AbstractDailyTradingStrategy {
 
     private static final String NAME = "TARGET PROFIT";
-    private static final BigDecimal ONE_HUNDRED = new BigDecimal(100);
+    private final TargetPricePolicy targetPricePolicy;
 
-    protected TargetProfitStrategy(OrderProgressRepository orderProgressRepository, TradeNotifier tradeNotifier,
-                                   OrderRouterFactory orderRouterFactory, MarketFeed marketFeed,
-                                   TechnicalMetricsProvider technicalMetricsProvider) {
+    public TargetProfitStrategy(OrderProgressRepository orderProgressRepository, TradeNotifier tradeNotifier,
+                                OrderRouterFactory orderRouterFactory, MarketFeed marketFeed,
+                                TechnicalMetricsProvider technicalMetricsProvider, TargetPricePolicy targetPricePolicy) {
         super(orderProgressRepository, tradeNotifier, orderRouterFactory, marketFeed, technicalMetricsProvider);
+        this.targetPricePolicy = targetPricePolicy;
     }
 
     @Override
@@ -43,10 +41,7 @@ public class TargetProfitStrategy extends AbstractDailyTradingStrategy {
         }
 
         try {
-            var entryPrice = order.getEntry().getAveragePrice();
-            var targetPercentage = ONE_HUNDRED.add(order.getTargetPercentage()).divide(ONE_HUNDRED, 2, RoundingMode.HALF_UP);
-            var target = entryPrice.multiply(targetPercentage);
-            var targetPrice = PriceUtil.fixToTick(target.doubleValue());
+            var targetPrice = targetPricePolicy.targetForDailyTrading(order.getTargetPercentage(),order.getEntry().getAveragePrice());
             var orderRouter = orderRouterFactory.getRouter(order.getBroker());
             var req = TradeOrderRequest.builder().symbol(order.getSymbol()).quantity(order.getQuantity()).price(targetPrice)
                     .transactionType(Constants.TRANSACTION_TYPE_SELL).orderType(Constants.ORDER_TYPE_LIMIT).build();

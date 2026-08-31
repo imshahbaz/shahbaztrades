@@ -4,10 +4,10 @@ import com.app.shahbaztrades.components.observer.TradeWatchdog;
 import com.app.shahbaztrades.components.orderrouting.OrderRouterFactory;
 import com.app.shahbaztrades.components.orderrouting.OrderRoutingStrategy;
 import com.app.shahbaztrades.components.analysis.TechnicalMetricsProvider;
+import com.app.shahbaztrades.components.trading.TargetPricePolicy;
 import com.app.shahbaztrades.components.trading.TradeNotifier;
 import com.app.shahbaztrades.repo.OrderProgressRepository;
 import com.app.shahbaztrades.model.dto.analysis.TechnicalMetrics;
-import com.app.shahbaztrades.model.dto.fcm.NotificationRequest;
 import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
 import com.app.shahbaztrades.model.dto.order.ActiveMtfTrade;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
@@ -78,7 +78,7 @@ class DailyTradingStrategyTest {
     @BeforeEach
     void setUp() {
         targetProfit = new TargetProfitStrategy(orderProgressRepository, tradeNotifier,
-                orderRouterFactory, marketFeed, technicalMetricsProvider);
+                orderRouterFactory, marketFeed, technicalMetricsProvider,new TargetPricePolicy());
         trailingProfit = new TrailingProfitStrategy(orderProgressRepository, tradeNotifier,
                 orderRouterFactory, marketFeed, technicalMetricsProvider, tradeWatchdog);
         lenient().when(orderRouterFactory.getRouter(BrokerType.ZERODHA)).thenReturn(orderRouter);
