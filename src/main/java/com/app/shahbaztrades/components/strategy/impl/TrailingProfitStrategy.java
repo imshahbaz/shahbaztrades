@@ -21,7 +21,7 @@ public class TrailingProfitStrategy extends AbstractDailyTradingStrategy {
 
     private final TradeWatchdog tradeWatchdog;
 
-    protected TrailingProfitStrategy(OrderProgressRepository orderProgressRepository, TradeNotifier tradeNotifier,
+    public TrailingProfitStrategy(OrderProgressRepository orderProgressRepository, TradeNotifier tradeNotifier,
                                      OrderRouterFactory orderRouterFactory, MarketFeed marketFeed,
                                      TechnicalMetricsProvider technicalMetricsProvider, TradeWatchdog tradeWatchdog) {
         super(orderProgressRepository, tradeNotifier, orderRouterFactory, marketFeed, technicalMetricsProvider);

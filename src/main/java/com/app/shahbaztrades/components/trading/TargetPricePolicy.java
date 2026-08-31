@@ -19,6 +19,7 @@ public class TargetPricePolicy {
     private static final BigDecimal FIXED_BROKERAGE_WITH_GST = new BigDecimal("47.2");
     private static final BigDecimal TARGET_PERCENTAGE = new BigDecimal("0.007");
     private static final int PER_SHARE_SCALE = 6;
+    private static final BigDecimal ONE_HUNDRED = new BigDecimal(100);
 
     /**
      * @param capitalDeployed the order's capital, which the target percentage is taken against
@@ -32,5 +33,10 @@ public class TargetPricePolicy {
         var fixedBurdenPerShare = totalFixedBurden.divide(BigDecimal.valueOf(quantity), PER_SHARE_SCALE, RoundingMode.HALF_UP);
         var target = entryPrice.add(taxPerShare).add(fixedBurdenPerShare);
         return PriceUtil.fixToTick(target.doubleValue());
+    }
+
+    public double targetForDailyTrading(BigDecimal targetPercentage, BigDecimal entryPrice) {
+        var totalTargetPercentage = ONE_HUNDRED.add(targetPercentage);
+        return PriceUtil.fixToTick(entryPrice.multiply(totalTargetPercentage.divide(ONE_HUNDRED, PER_SHARE_SCALE, RoundingMode.HALF_UP)).doubleValue());
     }
 }
