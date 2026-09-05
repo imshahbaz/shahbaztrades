@@ -1,7 +1,7 @@
 package com.app.shahbaztrades.service.impl;
 
 import com.app.shahbaztrades.components.yahoo.YahooClient;
-import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import com.app.shahbaztrades.service.NseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,7 +15,7 @@ public class NseServiceImpl implements NseService {
     private final YahooClient yahooClient;
 
     @Override
-    public List<NSEHistoricalData> getHistoricalData(String symbol) {
+    public List<Candle> getHistoricalData(String symbol) {
         return yahooClient.getMonthlyHistoricalData(symbol);
     }
 }

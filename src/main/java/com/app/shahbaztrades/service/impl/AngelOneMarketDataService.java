@@ -6,6 +6,7 @@ import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpDto;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import com.app.shahbaztrades.model.entity.redis.AngelOneHistoricalDataRedis;
 import com.app.shahbaztrades.model.enums.ExchangeType;
 import com.app.shahbaztrades.repo.redis.AngelOneHistoricalDataRedisRepo;
@@ -71,7 +72,7 @@ public class AngelOneMarketDataService implements MarketDataQuery {
     }
 
     @Override
-    public Map<LocalDate, SmartApiLtpResponse.CandleDetail> getHistoricalData(String token, String symbol) {
+    public Map<LocalDate, Candle> getHistoricalData(String token, String symbol) {
         var cached = angelOneHistoricalDataRedisRepo.findById(symbol);
         if (cached.isPresent() && !CollectionUtils.isEmpty(cached.get().getDailyHistoricalData())) {
             return byDate(cached.get().getDailyHistoricalData());
@@ -91,7 +92,7 @@ public class AngelOneMarketDataService implements MarketDataQuery {
     }
 
     @Override
-    public List<SmartApiLtpResponse.CandleDetail> getFifteenMinuteCandles(String token, String symbol) {
+    public List<Candle> getFifteenMinuteCandles(String token, String symbol) {
         var cached = angelOneHistoricalDataRedisRepo.findById(symbol);
         if (cached.isPresent() && !CollectionUtils.isEmpty(cached.get().getFifteenMinuteHistoricalData())) {
             return cached.get().getFifteenMinuteHistoricalData();
@@ -116,10 +117,10 @@ public class AngelOneMarketDataService implements MarketDataQuery {
      *
      * @return the candles, or null when the broker returned nothing.
      */
-    private List<SmartApiLtpResponse.CandleDetail> fetchAndCache(
+    private List<Candle> fetchAndCache(
             String token, String symbol, String interval, String fromDate, String toDate,
             Optional<AngelOneHistoricalDataRedis> existing,
-            BiConsumer<AngelOneHistoricalDataRedis, List<SmartApiLtpResponse.CandleDetail>> assign) {
+            BiConsumer<AngelOneHistoricalDataRedis, List<Candle>> assign) {
 
         var request = HistoricalDataRequest.builder()
                 .exchange(ExchangeType.NSE.name())
@@ -145,7 +146,7 @@ public class AngelOneMarketDataService implements MarketDataQuery {
         return candles;
     }
 
-    private Map<LocalDate, SmartApiLtpResponse.CandleDetail> byDate(List<SmartApiLtpResponse.CandleDetail> candles) {
+    private Map<LocalDate, Candle> byDate(List<Candle> candles) {
         return candles.stream().collect(Collectors.toMap(
                 candle -> candle.timestamp().toLocalDate(),
                 candle -> candle

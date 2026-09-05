@@ -1,12 +1,12 @@
 package com.app.shahbaztrades.controller;
 
 import com.app.shahbaztrades.components.marketdata.BarSeriesStore;
+import com.app.shahbaztrades.components.strategy.StrategyRegistry;
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.ApiResponse;
-import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import com.app.shahbaztrades.service.MarginService;
-import com.app.shahbaztrades.components.strategy.StrategyRegistry;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,14 +28,14 @@ public class MarketDataController {
 
     @PublicEndpoint
     @GetMapping("/bar-series/{symbol}")
-    private ResponseEntity<ApiResponse<List<SmartApiLtpResponse.CandleDetail>>> getBarSeries(@PathVariable @NotBlank String symbol) {
+    private ResponseEntity<ApiResponse<List<Candle>>> getBarSeries(@PathVariable @NotBlank String symbol) {
         var margin = marginService.getMargin(symbol);
         if (strategyRegistry.getTokenSymbolMap().get(margin.getToken()) == null) {
             throw new NotFoundException("Bar Series Not Found");
         }
 
         var response = barSeriesStore.snapshot(margin.getToken()).getBarData().stream()
-                .map(bar -> SmartApiLtpResponse.CandleDetail.builder().timestamp(bar.getSystemZonedBeginTime())
+                .map(bar -> Candle.builder().timestamp(bar.getSystemZonedBeginTime())
                         .open(bar.getOpenPrice().doubleValue())
                         .high(bar.getHighPrice().doubleValue())
                         .low(bar.getLowPrice().doubleValue())

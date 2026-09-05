@@ -1,6 +1,7 @@
 package com.app.shahbaztrades.model.dto.angelone;
 
 import com.app.shahbaztrades.exceptions.NotFoundException;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.util.CollectionUtils;
@@ -17,12 +18,12 @@ public record SmartApiLtpResponse<T>(
         String errorcode,
         T data
 ) {
-    private CandleDetail mapCandleDetail(List<Object> candle) {
+    private Candle mapCandle(List<Object> candle) {
         if (CollectionUtils.isEmpty(candle)) {
             return null;
         }
 
-        return CandleDetail.builder()
+        return Candle.builder()
                 .timestamp(ZonedDateTime.parse((String) candle.getFirst()))
                 .open((Double) candle.get(1))
                 .high((Double) candle.get(2))
@@ -35,14 +36,14 @@ public record SmartApiLtpResponse<T>(
         return status != null && status && data != null;
     }
 
-    public List<CandleDetail> getHistoricalCandles() {
+    public List<Candle> getHistoricalCandles() {
         if (!isSuccess()) {
             throw new NotFoundException("Historical data not found");
         }
 
-        var list = new ArrayList<CandleDetail>();
+        var list = new ArrayList<Candle>();
         for (var candle : (List<List<Object>>) data) {
-            var detail = mapCandleDetail(candle);
+            var detail = mapCandle(candle);
             if (detail != null) {
                 list.add(detail);
             }
@@ -74,16 +75,6 @@ public record SmartApiLtpResponse<T>(
         Double high;
         Double low;
         Double close;
-    }
-
-    @Builder
-    public record CandleDetail(
-            ZonedDateTime timestamp,
-            double open,
-            double high,
-            double low,
-            double close
-    ) {
     }
 
 }

@@ -102,7 +102,7 @@ class GenAiAnalysisServiceImplTest {
         when(genAiRedisRepo.getLock("TCS")).thenReturn(lock);
         when(lock.tryLock(20, -1, TimeUnit.SECONDS)).thenReturn(true);
         when(yahooClient.getMonthlyHistoricalData("TCS")).thenReturn(List.of(
-                com.app.shahbaztrades.model.dto.nse.NSEHistoricalData.builder().symbol("TCS").close(3200).build()));
+                com.app.shahbaztrades.model.dto.market.Candle.builder().close(3200).build()));
         stubGeminiKey();
         when(genAiClient.getGenAiStockAnalysis(eq("TCS"), anyList(), eq("gemini-key")))
                 .thenReturn("{\"action\":\"BUY\",\"confidence\":80,\"trend\":\"Bullish\"}");
@@ -131,7 +131,7 @@ class GenAiAnalysisServiceImplTest {
         when(genAiRedisRepo.getLock("TCS")).thenReturn(lock);
         when(lock.tryLock(20, -1, TimeUnit.SECONDS)).thenReturn(true);
         when(yahooClient.getMonthlyHistoricalData("TCS")).thenReturn(List.of(
-                com.app.shahbaztrades.model.dto.nse.NSEHistoricalData.builder().symbol("TCS").close(3200).build()));
+                com.app.shahbaztrades.model.dto.market.Candle.builder().close(3200).build()));
         stubGeminiKey();
         when(genAiClient.getGenAiStockAnalysis(anyString(), anyList(), anyString())).thenReturn("");
 
@@ -153,7 +153,7 @@ class GenAiAnalysisServiceImplTest {
         when(genAiRedisRepo.getLock("TCS")).thenReturn(lock);
         when(lock.tryLock(20, -1, TimeUnit.SECONDS)).thenReturn(true);
         when(yahooClient.getMonthlyHistoricalData("TCS")).thenReturn(List.of(
-                com.app.shahbaztrades.model.dto.nse.NSEHistoricalData.builder().symbol("TCS").close(3200).build()));
+                com.app.shahbaztrades.model.dto.market.Candle.builder().close(3200).build()));
         stubGeminiKey();
         when(genAiClient.getGenAiStockAnalysis(anyString(), anyList(), anyString())).thenReturn("not json");
 

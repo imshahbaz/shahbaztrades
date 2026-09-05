@@ -6,6 +6,7 @@ import com.app.shahbaztrades.exceptions.NotFoundException;
 import com.app.shahbaztrades.model.dto.angelone.HistoricalDataRequest;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpDto;
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import com.app.shahbaztrades.model.entity.redis.AngelOneHistoricalDataRedis;
 import com.app.shahbaztrades.repo.redis.AngelOneHistoricalDataRedisRepo;
 import com.app.shahbaztrades.repo.redis.MarketTickerRedisRepo;
@@ -120,7 +121,7 @@ class AngelOneMarketDataServiceTest {
 
     @Test
     void getHistoricalData_servesTheRedisHashKeyedByDate() {
-        var candle = SmartApiLtpResponse.CandleDetail.builder()
+        var candle = Candle.builder()
                 .timestamp(ZonedDateTime.parse("2026-08-14T09:15:00+05:30"))
                 .open(100).high(105).low(99).close(104).build();
         when(angelOneHistoricalDataRedisRepo.findById("TCS")).thenReturn(Optional.of(

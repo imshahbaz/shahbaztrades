@@ -10,7 +10,7 @@ import com.app.shahbaztrades.exceptions.ResourceAlreadyExistsException;
 import com.app.shahbaztrades.model.dto.UserDto;
 import com.app.shahbaztrades.model.dto.kronos.BulkPredictionRequestDto;
 import com.app.shahbaztrades.model.dto.kronos.PredictionItemDto;
-import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import com.app.shahbaztrades.model.entity.DatabaseCounter;
 import com.app.shahbaztrades.model.entity.KronosPredictions;
 import com.app.shahbaztrades.model.entity.User;
@@ -62,7 +62,7 @@ class MiscServiceImplTest {
 
         @Test
         void getHistoricalData_delegatesStraightToYahoo() {
-            var data = List.of(NSEHistoricalData.builder().symbol("TCS").close(3200).build());
+            var data = List.of(Candle.builder().close(3200).build());
             when(yahooClient.getMonthlyHistoricalData("TCS")).thenReturn(data);
 
             assertSame(data, service.getHistoricalData("TCS"));
@@ -154,7 +154,7 @@ class MiscServiceImplTest {
                                             .low(BigDecimal.ZERO).close(BigDecimal.ONE).build())))
                             .build()));
             when(nseService.getHistoricalData("TCS"))
-                    .thenReturn(List.of(NSEHistoricalData.builder().symbol("TCS").close(3200).build()));
+                    .thenReturn(List.of(Candle.builder().close(3200).build()));
 
             var response = service.getPredictions("TCS");
 

@@ -1,6 +1,6 @@
 package com.app.shahbaztrades.util;
 
-import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -14,17 +14,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TechnicalAnalysisUtilTest {
 
     /** Builds n daily candles with a constant true range of {@code range} around {@code base}. */
-    private List<NSEHistoricalData> series(int n, double base, double range) {
-        List<NSEHistoricalData> data = new ArrayList<>(n);
+    private List<Candle> series(int n, double base, double range) {
+        List<Candle> data = new ArrayList<>(n);
         LocalDate day = LocalDate.of(2026, 1, 1);
         for (int i = 0; i < n; i++) {
-            data.add(NSEHistoricalData.builder()
-                    .symbol("TEST")
+            data.add(Candle.builder()
                     .open(base)
                     .high(base + range / 2)
                     .low(base - range / 2)
                     .close(base)
-                    .timestamp(DateUtil.NSE_INPUT_LAYOUT.format(day.plusDays(i)))
+                    .timestamp(day.plusDays(i).atStartOfDay(DateUtil.IST_ZONE))
                     .build());
         }
         return data;
