@@ -24,7 +24,6 @@ spring:
     session-manager:
       url: ${SESSION_MANAGER_URI}
 
-  # Bound every broker/HTTP Feign call so a slow upstream can't hang a (virtual) thread forever.
   cloud:
     openfeign:
       compression:
@@ -42,13 +41,7 @@ spring:
 server:
   address: 0.0.0.0
   port: ${PORT:8080}
-  jetty:
-    threads:
-      min: 32
-      max: 200
-      idle-timeout: 60000
 
-# Expose a lightweight health endpoint for readiness/liveness probes and deploy gating.
 management:
   endpoints:
     web:
@@ -59,3 +52,8 @@ management:
       probes:
         enabled: true
       show-details: never
+
+logging:
+  level:
+    org.apache.coyote.http11.Http11Processor: WARN
+    org.springframework.web.servlet.resource.ResourceHandlerUtils: ERROR
