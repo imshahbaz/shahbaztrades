@@ -7,7 +7,7 @@ import com.app.shahbaztrades.model.dto.auth.AuthCallbackResponse;
 import com.app.shahbaztrades.model.dto.brevo.BrevoEmailRequest;
 import com.app.shahbaztrades.model.dto.kronos.KronosPredictionResponse;
 import com.app.shahbaztrades.model.dto.kronos.PredictionItemDto;
-import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import com.app.shahbaztrades.model.dto.order.StrategyOrderDto;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
 import com.app.shahbaztrades.model.dto.strategy.TargetStockResult;
@@ -150,10 +150,11 @@ class DtoMappingTest {
                 .build();
 
         var response = KronosPredictionResponse.fromKronosPrediction(predictions,
-                List.of(NSEHistoricalData.builder().symbol("TCS").close(3200).build()));
+                List.of(Candle.builder().close(3200).build()));
 
         assertEquals(List.of("16-Aug-2026", "17-Aug-2026", "18-Aug-2026"),
-                response.getPredictions().stream().map(NSEHistoricalData::getTimestamp).toList());
+                response.getPredictions().stream()
+                        .map(c -> DateUtil.NSE_INPUT_LAYOUT.format(c.timestamp())).toList());
         assertEquals("TCS", response.getSymbol());
         assertEquals(1, response.getHistoricalData().size());
     }

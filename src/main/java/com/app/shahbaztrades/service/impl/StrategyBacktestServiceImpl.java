@@ -1,6 +1,6 @@
 package com.app.shahbaztrades.service.impl;
 
-import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
 import com.app.shahbaztrades.model.entity.Margin;
 import com.app.shahbaztrades.model.entity.Strategy;
@@ -48,7 +48,7 @@ public class StrategyBacktestServiceImpl implements StrategyBacktestService {
         }
 
         // Shared across strategies: the same symbol is often signalled by several of them.
-        Map<String, Map<LocalDate, SmartApiLtpResponse.CandleDetail>> historicalData = new HashMap<>();
+        Map<String, Map<LocalDate, Candle>> historicalData = new HashMap<>();
         var stopDate = DateUtil.getTodayDate().minusDays(LOOKBACK_DAYS);
 
         for (var strategy : activeStrategies) {
@@ -60,7 +60,7 @@ public class StrategyBacktestServiceImpl implements StrategyBacktestService {
 
     private void processStrategyBacktest(
             StrategyDto strategy,
-            Map<String, Map<LocalDate, SmartApiLtpResponse.CandleDetail>> historicalData,
+            Map<String, Map<LocalDate, Candle>> historicalData,
             LocalDate stopDate) {
         var backtestResults = chartInkService.fetchBacktestDataWithMargin(strategy.getName());
         if (CollectionUtils.isEmpty(backtestResults)) {
@@ -95,7 +95,7 @@ public class StrategyBacktestServiceImpl implements StrategyBacktestService {
     private void evaluateTrade(
             Margin trade,
             LocalDate tradeDate,
-            Map<String, Map<LocalDate, SmartApiLtpResponse.CandleDetail>> historicalData,
+            Map<String, Map<LocalDate, Candle>> historicalData,
             TradeStats stats) {
         var symbol = trade.getSymbol();
         var stockHistory = getOrFetchHistoricalData(symbol, trade.getToken(), historicalData);
@@ -115,16 +115,16 @@ public class StrategyBacktestServiceImpl implements StrategyBacktestService {
     }
 
     /** Caches the miss as well, so a symbol with no history is not fetched once per signal. */
-    private Map<LocalDate, SmartApiLtpResponse.CandleDetail> getOrFetchHistoricalData(
+    private Map<LocalDate, Candle> getOrFetchHistoricalData(
             String symbol,
             String token,
-            Map<String, Map<LocalDate, SmartApiLtpResponse.CandleDetail>> historicalData) {
+            Map<String, Map<LocalDate, Candle>> historicalData) {
         if (historicalData.containsKey(symbol)) {
             return historicalData.get(symbol);
         }
 
         try {
-            Map<LocalDate, SmartApiLtpResponse.CandleDetail> stockHistory =
+            Map<LocalDate, Candle> stockHistory =
                     marketDataQuery.getHistoricalData(token, symbol);
             historicalData.put(symbol, stockHistory != null ? stockHistory : Collections.emptyMap());
         } catch (Exception e) {

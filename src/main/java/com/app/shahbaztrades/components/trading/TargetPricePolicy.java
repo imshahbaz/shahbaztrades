@@ -17,7 +17,7 @@ public class TargetPricePolicy {
 
     private static final BigDecimal TAX_PER_SHARE = new BigDecimal("0.00035");
     private static final BigDecimal FIXED_BROKERAGE_WITH_GST = new BigDecimal("47.2");
-    private static final BigDecimal TARGET_PERCENTAGE = new BigDecimal("0.007");
+    private static final BigDecimal TARGET_PERCENTAGE = new BigDecimal("0.001");
     private static final int PER_SHARE_SCALE = 6;
     private static final BigDecimal ONE_HUNDRED = new BigDecimal(100);
 

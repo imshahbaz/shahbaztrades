@@ -1,6 +1,7 @@
 package com.app.shahbaztrades.service;
 
 import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
+import com.app.shahbaztrades.model.dto.market.Candle;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -11,8 +12,8 @@ public interface MarketDataQuery {
 
     SmartApiLtpResponse.MarketTicker getMarketTicker(String token);
 
-    Map<LocalDate, SmartApiLtpResponse.CandleDetail> getHistoricalData(String token, String symbol);
+    Map<LocalDate, Candle> getHistoricalData(String token, String symbol);
 
     /** Recent 15-minute candles used to seed a live bar series before the session starts. */
-    List<SmartApiLtpResponse.CandleDetail> getFifteenMinuteCandles(String token, String symbol);
+    List<Candle> getFifteenMinuteCandles(String token, String symbol);
 }

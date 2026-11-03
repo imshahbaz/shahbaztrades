@@ -1,6 +1,6 @@
 package com.app.shahbaztrades.model.entity.redis;
 
-import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.annotation.Id;
@@ -21,9 +21,9 @@ public class AngelOneHistoricalDataRedis {
     @Id
     String id;
 
-    List<SmartApiLtpResponse.CandleDetail> dailyHistoricalData;
+    List<Candle> dailyHistoricalData;
 
-    List<SmartApiLtpResponse.CandleDetail> fifteenMinuteHistoricalData;
+    List<Candle> fifteenMinuteHistoricalData;
 
     @TimeToLive(unit = TimeUnit.SECONDS)
     Long ttl;

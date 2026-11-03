@@ -1,6 +1,6 @@
 package com.app.shahbaztrades.components.analysis;
 
-import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import com.google.genai.Client;
 import com.google.genai.types.*;
 import lombok.extern.slf4j.Slf4j;
@@ -71,13 +71,13 @@ public class GenAiClient {
                 .build();
     }
 
-    public String getGenAiStockAnalysis(String symbol, List<NSEHistoricalData> data, String apiKey) {
+    public String getGenAiStockAnalysis(String symbol, List<Candle> data, String apiKey) {
         log.info("Invoking Gemini Quant Analysis engine for target ticker via SDK v1.57.0: {}", symbol);
 
         // 1. Convert historical candles list to custom delimited rows
         String dataRows = data.stream()
                 .map(d -> String.format("%s|%.2f|%.2f|%.2f|%.2f",
-                        d.getTimestamp(), d.getOpen(), d.getHigh(), d.getLow(), d.getClose()))
+                        d.timestamp().toLocalDate(), d.open(), d.high(), d.low(), d.close()))
                 .collect(Collectors.joining("\n"));
 
         // 2. Compose the structural operational prompt block

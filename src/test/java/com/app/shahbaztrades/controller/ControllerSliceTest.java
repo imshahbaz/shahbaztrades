@@ -15,7 +15,7 @@ import com.app.shahbaztrades.model.dto.chartink.StockMarginDto;
 import com.app.shahbaztrades.model.dto.holdings.HoldingDto;
 import com.app.shahbaztrades.model.dto.kronos.BulkPredictionRequestDto;
 import com.app.shahbaztrades.model.dto.kronos.KronosPredictionResponse;
-import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import com.app.shahbaztrades.model.dto.order.StrategyOrderDto;
 import com.app.shahbaztrades.model.dto.sessionmanager.ZerodhaLoginResponseDTO;
 import com.app.shahbaztrades.model.dto.strategy.StrategyDto;
@@ -427,7 +427,7 @@ class ControllerSliceTest {
         @Test
         void getNseHistory_delegatesWithTheSymbolParam() throws Exception {
             when(nseService.getHistoricalData("TCS"))
-                    .thenReturn(List.of(NSEHistoricalData.builder().symbol("TCS").close(3200).build()));
+                    .thenReturn(List.of(Candle.builder().close(3200).build()));
 
             mvc(new NseController(nseService)).perform(get("/api/nse/history").param("symbol", "TCS"))
                     .andExpect(status().isOk())
