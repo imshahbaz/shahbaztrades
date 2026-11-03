@@ -8,7 +8,7 @@ import com.app.shahbaztrades.components.trading.TargetPricePolicy;
 import com.app.shahbaztrades.components.trading.TradeNotifier;
 import com.app.shahbaztrades.repo.OrderProgressRepository;
 import com.app.shahbaztrades.model.dto.analysis.TechnicalMetrics;
-import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import com.app.shahbaztrades.model.dto.order.ActiveMtfTrade;
 import com.app.shahbaztrades.model.dto.order.TradeOrderRequest;
 import com.app.shahbaztrades.model.dto.order.TradeOrderResponse;
@@ -327,13 +327,13 @@ class DailyTradingStrategyTest {
         verify(tradeWatchdog, never()).watchMtfTrade(any(ActiveMtfTrade.class));
     }
 
-    private List<NSEHistoricalData> candles() {
-        List<NSEHistoricalData> data = new ArrayList<>();
+    private List<Candle> candles() {
+        List<Candle> data = new ArrayList<>();
         var day = DateUtil.getTodayDate().minusDays(40);
         for (int i = 0; i < 30; i++) {
-            data.add(NSEHistoricalData.builder().symbol("TCS")
+            data.add(Candle.builder()
                     .open(3200).high(3220).low(3180).close(3200)
-                    .timestamp(DateUtil.NSE_INPUT_LAYOUT.format(day.plusDays(i)))
+                    .timestamp(day.plusDays(i).atStartOfDay(DateUtil.IST_ZONE))
                     .build());
         }
         return data;

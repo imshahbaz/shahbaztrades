@@ -1,7 +1,7 @@
 package com.app.shahbaztrades.components.yahoo;
 
 import com.app.shahbaztrades.util.HttpUtil;
-import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import com.app.shahbaztrades.model.dto.yahoo.YahooChartResponse;
 import com.app.shahbaztrades.model.enums.YahooTimeRange;
 import com.app.shahbaztrades.repo.redis.YahooMonthlyHistoricalDataRepo;
@@ -26,9 +26,9 @@ public class YahooClient {
 
     private static final String BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
     private final RestClient restClient;
-    private final YahooMonthlyHistoricalDataRepo<List<NSEHistoricalData>> yahooMonthlyHistoricalDataRepo;
+    private final YahooMonthlyHistoricalDataRepo<List<Candle>> yahooMonthlyHistoricalDataRepo;
 
-    public YahooClient(YahooMonthlyHistoricalDataRepo<List<NSEHistoricalData>> yahooMonthlyHistoricalDataRepo) {
+    public YahooClient(YahooMonthlyHistoricalDataRepo<List<Candle>> yahooMonthlyHistoricalDataRepo) {
         this.yahooMonthlyHistoricalDataRepo = yahooMonthlyHistoricalDataRepo;
         this.restClient = RestClient.builder()
                 .baseUrl(BASE_URL)
@@ -38,8 +38,8 @@ public class YahooClient {
                 .build();
     }
 
-    public List<NSEHistoricalData> getMonthlyHistoricalData(String symbol) {
-        List<NSEHistoricalData> cached = yahooMonthlyHistoricalDataRepo.get(symbol);
+    public List<Candle> getMonthlyHistoricalData(String symbol) {
+        List<Candle> cached = yahooMonthlyHistoricalDataRepo.get(symbol);
         if (cached != null) {
             return cached;
         }
@@ -64,9 +64,9 @@ public class YahooClient {
         }
     }
 
-    private List<NSEHistoricalData> fetchAndCache(String symbol, String timeRange) {
+    private List<Candle> fetchAndCache(String symbol, String timeRange) {
         try {
-            List<NSEHistoricalData> cached = yahooMonthlyHistoricalDataRepo.get(symbol);
+            List<Candle> cached = yahooMonthlyHistoricalDataRepo.get(symbol);
             if (cached != null) {
                 return cached;
             }
@@ -84,7 +84,7 @@ public class YahooClient {
                                     log.error("Yahoo API Error: {} {}", resp.getStatusCode(), resp.getStatusText()))
                     .body(YahooChartResponse.class);
 
-            List<NSEHistoricalData> list = (response != null) ? parseResponse(symbol, response) : Collections.emptyList();
+            List<Candle> list = (response != null) ? parseResponse(response) : Collections.emptyList();
             if (!list.isEmpty()) {
                 Collections.reverse(list);
                 yahooMonthlyHistoricalDataRepo.set(symbol, list, DateUtil.getDurationUntilMarketOpen(Duration.ofMinutes(10)));
@@ -97,7 +97,7 @@ public class YahooClient {
         }
     }
 
-    private List<NSEHistoricalData> parseResponse(String symbol, YahooChartResponse response) {
+    private List<Candle> parseResponse(YahooChartResponse response) {
         if (response.getChart() == null || response.getChart().getResult() == null) {
             return Collections.emptyList();
         }
@@ -106,20 +106,19 @@ public class YahooClient {
         var timestamps = resultData.getTimestamp();
         var quote = resultData.getIndicators().getQuote().getFirst();
 
-        List<NSEHistoricalData> list = new ArrayList<>();
+        List<Candle> list = new ArrayList<>();
 
         for (int i = 0; i < timestamps.size(); i++) {
             Long vol = quote.getVolume().get(i);
             Double open = quote.getOpen().get(i);
 
             if (vol != null && vol > 0 && open != null && open != 0) {
-                list.add(NSEHistoricalData.builder()
-                        .symbol(symbol)
+                list.add(Candle.builder()
                         .open(round(open))
                         .high(round(quote.getHigh().get(i)))
                         .low(round(quote.getLow().get(i)))
                         .close(round(quote.getClose().get(i)))
-                        .timestamp(formatTimestamp(timestamps.get(i)))
+                        .timestamp(Instant.ofEpochSecond(timestamps.get(i)).atZone(DateUtil.IST_ZONE))
                         .build());
             }
         }
@@ -131,12 +130,6 @@ public class YahooClient {
     private double round(Double value) {
         return (value == null) ? 0.0 :
                 BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP).doubleValue();
-    }
-
-    private String formatTimestamp(Long unixTime) {
-        return Instant.ofEpochSecond(unixTime)
-                .atZone(DateUtil.IST_ZONE)
-                .format(DateUtil.NSE_INPUT_LAYOUT);
     }
 
 }

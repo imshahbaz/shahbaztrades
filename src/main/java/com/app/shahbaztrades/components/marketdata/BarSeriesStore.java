@@ -1,6 +1,6 @@
 package com.app.shahbaztrades.components.marketdata;
 
-import com.app.shahbaztrades.model.dto.angelone.SmartApiLtpResponse;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.ta4j.core.Bar;
@@ -46,7 +46,7 @@ public class BarSeriesStore {
     }
 
     /** Seeds a series from history. Candle timestamps are bar starts, so each end is one period later. */
-    public void appendHistory(String token, List<SmartApiLtpResponse.CandleDetail> candles) {
+    public void appendHistory(String token, List<Candle> candles) {
         BarSeries series = seriesFor(token);
         ReentrantLock lock = lockFor(token);
         lock.lock();

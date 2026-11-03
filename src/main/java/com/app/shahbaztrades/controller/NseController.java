@@ -2,7 +2,7 @@ package com.app.shahbaztrades.controller;
 
 import com.app.shahbaztrades.config.security.PublicEndpoint;
 import com.app.shahbaztrades.model.dto.ApiResponse;
-import com.app.shahbaztrades.model.dto.nse.NSEHistoricalData;
+import com.app.shahbaztrades.model.dto.market.Candle;
 import com.app.shahbaztrades.service.NseService;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +25,7 @@ public class NseController {
 
     @PublicEndpoint
     @GetMapping("/history")
-    public ResponseEntity<ApiResponse<List<NSEHistoricalData>>> getHistoricalData(@RequestParam @NotBlank String symbol) {
+    public ResponseEntity<ApiResponse<List<Candle>>> getHistoricalData(@RequestParam @NotBlank String symbol) {
         return ResponseEntity.ok(ApiResponse.ok(nseService.getHistoricalData(symbol), "Historical Data Fetched"));
     }
 
