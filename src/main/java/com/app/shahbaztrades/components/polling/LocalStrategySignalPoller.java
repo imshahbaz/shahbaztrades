@@ -6,6 +6,7 @@ import com.app.shahbaztrades.model.dto.chartink.ChartInkSignalEvent;
 import com.app.shahbaztrades.model.enums.PollerType;
 import com.app.shahbaztrades.components.strategy.StrategyRegistry;
 import com.app.shahbaztrades.util.DateUtil;
+import com.app.shahbaztrades.util.LoggingHelper;
 import com.app.shahbaztrades.util.MarketSlots;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -63,12 +64,13 @@ public class LocalStrategySignalPoller implements SignalPoller {
                 return;
             }
 
-            log.info("Complete manual signals list: {} for strategy: {}", signals, strategyName);
             // Stamped at the bar that just closed, matching how ChartInk timestamps its signals.
             eventPublisher.publishEvent(new ChartInkSignalEvent(strategyName, List.of(ChartInkBacktestMarginDto.builder()
                     .marketTime(DateUtil.getCurrentDateTime().minusMinutes(BAR_MINUTES))
                     .margins(signals)
                     .build())));
+
+            LoggingHelper.logSignalsTable(strategyName, signals);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.warn("Manual fetch interrupted", e);
