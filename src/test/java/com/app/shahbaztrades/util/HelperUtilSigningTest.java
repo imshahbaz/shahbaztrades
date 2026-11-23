@@ -82,12 +82,12 @@ class HelperUtilSigningTest {
 
     @Test
     void dynamicTargetPrice_coversBrokerageTaxAndTheCapitalTarget() {
-        // 10000 capital, entry 100, 100 shares.
-        // target on capital = 70, + 47.2 fixed = 117.2 -> 1.172/share
+        // 100000 capital, entry 4721.088, 93 shares.
+        // target on capital = 100, + 47.2 fixed = 147.2 -> 1.172/share
         // tax = 100 * 0.00035 = 0.035
         // raw target = 101.207 -> tick 0.01 -> 101.21
-        double target = new TargetPricePolicy().targetFor(new BigDecimal("10000"), new BigDecimal("100"), 100);
-        assertEquals(101.21, target, 1e-9);
+        double target = new TargetPricePolicy().targetFor(new BigDecimal("100000"), new BigDecimal("4721.088"), 93);
+        assertEquals(4724.4, target, 1e-9);
     }
 
     @Test

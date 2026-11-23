@@ -32,6 +32,6 @@ public final class PriceUtil {
         }
 
         BigDecimal exact = BigDecimal.valueOf(price);
-        return exact.divide(tick, 0, RoundingMode.HALF_UP).multiply(tick).doubleValue();
+        return exact.divide(tick, 0, RoundingMode.CEILING).multiply(tick).doubleValue();
     }
 }
